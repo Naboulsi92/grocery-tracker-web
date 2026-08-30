@@ -57,16 +57,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  if (!supabase) {
-    return (
-      <AuthContext.Provider value={{ user: null, session: null, loading: true, signIn: () => Promise.resolve({ error: new Error('Client not initialized') }), signUp: () => Promise.resolve({ error: new Error('Client not initialized') }), signOut: async () => {} }}>
-        {children}
-      </AuthContext.Provider>
-    );
-  }
+  const defaultContextValue: AuthContextType = {
+    user: null,
+    session: null,
+    loading: !supabase,
+    signIn: async () => ({ error: new Error('Client not initialized') }),
+    signUp: async () => ({ error: new Error('Client not initialized') }),
+    signOut: async () => {},
+  };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={supabase ? { user, session, loading, signIn, signUp, signOut } : defaultContextValue}>
       {children}
     </AuthContext.Provider>
   );

@@ -54,6 +54,17 @@ export default function ItemsPage() {
       return;
     }
     fetchData();
+
+    const channel = supabase
+      .channel('items')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, router, supabase]);
 
   async function fetchData() {

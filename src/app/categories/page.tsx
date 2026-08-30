@@ -35,6 +35,17 @@ export default function CategoriesPage() {
       return;
     }
     fetchCategories();
+
+    const channel = supabase
+      .channel('categories')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+        fetchCategories();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, router, supabase]);
 
   async function fetchCategories() {

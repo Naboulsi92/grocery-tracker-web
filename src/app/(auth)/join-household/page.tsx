@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/utils/supabase/client';
+import ThemeToggle from '@/components/ThemeToggle';
 
 interface Household {
   id: string;
@@ -110,63 +111,72 @@ export default function JoinHouseholdPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-center mb-6">Rejoindre ou créer un foyer</h1>
+    <div className="auth-container">
+      <ThemeToggle />
+      <div className="auth-card animate-fade-in">
+        <div className="auth-header">
+          <div className="auth-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+          </div>
+          <h1>Bienvenue !</h1>
+          <p className="text-muted">Créez ou rejoignez un foyer</p>
+        </div>
         
         {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">
+          <div className="auth-error">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
             {error}
           </div>
         )}
 
-        <div className="space-y-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div>
-            <h2 className="text-lg font-semibold mb-3">Créer un nouveau foyer</h2>
-            <form onSubmit={handleCreate} className="space-y-3">
+            <h2 style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 500 }}>Créer un nouveau foyer</h2>
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <input
                 type="text"
                 placeholder="Nom du foyer (optionnel)"
                 value={householdName}
                 onChange={(e) => setHouseholdName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                className="btn btn-primary"
+                style={{ background: 'var(--color-accent)' }}
               >
-                Créer mon foyer
+                {loading ? 'Création...' : 'Créer mon foyer'}
               </button>
             </form>
           </div>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">ou</span>
-            </div>
+          <div className="divider">
+            <span>ou</span>
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold mb-3">Rejoindre un foyer existant</h2>
-            <form onSubmit={handleJoin} className="space-y-3">
+            <h2 style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 500 }}>Rejoindre un foyer existant</h2>
+            <form onSubmit={handleJoin} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <input
                 type="text"
                 placeholder="Code du foyer"
                 value={householdCode}
                 onChange={(e) => setHouseholdCode(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                className="btn btn-primary"
               >
-                Rejoindre le foyer
+                {loading ? 'Connexion...' : 'Rejoindre le foyer'}
               </button>
             </form>
           </div>

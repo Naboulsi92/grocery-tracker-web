@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/utils/supabase/client';
+import ThemeToggle from '@/components/ThemeToggle';
 
 interface Category {
   id: string;
@@ -120,7 +121,7 @@ export default function CategoriesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Supprimer cette categorie ?')) return;
+    if (!confirm('Supprimer cette catégorie ?')) return;
 
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (error) {
@@ -147,87 +148,94 @@ export default function CategoriesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Chargement...</div>
+      <div className="page-container">
+        <ThemeToggle />
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Chargement...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Link href="/home" className="text-gray-600 hover:text-gray-900">
-              ← Retour
+    <div className="page-container">
+      <ThemeToggle />
+      <header className="app-header">
+        <div className="header-content">
+          <div className="header-brand">
+            <Link href="/home" className="back-link">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+              </svg>
             </Link>
-            <h1 className="text-xl font-bold text-gray-900">Categories</h1>
+            <h1>Catégories</h1>
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="btn btn-primary"
           >
-            + Nouvelle categorie
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nouvelle
           </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="app-main">
         {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">
+          <div className="auth-error" style={{ marginBottom: '1.5rem' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
             {error}
           </div>
         )}
 
         {showForm && (
-          <div className="mb-6 p-4 bg-white rounded-lg shadow">
-            <h2 className="text-lg font-semibold mb-4">
-              {editingId ? 'Modifier la categorie' : 'Nouvelle categorie'}
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <h2 style={{ marginBottom: '1.25rem', fontSize: '1.125rem' }}>
+              {editingId ? 'Modifier la catégorie' : 'Nouvelle catégorie'}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom
-                </label>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div className="form-group">
+                <label>Nom</label>
                 <input
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="Ex: Fruits & Legumes"
+                  placeholder="Ex: Fruits & Légumes"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Icone
-                </label>
-                <div className="flex flex-wrap gap-2">
+              <div className="form-group">
+                <label>Icône</label>
+                <div className="icon-picker">
                   {ICONS.map((icon) => (
                     <button
                       key={icon}
                       type="button"
                       onClick={() => setFormIcon(icon)}
-                      className={`text-2xl p-2 rounded-md ${
-                        formIcon === icon ? 'bg-blue-100 ring-2 ring-blue-500' : 'bg-gray-100'
-                      }`}
+                      className={`icon-option ${formIcon === icon ? 'selected' : ''}`}
                     >
                       {icon}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  {editingId ? 'Enregistrer' : 'Creer'}
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button type="submit" className="btn btn-primary">
+                  {editingId ? 'Enregistrer' : 'Créer'}
                 </button>
                 <button
                   type="button"
                   onClick={cancelForm}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                  className="btn btn-secondary"
                 >
                   Annuler
                 </button>
@@ -236,28 +244,37 @@ export default function CategoriesPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {categories.map((category) => (
+        <div className="categories-grid">
+          {categories.map((category, index) => (
             <div
               key={category.id}
-              className="bg-white rounded-lg shadow p-4 flex items-center justify-between"
+              className="category-card animate-fade-in"
+              style={{ animationDelay: `${index * 30}ms` }}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">{category.icon}</span>
-                <span className="font-medium text-gray-900">{category.name}</span>
+              <div className="category-info">
+                <span className="category-icon">{category.icon}</span>
+                <span className="category-name">{category.name}</span>
               </div>
-              <div className="flex gap-2">
+              <div className="category-actions">
                 <button
                   onClick={() => startEdit(category)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="action-btn"
+                  title="Modifier"
                 >
-                  ✏️
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
                 </button>
                 <button
                   onClick={() => handleDelete(category.id)}
-                  className="text-gray-400 hover:text-red-600"
+                  className="action-btn danger"
+                  title="Supprimer"
                 >
-                  🗑️
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  </svg>
                 </button>
               </div>
             </div>
@@ -265,8 +282,12 @@ export default function CategoriesPage() {
         </div>
 
         {categories.length === 0 && !showForm && (
-          <div className="text-center py-12 text-gray-500">
-            Aucune categorie. Creez-en une pour commencer.
+          <div className="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            <p>Aucune catégorie</p>
+            <span>Créez-en une pour commencer</span>
           </div>
         )}
       </main>

@@ -143,6 +143,23 @@ CREATE POLICY "Authenticated users can view units"
   ON units FOR SELECT
   USING (auth.role() = 'authenticated');
 
+-- Push subscriptions table
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  subscription jsonb NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id)
+);
+
+-- RLS for push_subscriptions
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own push subscriptions"
+  ON push_subscriptions FOR ALL
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
 -- Function to automatically add user to household on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$

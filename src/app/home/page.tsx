@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/utils/supabase/client';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 interface Household {
   id: string;
@@ -19,6 +20,7 @@ export default function HomePage() {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const supabase = createClient();
+  const { permission, requestPermission, isSupported } = usePushNotifications(user?.id || null);
 
   useEffect(() => {
     if (!user) {
@@ -122,6 +124,28 @@ export default function HomePage() {
             <p className="text-gray-600 text-sm">Inviter des membres</p>
             <p className="text-xs text-gray-400 mt-2">Code: {household.id.slice(0, 8)}</p>
           </div>
+
+          {isSupported && (
+            <div className="block p-6 bg-white rounded-lg shadow">
+              <div className="text-4xl mb-2">🔔</div>
+              <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+              <p className="text-gray-600 text-sm">
+                {permission === 'granted' 
+                  ? 'Notifications activées' 
+                  : permission === 'denied' 
+                    ? 'Notifications bloquées'
+                    : 'Activer les notifications'}
+              </p>
+              {permission !== 'granted' && permission !== 'denied' && (
+                <button
+                  onClick={requestPermission}
+                  className="mt-2 px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                >
+                  Activer
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>

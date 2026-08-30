@@ -24,13 +24,11 @@ export default function HomePage() {
   const { permission, requestPermission, isSupported } = usePushNotifications(user?.id || null);
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
     async function fetchHousehold() {
-      if (!user) return;
+      if (!user) {
+        router.push('/login');
+        return;
+      }
       
       try {
         const { data: memberData, error: memberError } = await supabase

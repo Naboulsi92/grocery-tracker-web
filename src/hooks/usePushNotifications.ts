@@ -26,19 +26,23 @@ export function usePushNotifications(userId: string | null) {
   }, [userId]);
 
   async function loadSubscription() {
-    const { data } = await supabase
-      .from('push_subscriptions')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    try {
+      const { data } = await supabase
+        .from('push_subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
 
-    if (data) {
-      const existingSub = await navigator.serviceWorker.ready.then(registration => 
-        registration.pushManager.getSubscription()
-      );
-      if (existingSub) {
-        setSubscription(existingSub);
+      if (data) {
+        const existingSub = await navigator.serviceWorker.ready.then(registration => 
+          registration.pushManager.getSubscription()
+        );
+        if (existingSub) {
+          setSubscription(existingSub);
+        }
       }
+    } catch (err) {
+      console.warn('Failed to load push subscription:', err);
     }
   }
 
@@ -67,8 +71,8 @@ export function usePushNotifications(userId: string | null) {
       const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       
       if (!vapidPublicKey) {
-        console.warn('VAPID public key not configured');
-        return { error: new Error('VAPID key not configured') };
+        console.warn('VAPID public key not configured - skipping push subscription');
+        return { error: null };
       }
 
       const pushSub = await registration.pushManager.subscribe({
@@ -86,6 +90,7 @@ export function usePushNotifications(userId: string | null) {
 
       return { error: null };
     } catch (err) {
+      console.warn('Push subscription failed:', err);
       return { error: err as Error };
     }
   }

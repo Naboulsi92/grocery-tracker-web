@@ -32,25 +32,37 @@ export default function HomePage() {
     async function fetchHousehold() {
       if (!user) return;
       
-      const { data: memberData } = await supabase
-        .from('household_members')
-        .select('household_id')
-        .eq('user_id', user.id)
-        .single();
+      try {
+        const { data: memberData, error: memberError } = await supabase
+          .from('household_members')
+          .select('household_id')
+          .eq('user_id', user.id)
+          .single();
 
-      if (!memberData?.household_id) {
-        setLoading(false);
-        return;
-      }
+        if (memberError) {
+          console.error('Failed to fetch household membership:', memberError);
+          setLoading(false);
+          return;
+        }
 
-      const { data: householdData } = await supabase
-        .from('households')
-        .select('id, name')
-        .eq('id', memberData.household_id)
-        .single();
+        if (!memberData?.household_id) {
+          setLoading(false);
+          return;
+        }
 
-      if (householdData) {
-        setHousehold(householdData as Household);
+        const { data: householdData, error: householdError } = await supabase
+          .from('households')
+          .select('id, name')
+          .eq('id', memberData.household_id)
+          .single();
+
+        if (householdError) {
+          console.error('Failed to fetch household:', householdError);
+        } else if (householdData) {
+          setHousehold(householdData as Household);
+        }
+      } catch (err) {
+        console.error('Error in fetchHousehold:', err);
       }
       setLoading(false);
     }

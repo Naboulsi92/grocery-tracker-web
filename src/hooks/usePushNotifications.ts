@@ -7,7 +7,11 @@ export function usePushNotifications(userId: string | null) {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [isSupported, setIsSupported] = useState(false);
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
+
+  useEffect(() => {
+    setSupabase(createClient());
+  }, []);
 
   useEffect(() => {
     const supported = 'Notification' in window && 'serviceWorker' in navigator;
@@ -20,12 +24,14 @@ export function usePushNotifications(userId: string | null) {
 
     setPermission(Notification.permission);
 
-    if (userId) {
+    if (userId && supabase) {
       loadSubscription();
     }
-  }, [userId]);
+  }, [userId, supabase]);
 
   async function loadSubscription() {
+    if (!supabase || !userId) return;
+    
     try {
       const { data } = await supabase
         .from('push_subscriptions')
@@ -62,7 +68,7 @@ export function usePushNotifications(userId: string | null) {
   }
 
   async function subscribe() {
-    if (!userId) return { error: new Error('Not authenticated') };
+    if (!supabase || !userId) return { error: new Error('Not authenticated') };
 
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
@@ -96,7 +102,7 @@ export function usePushNotifications(userId: string | null) {
   }
 
   async function unsubscribe() {
-    if (subscription) {
+    if (subscription && supabase) {
       await subscription.unsubscribe();
       setSubscription(null);
       

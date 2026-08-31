@@ -62,7 +62,7 @@ export default function ToBuyPage() {
       .select('*, categories(id, name, icon), units(abbrev)')
       .eq('household_id', memberData.household_id);
 
-    const lowStockItems = (allItems || []).filter(item => item.quantity <= item.low_stock_threshold);
+    const lowStockItems = (allItems || []).filter((item: Item) => item.quantity <= item.low_stock_threshold);
 
     setItems(lowStockItems);
     setLoading(false);

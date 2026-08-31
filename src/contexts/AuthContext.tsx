@@ -25,13 +25,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const client = createClient();
       setSupabase(client);
 
-      client.auth.getSession().then(({ data: { session } }) => {
+      client.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       });
 
-      const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+      const { data: { subscription } } = client.auth.onAuthStateChange((_event: string, session: Session | null) => {
         setSession(session);
         setUser(session?.user ?? null);
       });

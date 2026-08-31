@@ -21,7 +21,7 @@ export default function HomePage() {
   const { user, signOut, loading: authLoading } = useAuth();
   const router = useRouter();
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
-  const { permission, requestPermission, isSupported } = usePushNotifications(user?.id || null);
+  const { permission, requestPermission, unsubscribe, isSupported } = usePushNotifications(user?.id || null);
 
   useEffect(() => {
     setSupabase(createClient());
@@ -162,7 +162,7 @@ export default function HomePage() {
             <p className="text-muted">Articles en rupture</p>
           </Link>
 
-          <div className="dashboard-card animate-fade-in" style={{ animationDelay: '150ms' }}>
+          <Link href="/members" className="dashboard-card animate-fade-in" style={{ animationDelay: '150ms' }}>
             <div className="card-icon" style={{ background: '#f3e8ff', color: '#9333ea' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -177,7 +177,7 @@ export default function HomePage() {
               <span className="code-label">Code:</span>
               <code>{household.id.slice(0, 8)}</code>
             </div>
-          </div>
+          </Link>
 
           {isSupported && (
             <div className="dashboard-card animate-fade-in" style={{ animationDelay: '200ms' }}>
@@ -195,7 +195,15 @@ export default function HomePage() {
                     ? 'Bloquées'
                     : 'Désactivées'}
               </p>
-              {permission !== 'granted' && permission !== 'denied' && (
+              {permission === 'granted' ? (
+                <button
+                  onClick={unsubscribe}
+                  className="btn btn-secondary"
+                  style={{ marginTop: '0.75rem' }}
+                >
+                  Désactiver
+                </button>
+              ) : permission !== 'denied' && (
                 <button
                   onClick={requestPermission}
                   className="btn btn-secondary"

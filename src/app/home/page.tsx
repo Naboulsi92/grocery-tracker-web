@@ -20,12 +20,16 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const { user, signOut } = useAuth();
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
   const { permission, requestPermission, isSupported } = usePushNotifications(user?.id || null);
 
   useEffect(() => {
+    setSupabase(createClient());
+  }, []);
+
+  useEffect(() => {
     async function fetchHousehold() {
-      if (!user) {
+      if (!user || !supabase) {
         router.push('/login');
         return;
       }

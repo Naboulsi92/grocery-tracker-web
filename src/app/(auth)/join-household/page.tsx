@@ -21,16 +21,19 @@ export default function JoinHouseholdPage() {
   const [userHousehold, setUserHousehold] = useState<Household | null>(null);
   const { user } = useAuth();
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
+    setSupabase(createClient());
+  }, []);
+
+  useEffect(() => {
+    if (!user || !supabase) {
       return;
     }
 
     async function checkHousehold() {
-      if (!user) return;
+      if (!user || !supabase) return;
       
       const { data } = await supabase
         .from('household_members')

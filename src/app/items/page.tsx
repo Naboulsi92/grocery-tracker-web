@@ -47,11 +47,14 @@ export default function ItemsPage() {
   const [error, setError] = useState('');
   const { user } = useAuth();
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
+    setSupabase(createClient());
+  }, []);
+
+  useEffect(() => {
+    if (!user || !supabase) {
       return;
     }
     fetchData();
@@ -69,6 +72,8 @@ export default function ItemsPage() {
   }, [user, router, supabase]);
 
   async function fetchData() {
+    if (!supabase || !user) return;
+
     const { data: memberData } = await supabase
       .from('household_members')
       .select('household_id')

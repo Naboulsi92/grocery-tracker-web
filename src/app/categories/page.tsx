@@ -28,13 +28,17 @@ export default function CategoriesPage() {
   const [error, setError] = useState('');
   const { user } = useAuth();
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
+    setSupabase(createClient());
+  }, []);
+
+  useEffect(() => {
+    if (!user || !supabase) {
       return;
     }
+
     fetchCategories();
 
     const channel = supabase
@@ -50,11 +54,13 @@ export default function CategoriesPage() {
   }, [user, router, supabase]);
 
   async function fetchCategories() {
+    if (!supabase || !user) return;
+
     const { data: memberData } = await supabase
       .from('household_members')
       .select('household_id')
-      .eq('user_id', user?.id)
-      .single();
+      .eq('user_id', user.id)
+      .maybeSingle();
 
     if (!memberData?.household_id) {
       router.push('/join-household');
@@ -75,13 +81,13 @@ export default function CategoriesPage() {
     e.preventDefault();
     setError('');
 
-    if (!user || !formName.trim()) return;
+    if (!user || !supabase || !formName.trim()) return;
 
     const { data: memberData } = await supabase
       .from('household_members')
       .select('household_id')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (!memberData?.household_id) return;
 
@@ -121,6 +127,7 @@ export default function CategoriesPage() {
   }
 
   async function handleDelete(id: string) {
+    if (!supabase) return;
     if (!confirm('Supprimer cette catégorie ?')) return;
 
     const { error } = await supabase.from('categories').delete().eq('id', id);

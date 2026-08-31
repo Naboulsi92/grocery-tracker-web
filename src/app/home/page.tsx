@@ -39,7 +39,7 @@ export default function HomePage() {
           .from('household_members')
           .select('household_id')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (memberError) {
           console.error('Failed to fetch household membership:', memberError);
@@ -56,7 +56,7 @@ export default function HomePage() {
           .from('households')
           .select('id, name')
           .eq('id', memberData.household_id)
-          .single();
+          .maybeSingle();
 
         if (householdError) {
           console.error('Failed to fetch household:', householdError);

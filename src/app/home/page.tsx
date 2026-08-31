@@ -36,13 +36,15 @@ export default function HomePage() {
     }
 
     async function fetchHousehold() {
-      if (!supabase) return;
+      if (!supabase || !user) return;
+      
+      const userId = user.id;
       
       try {
         const { data: memberData, error: memberError } = await supabase
           .from('household_members')
           .select('household_id')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .maybeSingle();
 
         if (memberError) {

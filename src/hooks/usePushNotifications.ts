@@ -37,7 +37,7 @@ export function usePushNotifications(userId: string | null) {
         .from('push_subscriptions')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (data) {
         const existingSub = await navigator.serviceWorker.ready.then(registration => 

@@ -27,8 +27,8 @@ export default function LoginPage() {
       <div className="auth-container">
         <ThemeToggle />
         <div className="auth-card">
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
+          <div className="loading-container" role="status">
+            <div className="loading-spinner" aria-hidden="true"></div>
             <p>Chargement...</p>
           </div>
         </div>
@@ -68,7 +68,7 @@ export default function LoginPage() {
         </div>
         
         {error && (
-          <div className="auth-error">
+          <div className="auth-error" role="alert">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
@@ -112,7 +112,7 @@ export default function LoginPage() {
           >
             {loading ? (
               <>
-                <span className="spinner"></span>
+                <span className="spinner" aria-hidden="true"></span>
                 Connexion...
               </>
             ) : (

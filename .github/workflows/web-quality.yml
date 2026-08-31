@@ -1,0 +1,119 @@
+name: Web quality
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: local-build-placeholder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Scan for secrets
+        run: npm run scan:secrets
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Run SQL security contract
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/database/security_contract.sql
+
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      E2E_BASE_URL: http://127.0.0.1:3000
+      E2E_ALLOW_REMOTE: "false"
+      E2E_ALLOW_WRITES: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Export local Supabase credentials
+        shell: bash
+        run: |
+          status="$(supabase status -o json)"
+          api_url="$(jq -r '.API_URL' <<< "$status")"
+          if [[ "$api_url" != "http://127.0.0.1:54321" ]]; then
+            echo "Refusing to run writable E2E tests against $api_url" >&2
+            exit 1
+          fi
+          echo "NEXT_PUBLIC_SUPABASE_URL=$api_url" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$(jq -r '.ANON_KEY' <<< "$status")" >> "$GITHUB_ENV"
+          echo "E2E_SUPABASE_URL=$api_url" >> "$GITHUB_ENV"
+          echo "E2E_SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.SERVICE_ROLE_KEY' <<< "$status")" >> "$GITHUB_ENV"
+
+      - name: Run local E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7

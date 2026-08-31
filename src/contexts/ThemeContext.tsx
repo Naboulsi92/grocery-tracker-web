@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, ReactNode, useContext, useSyncExternalStore } from 'react';
 
 type Theme = 'light' | 'dark';
 
@@ -9,36 +9,49 @@ interface ThemeContextType {
   toggleTheme: () => void;
 }
 
+const THEME_KEY = 'theme';
+const THEME_EVENT = 'theme-change';
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark');
-  const [mounted, setMounted] = useState(false);
+function getTheme(): Theme {
+  const stored = localStorage.getItem(THEME_KEY);
+  if (stored === 'light' || stored === 'dark') return stored;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
-  useEffect(() => {
-    setMounted(true);
-    const stored = localStorage.getItem('theme') as Theme | null;
-    if (stored) {
-      setTheme(stored);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark');
-    }
-  }, []);
-
-  useEffect(() => {
-    if (mounted) {
-      document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem('theme', theme);
-    }
-  }, [theme, mounted]);
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+function subscribeToTheme(onStoreChange: () => void) {
+  const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
+  const syncTheme = () => {
+    const theme = getTheme();
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    onStoreChange();
+  };
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === THEME_KEY) syncTheme();
   };
 
-  if (!mounted) {
-    return <>{children}</>;
-  }
+  window.addEventListener(THEME_EVENT, syncTheme);
+  window.addEventListener('storage', handleStorage);
+  colorScheme.addEventListener('change', syncTheme);
+
+  return () => {
+    window.removeEventListener(THEME_EVENT, syncTheme);
+    window.removeEventListener('storage', handleStorage);
+    colorScheme.removeEventListener('change', syncTheme);
+  };
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const theme = useSyncExternalStore(subscribeToTheme, getTheme, (): Theme => 'light');
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    localStorage.setItem(THEME_KEY, nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+    document.documentElement.style.colorScheme = nextTheme;
+    window.dispatchEvent(new Event(THEME_EVENT));
+  };
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>

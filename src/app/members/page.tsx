@@ -2,10 +2,15 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  householdActionError,
+  mergeHouseholdMembers,
+  type HouseholdMember,
+  type InvitationState,
+} from '@/lib/household';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -14,112 +19,133 @@ interface Household {
   name: string;
 }
 
-interface Member {
-  user_id: string;
-  email: string;
-  joined_at: string;
-}
-
 export default function MembersPage() {
   const [household, setHousehold] = useState<Household | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
+  const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadRequest, setLoadRequest] = useState(0);
+  const [error, setError] = useState('');
+  const [invitation, setInvitation] = useState<InvitationState>({ status: 'none' });
   const [copied, setCopied] = useState(false);
-  const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
-  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
+  const { user, householdId } = useAuth();
+  const [supabase] = useState(createClient);
+
+  const currentMembership = members.find((member) => member.user_id === user?.id);
+  const isOwner = currentMembership?.role === 'owner';
 
   useEffect(() => {
-    setSupabase(createClient());
-  }, []);
-
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!user) {
-      router.push('/login');
-      return;
-    }
+    let active = true;
 
     async function fetchData() {
-      if (!supabase || !user) return;
+      if (!householdId) return;
+      setLoading(true);
+      setError('');
 
-      const { data: memberData, error: memberError } = await supabase
-        .from('household_members')
-        .select('household_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const [householdResult, membersResult] = await Promise.all([
+        supabase.from('households').select('id, name').eq('id', householdId).maybeSingle(),
+        supabase
+          .from('household_members')
+          .select('user_id, role, joined_at')
+          .eq('household_id', householdId)
+          .order('joined_at', { ascending: true }),
+      ]);
 
-      if (memberError || !memberData?.household_id) {
+      if (!active) return;
+      if (householdResult.error || membersResult.error || !householdResult.data) {
+        setError(householdActionError('load', householdResult.error || membersResult.error));
         setLoading(false);
         return;
       }
 
-      const { data: householdData } = await supabase
-        .from('households')
-        .select('id, name')
-        .eq('id', memberData.household_id)
-        .maybeSingle();
+      const memberships = membersResult.data ?? [];
+      const userIds = memberships.map((membership) => membership.user_id);
+      const profilesResult = userIds.length
+        ? await supabase.from('profiles').select('id, display_name').in('id', userIds)
+        : { data: [], error: null };
 
-      if (householdData) {
-        setHousehold(householdData as Household);
+      if (!active) return;
+      if (profilesResult.error) {
+        setError(householdActionError('load', profilesResult.error));
+        setLoading(false);
+        return;
       }
 
-      const { data: membersData } = await supabase
-        .from('household_members')
-        .select('user_id, joined_at')
-        .eq('household_id', memberData.household_id);
-
-      if (membersData && membersData.length > 0) {
-        const userIds = membersData.map((m: { user_id: string }) => m.user_id);
-        const { data: usersData } = await supabase
-          .from('users')
-          .select('id, email')
-          .in('id', userIds);
-
-        const mergedMembers: Member[] = membersData.map((m: { user_id: string; joined_at: string }) => {
-          const userInfo = usersData?.find((u: { id: string }) => u.id === m.user_id);
-          return {
-            user_id: m.user_id,
-            email: userInfo?.email || 'Email non disponible',
-            joined_at: m.joined_at,
-          };
-        });
-        setMembers(mergedMembers);
-      }
-
+      setHousehold(householdResult.data);
+      setMembers(mergeHouseholdMembers(memberships, profilesResult.data ?? []));
       setLoading(false);
     }
 
-    fetchData();
-  }, [user, router, supabase, authLoading]);
+    void fetchData();
+    return () => { active = false; };
+  }, [householdId, loadRequest, supabase]);
 
-  const copyToClipboard = async () => {
-    if (!household) return;
-    const code = household.id.slice(0, 8);
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const createInvitation = async () => {
+    if (!householdId) return;
+    setError('');
+    setCopied(false);
+    setInvitation({ status: 'creating' });
+
+    const { data, error: invitationError } = await supabase.rpc('create_household_invitation', {
+      p_household_id: householdId,
+    });
+    const created = data?.[0];
+
+    if (invitationError || !created) {
+      setError(householdActionError('invite', invitationError));
+      setInvitation({ status: 'none' });
+      return;
+    }
+
+    setInvitation({
+      status: 'active',
+      invitationId: created.invitation_id,
+      token: created.token,
+      expiresAt: created.expires_at,
+    });
+  };
+
+  const copyInvitation = async () => {
+    if (invitation.status !== 'active') return;
+    setError('');
+    try {
+      await navigator.clipboard.writeText(invitation.token);
+      setCopied(true);
+    } catch (copyError) {
+      setError(householdActionError('copy', copyError instanceof Error ? copyError : null));
+    }
+  };
+
+  const revokeInvitation = async () => {
+    if (invitation.status !== 'active') return;
+    const activeInvitation = invitation;
+    setError('');
+    setInvitation({ ...activeInvitation, status: 'revoking' });
+
+    const { data: revoked, error: revokeError } = await supabase.rpc('revoke_household_invitation', {
+      p_invitation_id: activeInvitation.invitationId,
+    });
+
+    if (revokeError || !revoked) {
+      setError(householdActionError('revoke', revokeError));
+      setInvitation(activeInvitation);
+      return;
+    }
+
+    setInvitation({ status: 'none' });
+    setCopied(false);
   };
 
   if (loading) {
     return (
       <div className="page-container">
         <ThemeToggle />
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
+        <div className="loading-container" role="status">
+          <div className="loading-spinner" aria-hidden="true" />
           <p>Chargement...</p>
         </div>
       </div>
     );
   }
-
-  if (!household) {
-    router.push('/join-household');
-    return null;
-  }
-
-  const inviteCode = household.id.slice(0, 8);
 
   return (
     <div className="page-container">
@@ -127,87 +153,83 @@ export default function MembersPage() {
       <header className="app-header">
         <div className="header-content">
           <div className="header-brand">
-            <Link href="/home" className="back-link">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"/>
-                <polyline points="12 19 5 12 12 5"/>
+            <Link href="/home" className="back-link" aria-label="Retour à l’accueil">
+              <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
               </svg>
             </Link>
-            <h1>Membres</h1>
+            <h1>Membres{household ? ` de ${household.name}` : ''}</h1>
           </div>
         </div>
       </header>
 
       <main className="app-main">
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>Code d&apos;invitation</h2>
-          <p style={{ color: 'var(--color-text-muted)', marginBottom: '1rem', fontSize: '0.875rem' }}>
-            Partagez ce code avec les membres que vous souhaitez inviter dans votre foyer.
-          </p>
-          <div className="invite-code-display">
-            <code className="invite-code-text">{inviteCode}</code>
-            <button onClick={copyToClipboard} className="btn btn-secondary">
-              {copied ? (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  Copié !
-                </>
-              ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                  </svg>
-                  Copier
-                </>
-              )}
-            </button>
+        {error && (
+          <div className="auth-error" role="alert" style={{ marginBottom: '1rem' }}>
+            {error}
+            {!household && <button type="button" className="btn btn-secondary" onClick={() => setLoadRequest((request) => request + 1)}>Réessayer</button>}
           </div>
-        </div>
+        )}
 
-        <div className="card">
-          <h2 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>Membres du foyer ({members.length})</h2>
-          <div className="members-list">
-            {members.map((member, index) => (
-              <div
-                key={member.user_id}
-                className="member-item animate-fade-in"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <div className="member-avatar">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                </div>
-                <div className="member-info">
-                  <span className="member-email">{member.email}</span>
-                  <span className="member-joined">
-                    Membre depuis le {new Date(member.joined_at).toLocaleDateString('fr-FR')}
-                  </span>
-                </div>
-                {member.user_id === user?.id && (
-                  <span className="member-badge">Vous</span>
-                )}
+        {household && isOwner && (
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <h2 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>Invitation</h2>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: '1rem', fontSize: '0.875rem' }}>
+              Créez un code à usage unique, valable sept jours. Le code complet n’est affiché qu’ici.
+            </p>
+            {invitation.status === 'none' || invitation.status === 'creating' ? (
+              <button type="button" onClick={createInvitation} disabled={invitation.status === 'creating'} className="btn btn-primary">
+                {invitation.status === 'creating' ? 'Création...' : 'Créer une invitation'}
+              </button>
+            ) : (
+              <div className="invite-code-display">
+                <code className="invite-code-text" style={{ overflowWrap: 'anywhere' }}>{invitation.token}</code>
+                <button type="button" onClick={copyInvitation} disabled={invitation.status === 'revoking'} className="btn btn-secondary" aria-describedby="copy-status">
+                  {copied ? 'Copié !' : 'Copier'}
+                </button>
+                <button type="button" onClick={revokeInvitation} disabled={invitation.status === 'revoking'} className="btn btn-secondary">
+                  {invitation.status === 'revoking' ? 'Révocation...' : 'Révoquer'}
+                </button>
+                <span id="copy-status" className="sr-only" aria-live="polite">{copied ? 'Code d’invitation complet copié dans le presse-papiers' : ''}</span>
+                <p className="text-muted">Expire le {new Date(invitation.expiresAt).toLocaleString('fr-FR')}</p>
               </div>
-            ))}
+            )}
           </div>
+        )}
 
-          {members.length === 0 && (
-            <div className="empty-state">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-              <p>Aucun membre</p>
-              <span>Invitez des membres avec le code</span>
+        {household && !isOwner && (
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <h2 style={{ marginBottom: '0.5rem', fontSize: '1.125rem' }}>Invitations</h2>
+            <p className="text-muted">Seul le propriétaire du foyer peut inviter de nouveaux membres.</p>
+          </div>
+        )}
+
+        {household && (
+          <div className="card">
+            <h2 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>Membres du foyer ({members.length})</h2>
+            <div className="members-list">
+              {members.map((member, index) => (
+                <div key={member.user_id} className="member-item animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
+                  <div className="member-avatar" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
+                  <div className="member-info">
+                    <span className="member-email">{member.displayName}</span>
+                    <span className="member-joined">
+                      {member.role === 'owner' ? 'Propriétaire' : 'Membre'}
+                      {member.joined_at ? ` depuis le ${new Date(member.joined_at).toLocaleDateString('fr-FR')}` : ''}
+                    </span>
+                  </div>
+                  {member.user_id === user?.id && <span className="member-badge">Vous</span>}
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </main>
     </div>
   );

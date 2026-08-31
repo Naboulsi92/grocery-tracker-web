@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { createAccount } from './fixtures';
 
 test.describe('Authentication', () => {
-  test('login page loads correctly', async ({ page }) => {
+  test('login page loads correctly @smoke', async ({ page }) => {
     await page.goto('/login');
     await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible();
     await expect(page.getByLabel('Email')).toBeVisible();
@@ -27,23 +28,39 @@ test.describe('Authentication', () => {
   });
 
   test('signup shows error for mismatched passwords', async ({ page }) => {
+    const account = createAccount('validation');
     await page.goto('/signup');
-    await page.getByLabel('Email').fill('test@example.com');
-    await page.getByLabel('Mot de passe', { exact: true }).fill('password123');
-    await page.getByLabel('Confirmer le mot de passe').fill('differentpassword');
+    await page.getByLabel('Email').fill(account.email);
+    await page.getByLabel('Mot de passe', { exact: true }).fill(account.password);
+    await page.getByLabel('Confirmer le mot de passe').fill(`${account.password}-different`);
     await page.getByRole('button', { name: "S'inscrire" }).click();
     
     await expect(page.getByText('Les mots de passe ne correspondent pas')).toBeVisible();
   });
 
-  test('signup shows error for short password', async ({ page }) => {
+  test('signup requires passwords of at least 8 characters', async ({ page }) => {
+    const account = createAccount('validation');
+    const shortPassword = String.fromCharCode(120).repeat(7);
     await page.goto('/signup');
-    await page.getByLabel('Email').fill('test@example.com');
-    await page.getByLabel('Mot de passe', { exact: true }).fill('123');
-    await page.getByLabel('Confirmer le mot de passe').fill('123');
+    await page.getByLabel('Email').fill(account.email);
+    const password = page.getByLabel('Mot de passe', { exact: true });
+    const confirmPassword = page.getByLabel('Confirmer le mot de passe');
+    await password.fill(shortPassword);
+    await confirmPassword.fill(shortPassword);
+
+    await expect(password).toHaveAttribute('minlength', '8');
+    await expect(confirmPassword).toHaveAttribute('minlength', '8');
+    await expect(password).toHaveJSProperty('validity.tooShort', true);
+    await expect(confirmPassword).toHaveJSProperty('validity.tooShort', true);
     await page.getByRole('button', { name: "S'inscrire" }).click();
-    
-    await expect(page.getByText('Le mot de passe doit contenir au moins 6 caractères')).toBeVisible();
+
+    await expect(password).toBeFocused();
+
+    const minimumPassword = String.fromCharCode(120).repeat(8);
+    await password.fill(minimumPassword);
+    await confirmPassword.fill(minimumPassword);
+    await expect(password).toHaveJSProperty('validity.valid', true);
+    await expect(confirmPassword).toHaveJSProperty('validity.valid', true);
   });
 });
 

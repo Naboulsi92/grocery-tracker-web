@@ -14,22 +14,24 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signUp, user, loading: authLoading } = useAuth();
+  const { signUp, access, loading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!authLoading && user) {
-      router.push('/home');
+    if (!authLoading && access.status === 'member') {
+      router.replace('/home');
+    } else if (!authLoading && access.status === 'no-household') {
+      router.replace('/join-household');
     }
-  }, [user, authLoading, router]);
+  }, [access.status, authLoading, router]);
 
   if (authLoading) {
     return (
       <div className="auth-container">
         <ThemeToggle />
         <div className="auth-card">
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
+          <div className="loading-container" role="status">
+            <div className="loading-spinner" aria-hidden="true"></div>
             <p>Chargement...</p>
           </div>
         </div>
@@ -46,8 +48,8 @@ export default function SignupPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères');
+    if (password.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères');
       return;
     }
 
@@ -59,7 +61,7 @@ export default function SignupPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push('/home');
+      router.push('/join-household');
     }
   };
 
@@ -81,7 +83,7 @@ export default function SignupPage() {
         </div>
         
         {error && (
-          <div className="auth-error">
+          <div className="auth-error" role="alert">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
@@ -114,6 +116,7 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               autoComplete="new-password"
+              minLength={8}
               required
             />
           </div>
@@ -127,6 +130,7 @@ export default function SignupPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
               autoComplete="new-password"
+              minLength={8}
               required
             />
           </div>
@@ -138,7 +142,7 @@ export default function SignupPage() {
           >
             {loading ? (
               <>
-                <span className="spinner"></span>
+                <span className="spinner" aria-hidden="true"></span>
                 Inscription...
               </>
             ) : (

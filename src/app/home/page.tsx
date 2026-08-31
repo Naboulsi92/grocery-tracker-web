@@ -18,7 +18,7 @@ interface Household {
 export default function HomePage() {
   const [household, setHousehold] = useState<Household | null>(null);
   const [loading, setLoading] = useState(true);
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading: authLoading } = useAuth();
   const router = useRouter();
   const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(null);
   const { permission, requestPermission, isSupported } = usePushNotifications(user?.id || null);
@@ -28,11 +28,15 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+    
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
     async function fetchHousehold() {
-      if (!user || !supabase) {
-        router.push('/login');
-        return;
-      }
+      if (!supabase) return;
       
       try {
         const { data: memberData, error: memberError } = await supabase
@@ -70,7 +74,7 @@ export default function HomePage() {
     }
 
     fetchHousehold();
-  }, [user, router, supabase]);
+  }, [user, router, supabase, authLoading]);
 
   const handleSignOut = async () => {
     await signOut();

@@ -15,6 +15,7 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
       NEXT_PUBLIC_SUPABASE_ANON_KEY: local-build-placeholder
     steps:
@@ -48,6 +49,8 @@ jobs:
 
   database:
     runs-on: ubuntu-latest
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -73,6 +76,7 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
       E2E_BASE_URL: http://127.0.0.1:3000
       E2E_ALLOW_REMOTE: "false"
       E2E_ALLOW_WRITES: "true"

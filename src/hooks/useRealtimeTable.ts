@@ -16,8 +16,8 @@ export function useRealtimeTable({
   tables,
   debounceMs = 300,
 }: UseRealtimeTableOptions) {
-  const onChangeRef = useRef<() => void>();
-  const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
+  const onChangeRef = useRef<() => void | undefined>(undefined);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const setOnChange = useCallback((handler: () => void) => {
     onChangeRef.current = handler;

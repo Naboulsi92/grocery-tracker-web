@@ -1,10 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
-import { createClient } from '@/utils/supabase/client';
-
-jest.mock('@/utils/supabase/client', () => ({
-  createClient: jest.fn(),
-}));
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 describe('useRealtimeTable', () => {
   let mockChannel: {
@@ -12,7 +8,7 @@ describe('useRealtimeTable', () => {
     subscribe: jest.Mock;
   };
   let mockRemoveChannel: jest.Mock;
-  let mockSupabase: ReturnType<typeof jest.fn>;
+  let mockSupabase: jest.Mocked<SupabaseClient>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -24,12 +20,10 @@ describe('useRealtimeTable', () => {
     mockSupabase = {
       channel: jest.fn().mockReturnValue(mockChannel),
       removeChannel: mockRemoveChannel,
-    };
-    (createClient as jest.Mock).mockReturnValue(mockSupabase);
+    } as unknown as jest.Mocked<SupabaseClient>;
   });
 
   it('subscribes to specified tables on mount', async () => {
-    const onRealtimeChange = jest.fn();
     const householdId = 'test-household';
 
     renderHook(() =>
@@ -37,7 +31,6 @@ describe('useRealtimeTable', () => {
         supabase: mockSupabase,
         householdId,
         tables: ['items', 'categories'],
-        onRealtimeChange,
       })
     );
 
@@ -51,7 +44,7 @@ describe('useRealtimeTable', () => {
     expect(mockChannel.subscribe).toHaveBeenCalledTimes(2);
   });
 
-  it('debounces load function calls', async () => {
+  it('debounces onChange calls', async () => {
     const onRealtimeChange = jest.fn();
     const householdId = 'test-household';
 
@@ -87,16 +80,13 @@ describe('useRealtimeTable', () => {
   });
 
   it('cleans up channels on unmount', async () => {
-    const onRealtimeChange = jest.fn();
     const householdId = 'test-household';
 
     const { unmount } = renderHook(() =>
       useRealtimeTable({
         supabase: mockSupabase,
         householdId,
-        householdId,
         tables: ['items'],
-        onRealtimeChange,
       })
     );
 
@@ -111,7 +101,7 @@ describe('useRealtimeTable', () => {
     });
   });
 
-  it('prevents stale responses with requestId', async () => {
+  it('calls onChange after debounce', async () => {
     const onRealtimeChange = jest.fn();
     const householdId = 'test-household';
 

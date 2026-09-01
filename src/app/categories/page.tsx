@@ -2,10 +2,11 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback, useEffectEvent, useRef } from 'react';
+import { useState, useEffect, useCallback, useEffectEvent } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/utils/supabase/client';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import ThemeToggle from '@/components/ThemeToggle';
 import { getErrorMessage, getNextCategoryOrder, type Category } from '@/lib/inventory';
 
@@ -22,7 +23,6 @@ export default function CategoriesPage() {
   const [mutating, setMutating] = useState<string | null>(null);
   const { householdId } = useAuth();
   const [supabase] = useState(createClient);
-  const requestId = useRef(0);
 
   const fetchCategories = useCallback(async (showLoading = false) => {
     if (!householdId) return;
@@ -48,26 +48,17 @@ export default function CategoriesPage() {
   }, [householdId, supabase]);
   const loadCategories = useEffectEvent(fetchCategories);
 
+  useRealtimeTable({
+    supabase,
+    householdId: householdId ?? '',
+    tables: ['categories'],
+    loadFunction: () => void loadCategories(),
+  });
+
   useEffect(() => {
     if (!householdId) return;
-
     queueMicrotask(() => void loadCategories(true));
-
-    let debounceTimer: ReturnType<typeof setTimeout>;
-    const channel = supabase
-      .channel(`categories:${householdId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `household_id=eq.${householdId}` }, () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => void loadCategories(), 300);
-      })
-      .subscribe();
-
-    return () => {
-      requestId.current += 1;
-      clearTimeout(debounceTimer);
-      void supabase.removeChannel(channel);
-    };
-  }, [householdId, supabase]);
+  }, [householdId, loadCategories]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

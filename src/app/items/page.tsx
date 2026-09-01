@@ -2,10 +2,11 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback, useEffectEvent, useRef } from 'react';
+import { useState, useEffect, useCallback, useEffectEvent } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/utils/supabase/client';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import ThemeToggle from '@/components/ThemeToggle';
 import { getErrorMessage, groupItems, joinInventory, type Category, type InventoryItem, type Unit } from '@/lib/inventory';
 
@@ -25,7 +26,6 @@ export default function ItemsPage() {
   const [mutating, setMutating] = useState<string | null>(null);
   const { householdId } = useAuth();
   const [supabase] = useState(createClient);
-  const requestId = useRef(0);
 
   const fetchData = useCallback(async (showLoading = false) => {
     if (!householdId) return;
@@ -59,29 +59,17 @@ export default function ItemsPage() {
   }, [householdId, supabase]);
   const loadData = useEffectEvent(fetchData);
 
+  useRealtimeTable({
+    supabase,
+    householdId: householdId ?? '',
+    tables: ['items', 'categories'],
+    loadFunction: () => void loadData(),
+  });
+
   useEffect(() => {
     if (!householdId) return;
     queueMicrotask(() => void loadData(true));
-
-    let debounceTimer: ReturnType<typeof setTimeout>;
-    const channel = supabase
-      .channel(`items:${householdId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'items', filter: `household_id=eq.${householdId}` }, () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => void loadData(), 300);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `household_id=eq.${householdId}` }, () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => void loadData(), 300);
-      })
-      .subscribe();
-
-    return () => {
-      requestId.current += 1;
-      clearTimeout(debounceTimer);
-      void supabase.removeChannel(channel);
-    };
-  }, [householdId, supabase]);
+  }, [householdId, loadData]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

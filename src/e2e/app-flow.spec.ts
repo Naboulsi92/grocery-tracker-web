@@ -95,7 +95,7 @@ test.describe('App Flow', () => {
   test('updates an item quantity atomically through the UI', async ({ page, account }) => {
     test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
     await createHousehold(page, account);
-    await page.getByRole('link', { name: /Articles/ }).click();
+    await page.getByRole('link', { name: 'Articles Voir et modifier' }).click();
 
     const itemName = `Article quantité ${randomUUID()}`;
     await page.getByRole('button', { name: 'Nouveau' }).click();

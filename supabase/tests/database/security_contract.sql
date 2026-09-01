@@ -234,22 +234,22 @@ begin
   begin
     perform public.consume_household_invitation(current_setting('test.invite_token'));
     raise exception 'consumed invitation unexpectedly reused';
-  exception when invalid_parameter_value then null;
+  exception when unique_violation then null;
   end;
   begin
     perform public.consume_household_invitation(current_setting('test.revoked_token'));
     raise exception 'revoked invitation unexpectedly consumed';
-  exception when invalid_parameter_value then null;
+  exception when unique_violation then null;
   end;
   begin
     perform public.consume_household_invitation(current_setting('test.expired_token'));
     raise exception 'expired invitation unexpectedly consumed';
-  exception when invalid_parameter_value then null;
+  exception when unique_violation then null;
   end;
   begin
     perform public.consume_household_invitation('unknown-token');
     raise exception 'unknown invitation unexpectedly consumed';
-  exception when invalid_parameter_value then null;
+  exception when unique_violation then null;
   end;
   begin
     perform public.create_household_invitation(current_setting('test.household_id')::uuid, interval '1 day');

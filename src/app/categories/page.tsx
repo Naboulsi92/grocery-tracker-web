@@ -55,9 +55,17 @@ export default function CategoriesPage() {
     tables: ['categories'],
   });
 
+  // Use a stable ref to avoid infinite re-render loop
+  const loadCategoriesRef = useRef<(() => void) | null>(null);
+  
+  // Update the ref when loadCategories changes (separate effect to avoid calling useEffectEvent in dependency)
   useEffect(() => {
-    setOnChange(() => void loadCategories());
-  }, [setOnChange, loadCategories]);
+    loadCategoriesRef.current = loadCategories;
+  });
+
+  useEffect(() => {
+    setOnChange(() => void loadCategoriesRef.current!());
+  }, [setOnChange]);
 
   useEffect(() => {
     if (!householdId) return;

@@ -51,9 +51,17 @@ export default function ToBuyPage() {
     tables: ['items', 'categories'],
   });
 
+  // Use a stable ref to avoid infinite re-render loop
+  const loadItemsRef = useRef<(() => void) | null>(null);
+  
+  // Update the ref when loadItems changes (separate effect to avoid calling useEffectEvent in dependency)
   useEffect(() => {
-    setOnChange(() => void loadItems());
-  }, [setOnChange, loadItems]);
+    loadItemsRef.current = loadItems;
+  });
+
+  useEffect(() => {
+    setOnChange(() => void loadItemsRef.current!());
+  }, [setOnChange]);
 
   useEffect(() => {
     if (!householdId) return;

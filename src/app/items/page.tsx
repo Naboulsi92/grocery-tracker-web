@@ -66,9 +66,17 @@ export default function ItemsPage() {
     tables: ['items', 'categories'],
   });
 
+  // Use a stable ref to avoid infinite re-render loop
+  const loadDataRef = useRef<ReturnType<typeof useEffectEvent> | null>(null);
+  
+  // Update the ref when loadData changes (separate effect to avoid calling useEffectEvent in dependency)
   useEffect(() => {
-    setOnChange(() => void loadData());
-  }, [setOnChange, loadData]);
+    loadDataRef.current = loadData;
+  });
+
+  useEffect(() => {
+    setOnChange(() => void loadDataRef.current!());
+  }, [setOnChange]);
 
   useEffect(() => {
     if (!householdId) return;

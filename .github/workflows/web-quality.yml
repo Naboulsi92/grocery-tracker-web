@@ -60,13 +60,16 @@ jobs:
       - name: Start local Supabase
         run: supabase start
 
-      - name: Reset database and apply migrations
+      - name: Reset and apply migrations
         run: |
-          supabase db reset --linked 2>/dev/null || true
-          supabase migration up
+          # Force reset by dropping and recreating the postgres database
+          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -c "DROP DATABASE IF EXISTS test_db;" 2>/dev/null || true
+          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -c "CREATE DATABASE test_db;" 2>/dev/null || true
+          # Apply all migrations to the fresh database
+          supabase db push --db-url "postgresql://postgres:postgres@127.0.0.1:54322/test_db"
 
       - name: Run SQL security contract
-        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/database/security_contract.sql
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/test_db" -v ON_ERROR_STOP=1 -f supabase/tests/database/security_contract.sql
 
   e2e:
     runs-on: ubuntu-latest

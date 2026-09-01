@@ -211,7 +211,7 @@ export default function ItemsPage() {
       <header className="app-header">
         <div className="header-content">
           <div className="header-brand">
-            <Link href="/home" className="back-link" aria-label="Retour à l’accueil"> data-testid="back-link"
+            <Link href="/home" className="back-link" aria-label="Retour à l’accueil" data-testid="back-link">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"/>
                 <polyline points="12 19 5 12 12 5"/>
@@ -219,7 +219,7 @@ export default function ItemsPage() {
             </Link>
             <h1>Articles</h1>
           </div>
-          <button onClick={() => setShowForm(true)} className="btn btn-primary"> data-testid="btn-new-item"
+          <button onClick={() => setShowForm(true)} className="btn btn-primary" data-testid="btn-new-item">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"/>
               <line x1="5" y1="12" x2="19" y2="12"/>
@@ -278,7 +278,7 @@ export default function ItemsPage() {
                 <input id="item-threshold" type="number" value={formThreshold} onChange={(e) => setFormThreshold(e.target.value)} min="0" step="1" />
               </div>
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-                <button type="submit" className="btn btn-primary" disabled={mutating === 'form'}> data-testid="btn-create-item"{editingId ? 'Enregistrer' : 'Créer'}</button>
+                <button type="submit" className="btn btn-primary" disabled={mutating === 'form'} data-testid="btn-create-item">{editingId ? 'Enregistrer' : 'Créer'}</button>
                 <button type="button" onClick={resetForm} className="btn btn-secondary" disabled={mutating === 'form'}>Annuler</button>
               </div>
             </form>

@@ -63,18 +63,22 @@ export default function ItemsPage() {
     if (!householdId) return;
     queueMicrotask(() => void loadData(true));
 
+    let debounceTimer: ReturnType<typeof setTimeout>;
     const channel = supabase
       .channel(`items:${householdId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'items', filter: `household_id=eq.${householdId}` }, () => {
-        void loadData();
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => void loadData(), 300);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `household_id=eq.${householdId}` }, () => {
-        void loadData();
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => void loadData(), 300);
       })
       .subscribe();
 
     return () => {
       requestId.current += 1;
+      clearTimeout(debounceTimer);
       void supabase.removeChannel(channel);
     };
   }, [householdId, supabase]);

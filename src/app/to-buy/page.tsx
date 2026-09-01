@@ -48,18 +48,22 @@ export default function ToBuyPage() {
     if (!householdId) return;
     queueMicrotask(() => void loadItems(true));
 
+    let debounceTimer: ReturnType<typeof setTimeout>;
     const channel = supabase
       .channel(`to-buy:${householdId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'items', filter: `household_id=eq.${householdId}` }, () => {
-        void loadItems();
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => void loadItems(), 300);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `household_id=eq.${householdId}` }, () => {
-        void loadItems();
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => void loadItems(), 300);
       })
       .subscribe();
 
     return () => {
       requestId.current += 1;
+      clearTimeout(debounceTimer);
       void supabase.removeChannel(channel);
     };
   }, [householdId, supabase]);

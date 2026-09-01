@@ -53,15 +53,18 @@ export default function CategoriesPage() {
 
     queueMicrotask(() => void loadCategories(true));
 
+    let debounceTimer: ReturnType<typeof setTimeout>;
     const channel = supabase
       .channel(`categories:${householdId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `household_id=eq.${householdId}` }, () => {
-        void loadCategories();
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => void loadCategories(), 300);
       })
       .subscribe();
 
     return () => {
       requestId.current += 1;
+      clearTimeout(debounceTimer);
       void supabase.removeChannel(channel);
     };
   }, [householdId, supabase]);

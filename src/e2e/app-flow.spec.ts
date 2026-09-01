@@ -11,21 +11,21 @@ test.describe('App Flow', () => {
     test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
     await createHousehold(page, account);
     
-    await page.locator('.dashboard-card').filter({ hasText: 'Catégories' }).click();
+    await page.getByTestId('dashboard-card-categories').click();
     await expect(page).toHaveURL('/categories');
     await expect(page.getByRole('heading', { name: 'Catégories' })).toBeVisible();
     
-    await page.locator('.back-link').click();
+    await page.getByTestId('back-link').click();
     await expect(page).toHaveURL('/home');
     
-    await page.locator('.dashboard-card').filter({ hasText: 'Articles' }).first().click();
+    await page.getByTestId('dashboard-card-items').click();
     await expect(page).toHaveURL('/items');
     await expect(page.getByRole('heading', { name: 'Articles' })).toBeVisible();
     
-    await page.locator('.back-link').click();
+    await page.getByTestId('back-link').click();
     await expect(page).toHaveURL('/home');
     
-    await page.locator('.dashboard-card').filter({ hasText: 'À acheter' }).click();
+    await page.getByTestId('dashboard-card-to-buy').click();
     await expect(page).toHaveURL('/to-buy');
     await expect(page.getByRole('heading', { name: 'À acheter' })).toBeVisible();
   });
@@ -35,10 +35,10 @@ test.describe('App Flow', () => {
     await createHousehold(page, account);
 
     const categoryName = `Catégorie e2e ${randomUUID()}`;
-    await page.locator('.dashboard-card').filter({ hasText: 'Catégories' }).click();
-    await page.getByRole('button', { name: 'Nouvelle' }).click();
-    await page.locator('input[type="text"]').first().fill(categoryName);
-    await page.getByRole('button', { name: 'Créer' }).click();
+    await page.getByTestId('dashboard-card-categories').click();
+    await page.getByTestId('btn-new-category').click();
+    await page.getByTestId('input-category-name').fill(categoryName);
+    await page.getByTestId('btn-create-category').click();
 
     await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
     page.once('dialog', (dialog) => dialog.accept());
@@ -51,14 +51,14 @@ test.describe('App Flow', () => {
     await createHousehold(page, account);
 
     const itemName = `Article e2e ${randomUUID()}`;
-    await page.locator('.dashboard-card').filter({ hasText: 'Articles' }).first().click();
-    await page.getByRole('button', { name: 'Nouveau' }).click();
-    await page.locator('input[type="text"]').first().fill(itemName);
-    await page.getByRole('button', { name: 'Créer' }).click();
+    await page.getByTestId('dashboard-card-items').click();
+    await page.getByTestId('btn-new-item').click();
+    await page.getByTestId('input-item-name').fill(itemName);
+    await page.getByTestId('btn-create-item').click();
 
     await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
     page.once('dialog', (dialog) => dialog.accept());
-    await page.getByRole('button', { name: `Supprimer l’article ${itemName}` }).click();
+    await page.getByRole('button', { name: `Supprimer l'article ${itemName}` }).click();
     await expect(page.getByText(itemName)).toHaveCount(0);
   });
 

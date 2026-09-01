@@ -119,7 +119,7 @@ export default function HomePage() {
 
       <main className="app-main">
         <div className="dashboard-grid">
-          <Link href="/categories" className="dashboard-card animate-fade-in" style={{ animationDelay: '0ms' }}>
+          <Link href="/categories" className="dashboard-card animate-fade-in" style={{ animationDelay: '0ms' }} data-testid="dashboard-card-categories">
             <div className="card-icon" aria-hidden="true" style={{ background: 'var(--color-accent-muted)', color: 'var(--color-accent-hover)' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
@@ -129,7 +129,7 @@ export default function HomePage() {
             <p className="text-muted">Gérer les catégories</p>
           </Link>
 
-          <Link href="/items" className="dashboard-card animate-fade-in" style={{ animationDelay: '50ms' }}>
+          <Link href="/items" className="dashboard-card animate-fade-in" style={{ animationDelay: '50ms' }} data-testid="dashboard-card-items">
             <div className="card-icon card-icon-info" aria-hidden="true">
               <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="9" cy="21" r="1"/>
@@ -141,7 +141,7 @@ export default function HomePage() {
             <p className="text-muted">Voir et modifier</p>
           </Link>
 
-          <Link href="/to-buy" className="dashboard-card animate-fade-in" style={{ animationDelay: '100ms' }}>
+          <Link href="/to-buy" className="dashboard-card animate-fade-in" style={{ animationDelay: '100ms' }} data-testid="dashboard-card-to-buy">
             <div className="card-icon card-icon-warning" aria-hidden="true">
               <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -153,7 +153,7 @@ export default function HomePage() {
             <p className="text-muted">Articles en rupture</p>
           </Link>
 
-          <Link href="/members" className="dashboard-card animate-fade-in" style={{ animationDelay: '150ms' }}>
+          <Link href="/members" className="dashboard-card animate-fade-in" style={{ animationDelay: '150ms' }} data-testid="dashboard-card-members">
             <div className="card-icon card-icon-purple" aria-hidden="true">
               <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>

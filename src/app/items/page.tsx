@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback, useEffectEvent } from 'react';
+import { useState, useEffect, useCallback, useEffectEvent, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/utils/supabase/client';
@@ -26,6 +26,7 @@ export default function ItemsPage() {
   const [mutating, setMutating] = useState<string | null>(null);
   const { householdId } = useAuth();
   const [supabase] = useState(createClient);
+  const requestId = useRef(0);
 
   const fetchData = useCallback(async (showLoading = false) => {
     if (!householdId) return;

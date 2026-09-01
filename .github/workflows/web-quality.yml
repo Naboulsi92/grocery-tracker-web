@@ -67,11 +67,19 @@ jobs:
 
       - name: Clean test users before SQL contract
         run: |
-          # Remove any test users that might persist across resets
+          # Full cleanup of all test data before running SQL contract
           psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -c "
-            DELETE FROM auth.users WHERE id::text LIKE '00000000-0000-4000-8000-00000000000%';
-            DELETE FROM public.profiles WHERE id::text LIKE '00000000-0000-4000-8000-00000000000%';
+            -- Clean all test-related data
+            DELETE FROM public.push_notification_logs WHERE user_id::text LIKE '00000000-0000-4000-8000-00000000000%';
+            DELETE FROM public.push_subscriptions WHERE user_id::text LIKE '00000000-0000-4000-8000-00000000000%';
+            DELETE FROM public.household_invitations WHERE created_by::text LIKE '00000000-0000-4000-8000-00000000000%';
             DELETE FROM public.household_members WHERE user_id::text LIKE '00000000-0000-4000-8000-00000000000%';
+            DELETE FROM public.households WHERE id::text LIKE '00000000-0000-4000-8000-00000000000%';
+            DELETE FROM public.profiles WHERE id::text LIKE '00000000-0000-4000-8000-00000000000%';
+            DELETE FROM public.items WHERE household_id::text LIKE '00000000-0000-4000-8000-00000000000%';
+            DELETE FROM public.categories WHERE household_id::text LIKE '00000000-0000-4000-8000-00000000000%';
+            DELETE FROM public.units WHERE id::text LIKE '00000000-0000-4000-8000-00000000000%';
+            DELETE FROM auth.users WHERE id::text LIKE '00000000-0000-4000-8000-00000000000%';
           "
 
       - name: Run SQL security contract

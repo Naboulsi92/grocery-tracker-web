@@ -53,7 +53,7 @@ export default function CategoriesPage() {
     supabase,
     householdId: householdId ?? '',
     tables: ['categories'],
-    loadFunction: () => void loadCategories(),
+    onRealtimeChange: () => void loadCategories(),
   });
 
   useEffect(() => {

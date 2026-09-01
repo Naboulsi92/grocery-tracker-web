@@ -49,7 +49,7 @@ export default function ToBuyPage() {
     supabase,
     householdId: householdId ?? '',
     tables: ['items', 'categories'],
-    loadFunction: () => void loadItems(),
+    onRealtimeChange: () => void loadItems(),
   });
 
   useEffect(() => {

@@ -29,7 +29,7 @@ describe('useRealtimeTable', () => {
   });
 
   it('subscribes to specified tables on mount', async () => {
-    const loadFunction = jest.fn();
+    const onRealtimeChange = jest.fn();
     const householdId = 'test-household';
 
     renderHook(() =>
@@ -37,7 +37,7 @@ describe('useRealtimeTable', () => {
         supabase: mockSupabase,
         householdId,
         tables: ['items', 'categories'],
-        loadFunction,
+        onRealtimeChange,
       })
     );
 
@@ -52,7 +52,7 @@ describe('useRealtimeTable', () => {
   });
 
   it('debounces load function calls', async () => {
-    const loadFunction = jest.fn();
+    const onRealtimeChange = jest.fn();
     const householdId = 'test-household';
 
     renderHook(() =>
@@ -60,7 +60,7 @@ describe('useRealtimeTable', () => {
         supabase: mockSupabase,
         householdId,
         tables: ['items'],
-        loadFunction,
+        onRealtimeChange,
         debounceMs: 100,
       })
     );
@@ -69,30 +69,30 @@ describe('useRealtimeTable', () => {
       expect(mockChannel.on).toHaveBeenCalled();
     });
 
-    const callback = mockChannel.on.mock.calls[0][1];
     const handler = mockChannel.on.mock.calls[0][2];
 
     handler();
     handler();
     handler();
 
-    expect(loadFunction).not.toHaveBeenCalled();
+    expect(onRealtimeChange).not.toHaveBeenCalled();
 
     await waitFor(() => {
-      expect(loadFunction).toHaveBeenCalledTimes(1);
+      expect(onRealtimeChange).toHaveBeenCalledTimes(1);
     }, { timeout: 200 });
   });
 
   it('cleans up channels on unmount', async () => {
-    const loadFunction = jest.fn();
+    const onRealtimeChange = jest.fn();
     const householdId = 'test-household';
 
     const { unmount } = renderHook(() =>
       useRealtimeTable({
         supabase: mockSupabase,
         householdId,
+        householdId,
         tables: ['items'],
-        loadFunction,
+        onRealtimeChange,
       })
     );
 
@@ -108,7 +108,7 @@ describe('useRealtimeTable', () => {
   });
 
   it('prevents stale responses with requestId', async () => {
-    const loadFunction = jest.fn();
+    const onRealtimeChange = jest.fn();
     const householdId = 'test-household';
 
     renderHook(() =>
@@ -116,7 +116,7 @@ describe('useRealtimeTable', () => {
         supabase: mockSupabase,
         householdId,
         tables: ['items'],
-        loadFunction,
+        onRealtimeChange,
         debounceMs: 50,
       })
     );
@@ -129,15 +129,15 @@ describe('useRealtimeTable', () => {
 
     handler();
     await waitFor(() => {
-      expect(loadFunction).toHaveBeenCalledTimes(1);
+      expect(onRealtimeChange).toHaveBeenCalledTimes(1);
     });
 
-    loadFunction.mockClear();
+    onRealtimeChange.mockClear();
     handler();
     handler();
 
     await waitFor(() => {
-      expect(loadFunction).toHaveBeenCalledTimes(1);
+      expect(onRealtimeChange).toHaveBeenCalledTimes(1);
     }, { timeout: 150 });
   });
 });

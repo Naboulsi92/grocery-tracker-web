@@ -64,7 +64,7 @@ export default function ItemsPage() {
     supabase,
     householdId: householdId ?? '',
     tables: ['items', 'categories'],
-    loadFunction: () => void loadData(),
+    onRealtimeChange: () => void loadData(),
   });
 
   useEffect(() => {

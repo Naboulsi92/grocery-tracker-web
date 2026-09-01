@@ -60,12 +60,15 @@ export default function ItemsPage() {
   }, [householdId, supabase]);
   const loadData = useEffectEvent(fetchData);
 
-  useRealtimeTable({
+  const { setOnChange } = useRealtimeTable({
     supabase,
     householdId: householdId ?? '',
     tables: ['items', 'categories'],
-    onRealtimeChange: () => void loadData(),
   });
+
+  useEffect(() => {
+    setOnChange(() => void loadData());
+  }, [setOnChange, loadData]);
 
   useEffect(() => {
     if (!householdId) return;

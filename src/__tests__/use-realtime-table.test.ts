@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import { createClient } from '@/utils/supabase/client';
 
@@ -55,18 +55,22 @@ describe('useRealtimeTable', () => {
     const onRealtimeChange = jest.fn();
     const householdId = 'test-household';
 
-    renderHook(() =>
+    const { result } = renderHook(() =>
       useRealtimeTable({
         supabase: mockSupabase,
         householdId,
         tables: ['items'],
-        onRealtimeChange,
         debounceMs: 100,
       })
     );
 
     await waitFor(() => {
       expect(mockChannel.on).toHaveBeenCalled();
+    });
+
+    // Set the handler
+    act(() => {
+      result.current.setOnChange(onRealtimeChange);
     });
 
     const handler = mockChannel.on.mock.calls[0][2];
@@ -111,18 +115,22 @@ describe('useRealtimeTable', () => {
     const onRealtimeChange = jest.fn();
     const householdId = 'test-household';
 
-    renderHook(() =>
+    const { result } = renderHook(() =>
       useRealtimeTable({
         supabase: mockSupabase,
         householdId,
         tables: ['items'],
-        onRealtimeChange,
         debounceMs: 50,
       })
     );
 
     await waitFor(() => {
       expect(mockChannel.on).toHaveBeenCalled();
+    });
+
+    // Set the handler
+    act(() => {
+      result.current.setOnChange(onRealtimeChange);
     });
 
     const handler = mockChannel.on.mock.calls[0][2];

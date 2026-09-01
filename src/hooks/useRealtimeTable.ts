@@ -1,13 +1,12 @@
 'use client';
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
 interface UseRealtimeTableOptions {
   supabase: SupabaseClient;
   householdId: string;
   tables: string[];
-  onRealtimeChange: () => void;
   debounceMs?: number;
 }
 
@@ -15,14 +14,17 @@ export function useRealtimeTable({
   supabase,
   householdId,
   tables,
-  onRealtimeChange,
   debounceMs = 300,
-}: UseRealtimeTableOptions): void {
+}: UseRealtimeTableOptions) {
+  const onChangeRef = useRef<() => void>();
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
-  const channels = useRef<ReturnType<typeof supabase.channel>[]>([]);
+
+  const setOnChange = useCallback((handler: () => void) => {
+    onChangeRef.current = handler;
+  }, []);
 
   useEffect(() => {
-    channels.current = tables.map((table) =>
+    const channels = tables.map((table) =>
       supabase
         .channel(`realtime:${table}:${householdId}`)
         .on(
@@ -36,7 +38,7 @@ export function useRealtimeTable({
           () => {
             clearTimeout(debounceTimer.current);
             debounceTimer.current = setTimeout(() => {
-              onRealtimeChange();
+              onChangeRef.current?.();
             }, debounceMs);
           }
         )
@@ -45,9 +47,11 @@ export function useRealtimeTable({
 
     return () => {
       clearTimeout(debounceTimer.current);
-      channels.current.forEach((channel) => {
+      channels.forEach((channel) => {
         void supabase.removeChannel(channel);
       });
     };
-  }, [supabase, householdId, tables.join(','), onRealtimeChange, debounceMs]);
+  }, [supabase, householdId, tables.join(','), debounceMs]);
+
+  return { setOnChange };
 }

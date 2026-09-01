@@ -45,12 +45,15 @@ export default function ToBuyPage() {
   }, [householdId, supabase]);
   const loadItems = useEffectEvent(fetchItems);
 
-  useRealtimeTable({
+  const { setOnChange } = useRealtimeTable({
     supabase,
     householdId: householdId ?? '',
     tables: ['items', 'categories'],
-    onRealtimeChange: () => void loadItems(),
   });
+
+  useEffect(() => {
+    setOnChange(() => void loadItems());
+  }, [setOnChange, loadItems]);
 
   useEffect(() => {
     if (!householdId) return;

@@ -60,8 +60,9 @@ jobs:
       - name: Start local Supabase
         run: supabase start
 
-      - name: Apply migrations
+      - name: Reset database and apply migrations
         run: |
+          supabase db reset --linked 2>/dev/null || true
           supabase migration up
 
       - name: Run SQL security contract

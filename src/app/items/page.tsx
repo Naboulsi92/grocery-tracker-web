@@ -250,7 +250,7 @@ export default function ItemsPage() {
             <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
               <div className="form-group">
                 <label htmlFor="item-name">Nom</label>
-                <input id="item-name" type="text" value={formName} onChange={(e) => data-testid="input-item-name" setFormName(e.target.value)} required placeholder="Ex: Pommes" />
+                 <input id="item-name" type="text" data-testid="input-item-name" value={formName} onChange={(e) => setFormName(e.target.value)} required placeholder="Ex: Pommes" />
               </div>
               <div className="form-group">
                 <label htmlFor="item-category">Catégorie</label>

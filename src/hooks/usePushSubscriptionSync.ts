@@ -53,7 +53,7 @@ export function usePushSubscriptionSync(userId: string | null) {
 
     if (error) {
       console.warn('push_subscription_upsert_failed', { code: error.code });
-      dispatch({ type: 'error', error: 'Impossible de sauvegarder l\'abonnement. Veuillez réessayer.' });
+      dispatch({ type: 'error', error: "Impossible de sauvegarder l'abonnement. Veuillez réessayer." });
       return;
     }
 
@@ -76,7 +76,7 @@ export function usePushSubscriptionSync(userId: string | null) {
 
     if (error) {
       console.warn('push_subscription_delete_failed', { code: error.code });
-      dispatch({ type: 'error', error: 'Impossible de supprimer l\'abonnement. Veuillez réessayer.' });
+      dispatch({ type: 'error', error: "Impossible de supprimer l'abonnement. Veuillez réessayer." });
       return;
     }
 

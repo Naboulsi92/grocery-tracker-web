@@ -211,8 +211,9 @@ test.describe('Homepage', () => {
           
           const observer = new PerformanceObserver((list) => {
             for (const entry of list.getEntries()) {
-              if (!(entry as LayoutShift).hadRecentInput) {
-                clsValue += (entry as LayoutShift).value;
+              const layoutEntry = entry as { value?: number; hadRecentInput?: boolean };
+              if (!layoutEntry.hadRecentInput) {
+                clsValue += layoutEntry.value || 0;
               }
             }
           });

@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 type Item = Database['public']['Tables']['items']['Row'];
 type ItemInsert = Database['public']['Tables']['items']['Insert'];
@@ -17,9 +18,10 @@ export async function createItem(
     unit_id: string;
     category_id?: string | null;
     low_stock_threshold?: number;
-  }
+  },
+  supabase?: SupabaseClient
 ): Promise<ItemOperationError> {
-  const supabase = createClient();
+  const client = supabase ?? createClient();
 
   const itemData: ItemInsert = {
     household_id: householdId,
@@ -30,7 +32,7 @@ export async function createItem(
     low_stock_threshold: data.low_stock_threshold ?? 1,
   };
 
-  const { error } = await supabase.from('items').insert(itemData);
+  const { error } = await client.from('items').insert(itemData);
 
   if (error) {
     console.warn('client_operation_failed', {
@@ -52,9 +54,10 @@ export async function updateItem(
     unit_id?: string;
     category_id?: string | null;
     low_stock_threshold?: number;
-  }
+  },
+  supabase?: SupabaseClient
 ): Promise<ItemOperationError> {
-  const supabase = createClient();
+  const client = supabase ?? createClient();
 
   const updateData: ItemUpdate = {
     name: data.name,
@@ -63,11 +66,11 @@ export async function updateItem(
     low_stock_threshold: data.low_stock_threshold,
   };
 
-  const { error } = await supabase
-    .from('items')
-    .update(updateData)
-    .eq('id', itemId)
-    .eq('household_id', householdId);
+const { error } = await client
+      .from('items')
+      .update(updateData)
+      .eq('id', itemId)
+      .eq('household_id', householdId);
 
   if (error) {
     console.warn('client_operation_failed', {
@@ -83,11 +86,12 @@ export async function updateItem(
 
 export async function updateItemQuantity(
   itemId: string,
-  quantity: number
+  quantity: number,
+  supabase?: SupabaseClient
 ): Promise<ItemOperationError> {
-  const supabase = createClient();
+  const client = supabase ?? createClient();
 
-  const { error } = await supabase.rpc('adjust_item_quantity', {
+  const { error } = await client.rpc('adjust_item_quantity', {
     p_item_id: itemId,
     p_delta: quantity,
   });
@@ -104,14 +108,18 @@ export async function updateItemQuantity(
   return { error: null };
 }
 
-export async function deleteItem(itemId: string, householdId: string): Promise<ItemOperationError> {
-  const supabase = createClient();
+export async function deleteItem(
+  itemId: string,
+  householdId: string,
+  supabase?: SupabaseClient
+): Promise<ItemOperationError> {
+  const client = supabase ?? createClient();
 
-  const { error } = await supabase
-    .from('items')
-    .delete()
-    .eq('id', itemId)
-    .eq('household_id', householdId);
+  const { error } = await client
+      .from('items')
+      .delete()
+      .eq('id', itemId)
+      .eq('household_id', householdId);
 
   if (error) {
     console.warn('client_operation_failed', {
@@ -129,6 +137,12 @@ function itemActionError(
   action: 'create' | 'update' | 'updateQuantity' | 'delete',
   error: { message?: string; code?: string } | null | undefined
 ): string {
+  console.warn('client_operation_failed', {
+    area: 'items',
+    action,
+    code: error?.code ?? 'unknown',
+  });
+
   if (action === 'update' && error?.message?.includes('row-level security')) {
     return "Vous n'avez pas l'autorisation de modifier cet article.";
   }

@@ -7,16 +7,9 @@ import type { Json } from '@/types/database';
 
 type PushOperation = 'idle' | 'enabling' | 'disabling';
 
-interface PushSubscriptionData {
-  endpoint: string;
-  expirationTime: number | null;
-  keys: { auth: string; p256dh: string } | null;
-  [key: string]: string | number | null | { auth: string; p256dh: string } | undefined;
-}
-
 const MISSING_VAPID_ERROR = 'Les notifications sont indisponibles : la clé VAPID publique n\'est pas configurée.';
 
-function subscriptionToJson(subscription: PushSubscription): PushSubscriptionData {
+function subscriptionToJson(subscription: PushSubscription): Json {
   const subscriptionJson = subscription.toJSON();
   return {
     endpoint: subscription.endpoint,

@@ -1,6 +1,7 @@
 import { Hero } from '@/components/marketing/Hero';
 import { Features } from '@/components/marketing/Features';
 import { HowItWorks } from '@/components/marketing/HowItWorks';
+import { FAQ } from '@/components/marketing/FAQ';
 
 export default function HomePage() {
   return (
@@ -8,6 +9,7 @@ export default function HomePage() {
       <Hero />
       <Features />
       <HowItWorks />
+      <FAQ />
 
       {/* CTA Section Placeholder */}
       <section className="py-16 bg-blue-50 dark:bg-blue-900/20 rounded-lg">

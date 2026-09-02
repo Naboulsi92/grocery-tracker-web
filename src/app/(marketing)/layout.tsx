@@ -1,9 +1,7 @@
-'use client';
-
 import { Header } from '@/components/marketing/Header';
 import { Footer } from '@/components/marketing/Footer';
 import Script from 'next/script';
-import { useEffect } from 'react';
+import { ScrollTracker } from '@/components/marketing/ScrollTracker';
 
 export const metadata = {
   title: 'Grocery List App - Collaborative Shopping for Households',
@@ -47,42 +45,6 @@ export default function MarketingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  useEffect(() => {
-    const handleScrollTracking = () => {
-      const scrollDepth = Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
-      
-      if ((window as any).plausible && [25, 50, 75, 100].includes(scrollDepth)) {
-        (window as any).plausible('ScrollDepth', { props: { depth: scrollDepth } });
-      }
-    };
-
-    window.addEventListener('scroll', handleScrollTracking);
-    return () => window.removeEventListener('scroll', handleScrollTracking);
-  }, []);
-
-  const handleCTAClick = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
-    const target = e.currentTarget;
-    const ctaName = target.getAttribute('data-cta-name') || target.textContent || 'CTA';
-    
-    if ((window as any).plausible) {
-      (window as any).plausible('CTAClick', { 
-        props: { 
-          name: ctaName,
-          element: target.tagName,
-          href: target.getAttribute('href') || target.getAttribute('data-href') || 'N/A'
-        } 
-      });
-    }
-  };
-
-  const handleScrollTracking = () => {
-    const scrollDepth = Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
-    
-    if ((window as any).plausible && [25, 50, 75, 100].includes(scrollDepth)) {
-      (window as any).plausible('ScrollDepth', { props: { depth: scrollDepth } });
-    }
-  };
-
   return (
     <div className="flex flex-col min-h-screen">
       <Script
@@ -100,6 +62,7 @@ export default function MarketingLayout({
       <Header />
       <main className="flex-1">
         {children}
+        <ScrollTracker />
       </main>
       <Footer />
     </div>

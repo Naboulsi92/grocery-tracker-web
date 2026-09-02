@@ -2,13 +2,19 @@
 
 import { useEffect } from 'react';
 
+declare global {
+  interface Window {
+    plausible?: (eventName: string, options: { props: Record<string, string> }) => void;
+  }
+}
+
 export function ScrollTracker() {
   useEffect(() => {
     const handleScrollTracking = () => {
       const scrollDepth = Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
       
-      if ((window as any).plausible && [25, 50, 75, 100].includes(scrollDepth)) {
-        (window as any).plausible('ScrollDepth', { props: { depth: scrollDepth } });
+      if (window.plausible && [25, 50, 75, 100].includes(scrollDepth)) {
+        window.plausible('ScrollDepth', { props: { depth: scrollDepth.toString() } });
       }
     };
 

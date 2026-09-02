@@ -16,8 +16,8 @@ export function Hero() {
       const target = e.target as HTMLElement;
       const ctaName = target.closest('[data-cta-name]')?.getAttribute('data-cta-name');
       
-      if (ctaName && (window as any).plausible) {
-        (window as any).plausible('CTAClick', { 
+      if (ctaName && typeof window !== 'undefined' && (window as unknown as { plausible?: (eventName: string, options: { props: Record<string, string> }) => void }).plausible) {
+        (window as unknown as { plausible: (eventName: string, options: { props: Record<string, string> }) => void }).plausible('CTAClick', { 
           props: { 
             name: ctaName,
             element: target.tagName,

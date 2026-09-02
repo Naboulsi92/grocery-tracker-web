@@ -4,6 +4,8 @@ import { useCallback, useReducer, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import type { Json } from '@/types/database';
 
+const ERROR_NOT_AUTHENTICATED = 'Vous devez être connecté.';
+
 interface PushSubscriptionData {
   endpoint: string;
   subscription: Json;
@@ -36,7 +38,7 @@ export function usePushSubscriptionSync(userId: string | null) {
 
   const upsert = useCallback(async (subscription: PushSubscriptionData) => {
     if (!userId) {
-      dispatch({ type: 'error', error: 'Vous devez être connecté.' });
+      dispatch({ type: 'error', error: ERROR_NOT_AUTHENTICATED });
       return;
     }
 
@@ -62,7 +64,7 @@ export function usePushSubscriptionSync(userId: string | null) {
 
   const remove = useCallback(async (endpoint: string) => {
     if (!userId) {
-      dispatch({ type: 'error', error: 'Vous devez être connecté.' });
+      dispatch({ type: 'error', error: ERROR_NOT_AUTHENTICATED });
       return;
     }
 

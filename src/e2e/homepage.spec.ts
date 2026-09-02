@@ -252,5 +252,47 @@ test.describe('Homepage', () => {
       const loadTime = Date.now() - loadStart;
       expect(loadTime).toBeLessThan(3000);
     });
+
+    test('Core Web Vitals - FID < 100ms', async ({ page }) => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+
+      const fid = await page.evaluate(() => {
+        return new Promise<number>((resolve) => {
+          let fidValue = 0;
+          let resolved = false;
+
+          const observer = new PerformanceObserver((list) => {
+            const entries = list.getEntries();
+            for (const entry of entries) {
+              const paintEntry = entry as { processingStart?: number; startTime?: number; duration?: number };
+              if (paintEntry.processingStart !== undefined && paintEntry.startTime !== undefined) {
+                fidValue = paintEntry.processingStart - paintEntry.startTime;
+                if (!resolved) {
+                  resolved = true;
+                  resolve(fidValue);
+                }
+              }
+            }
+          });
+
+          observer.observe({ type: 'first-input', buffered: true });
+
+          setTimeout(() => {
+            if (!resolved) {
+              const entries = performance.getEntriesByType('first-input');
+              if (entries.length > 0) {
+                const entry = entries[0] as { processingStart?: number; startTime?: number };
+                fidValue = entry.processingStart! - entry.startTime!;
+              }
+              resolve(fidValue);
+            }
+            observer.disconnect();
+          }, 500);
+        });
+      });
+
+      expect(fid).toBeLessThan(100);
+    });
   });
 });

@@ -9,6 +9,7 @@ export function Footer() {
             </p>
           </div>
           <div className="flex space-x-6">
+            {/* TODO: Create /about, /contact, /terms pages and update links */}
             <a href="#" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               About
             </a>

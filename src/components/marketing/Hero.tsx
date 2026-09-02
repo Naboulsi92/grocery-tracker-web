@@ -2,8 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
+import { usePlausibleAnalytics } from '@/hooks/usePlausibleAnalytics';
 
 export function Hero() {
+  const { trackCtaClick } = usePlausibleAnalytics();
+
   const scrollToFeatures = () => {
     const featuresSection = document.getElementById('features');
     if (featuresSection) {
@@ -14,22 +17,21 @@ export function Hero() {
   useEffect(() => {
     const handleCtaClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const ctaName = target.closest('[data-cta-name]')?.getAttribute('data-cta-name');
+      const ctaElement = target.closest('[data-cta-name]') as HTMLElement | null;
+      const ctaName = ctaElement?.getAttribute('data-cta-name');
       
-      if (ctaName && typeof window !== 'undefined' && (window as unknown as { plausible?: (eventName: string, options: { props: Record<string, string> }) => void }).plausible) {
-        (window as unknown as { plausible: (eventName: string, options: { props: Record<string, string> }) => void }).plausible('CTAClick', { 
-          props: { 
-            name: ctaName,
-            element: target.tagName,
-            href: 'N/A'
-          } 
+      if (ctaName) {
+        trackCtaClick({
+          name: ctaName,
+          element: target.tagName,
+          href: (target as HTMLElement).getAttribute('href') || undefined,
         });
       }
     };
 
     document.addEventListener('click', handleCtaClick);
     return () => document.removeEventListener('click', handleCtaClick);
-  }, []);
+  }, [trackCtaClick]);
 
   return (
     <section className="relative overflow-hidden">

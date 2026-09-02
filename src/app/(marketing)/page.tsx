@@ -1,42 +1,11 @@
 import { Hero } from '@/components/marketing/Hero';
+import { Features } from '@/components/marketing/Features';
 
 export default function HomePage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <Hero />
-
-      {/* Features Section */}
-      <section id="features" className="py-16">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-8">
-          Features
-        </h2>
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Placeholder 1
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Feature content coming soon
-            </p>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Placeholder 2
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Feature content coming soon
-            </p>
-          </div>
-          <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Placeholder 3
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Feature content coming soon
-            </p>
-          </div>
-        </div>
-      </section>
+      <Features />
 
       {/* CTA Section Placeholder */}
       <section className="py-16 bg-blue-50 dark:bg-blue-900/20 rounded-lg">

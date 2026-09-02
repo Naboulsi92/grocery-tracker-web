@@ -58,7 +58,8 @@ test.describe('App Flow', () => {
 
     await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
     page.once('dialog', (dialog) => dialog.accept());
-    await page.getByRole('button', { name: new RegExp(`Supprimer l'article ${itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+    const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+    await itemRow.getByTestId(/^btn-delete-item-/).click();
     await expect(page.getByText(itemName)).toHaveCount(0);
   });
 
@@ -107,6 +108,6 @@ test.describe('App Flow', () => {
     await row.getByRole('button', { name: `Augmenter la quantité de ${itemName}` }).click();
     await expect(row.locator('.qty-value')).toContainText('3');
     page.once('dialog', (dialog) => dialog.accept());
-    await row.getByRole('button', { name: new RegExp(`Supprimer l'article ${itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+    await row.getByTestId(/^btn-delete-item-/).click();
   });
 });

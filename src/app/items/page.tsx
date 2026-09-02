@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 export const dynamic = 'force-dynamic';
 
@@ -336,7 +336,7 @@ function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete }: { item: 
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </button>
-        <button onClick={() => onDelete(item.id)} className="action-btn danger" disabled={disabled} aria-label={`Supprimer l’article ${item.name}`}>
+        <button onClick={() => onDelete(item.id)} className="action-btn danger" disabled={disabled} aria-label={`Supprimer l’article ${item.name}`} data-testid={`btn-delete-item-${item.id}`}>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="3 6 5 6 21 6"/>
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>

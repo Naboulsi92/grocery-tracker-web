@@ -51,6 +51,7 @@ test.describe('Homepage', () => {
 
   test('navigation links work - Signup button in header', async ({ page }) => {
     await page.getByRole('link', { name: /Signup/i }).click();
+    await page.waitForURL(/signup/);
     await expect(page).toHaveURL('/signup');
     await expect(page.getByRole('heading', { name: /Inscription/i })).toBeVisible();
   });

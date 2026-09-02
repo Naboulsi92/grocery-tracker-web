@@ -42,7 +42,7 @@ test.describe('App Flow', () => {
 
     await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
     page.once('dialog', (dialog) => dialog.accept());
-    await page.locator('.action-btn.danger').first().click();
+    await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
     await expect(page.getByText(categoryName)).toHaveCount(0);
   });
 
@@ -58,7 +58,7 @@ test.describe('App Flow', () => {
 
     await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
     page.once('dialog', (dialog) => dialog.accept());
-    await page.locator('.action-btn.danger').first().click();
+    await page.getByRole('button', { name: new RegExp(`Supprimer l'article ${itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
     await expect(page.getByText(itemName)).toHaveCount(0);
   });
 
@@ -107,6 +107,6 @@ test.describe('App Flow', () => {
     await row.getByRole('button', { name: `Augmenter la quantité de ${itemName}` }).click();
     await expect(row.locator('.qty-value')).toContainText('3');
     page.once('dialog', (dialog) => dialog.accept());
-    await row.locator('.action-btn.danger').click();
+    await row.getByRole('button', { name: new RegExp(`Supprimer l'article ${itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
   });
 });

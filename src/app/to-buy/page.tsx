@@ -6,7 +6,6 @@ import { useState, useEffect, useCallback, useEffectEvent, useRef } from 'react'
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/utils/supabase/client';
-import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import ThemeToggle from '@/components/ThemeToggle';
 import { getErrorMessage, getLowStockItems, joinInventory, type InventoryItem } from '@/lib/inventory';
 
@@ -45,28 +44,30 @@ export default function ToBuyPage() {
   }, [householdId, supabase]);
   const loadItems = useEffectEvent(fetchItems);
 
-  const { setOnChange } = useRealtimeTable({
-    supabase,
-    householdId: householdId ?? '',
-    tables: ['items', 'categories'],
-  });
-
-  // Use a stable ref to avoid infinite re-render loop
-  const loadItemsRef = useRef<(() => void) | null>(null);
-  
-  // Update the ref when loadItems changes (separate effect to avoid calling useEffectEvent in dependency)
-  useEffect(() => {
-    loadItemsRef.current = loadItems;
-  });
-
-  useEffect(() => {
-    setOnChange(() => void loadItemsRef.current!());
-  }, [setOnChange]);
-
   useEffect(() => {
     if (!householdId) return;
+
     queueMicrotask(() => void loadItems(true));
-  }, [householdId, loadItems]);
+
+    let debounceTimer: ReturnType<typeof setTimeout>;
+    const channel = supabase
+      .channel(`tobuy:${householdId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'items', filter: `household_id=eq.${householdId}` }, () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => void loadItems(), 300);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `household_id=eq.${householdId}` }, () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => void loadItems(), 300);
+      })
+      .subscribe();
+
+    return () => {
+      requestId.current += 1;
+      clearTimeout(debounceTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [householdId, supabase]);
 
   async function updateQuantity(id: string, delta: number) {
     if (mutatingId) return;

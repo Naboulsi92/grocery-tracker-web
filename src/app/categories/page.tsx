@@ -6,7 +6,6 @@ import { useState, useEffect, useCallback, useEffectEvent, useRef } from 'react'
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/utils/supabase/client';
-import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import ThemeToggle from '@/components/ThemeToggle';
 import { getErrorMessage, getNextCategoryOrder, type Category } from '@/lib/inventory';
 
@@ -49,28 +48,26 @@ export default function CategoriesPage() {
   }, [householdId, supabase]);
   const loadCategories = useEffectEvent(fetchCategories);
 
-  const { setOnChange } = useRealtimeTable({
-    supabase,
-    householdId: householdId ?? '',
-    tables: ['categories'],
-  });
-
-  // Use a stable ref to avoid infinite re-render loop
-  const loadCategoriesRef = useRef<(() => void) | null>(null);
-  
-  // Update the ref when loadCategories changes (separate effect to avoid calling useEffectEvent in dependency)
-  useEffect(() => {
-    loadCategoriesRef.current = loadCategories;
-  });
-
-  useEffect(() => {
-    setOnChange(() => void loadCategoriesRef.current!());
-  }, [setOnChange]);
-
   useEffect(() => {
     if (!householdId) return;
+
     queueMicrotask(() => void loadCategories(true));
-  }, [householdId, loadCategories]);
+
+    let debounceTimer: ReturnType<typeof setTimeout>;
+    const channel = supabase
+      .channel(`categories:${householdId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `household_id=eq.${householdId}` }, () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => void loadCategories(), 300);
+      })
+      .subscribe();
+
+    return () => {
+      requestId.current += 1;
+      clearTimeout(debounceTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [householdId, supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

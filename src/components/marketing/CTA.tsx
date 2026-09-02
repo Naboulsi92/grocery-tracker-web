@@ -1,18 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 
 export function CTA() {
-  const handleCTAClick = (e: React.MouseEvent<HTMLAnchorElement>, ctaName: string) => {
-    if ((window as any).plausible) {
-      (window as any).plausible('CTAClick', { 
-        props: { 
-          name: ctaName,
-          element: e.currentTarget.tagName,
-          href: e.currentTarget.getAttribute('href') || 'N/A'
-        } 
-      });
-    }
-  };
-
   return (
     <section id="cta" className="py-16 sm:py-20 bg-blue-600 dark:bg-blue-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -26,7 +16,6 @@ export function CTA() {
           <Link
             href="/signup"
             data-cta-name="Bottom_GetStarted"
-            onClick={(e) => handleCTAClick(e, 'Bottom_GetStarted')}
             className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-blue-600 bg-white rounded-lg hover:bg-blue-50 transition-colors duration-200 shadow-lg hover:shadow-xl"
           >
             Get Started Free

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect } from 'react';
 
 export function Hero() {
   const scrollToFeatures = () => {
@@ -10,17 +11,25 @@ export function Hero() {
     }
   };
 
-  const handleCTAClick = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, ctaName: string) => {
-    if ((window as any).plausible) {
-      (window as any).plausible('CTAClick', { 
-        props: { 
-          name: ctaName,
-          element: e.currentTarget.tagName,
-          href: (e.currentTarget as HTMLAnchorElement).getAttribute('href') || 'N/A'
-        } 
-      });
-    }
-  };
+  useEffect(() => {
+    const handleCtaClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const ctaName = target.closest('[data-cta-name]')?.getAttribute('data-cta-name');
+      
+      if (ctaName && (window as any).plausible) {
+        (window as any).plausible('CTAClick', { 
+          props: { 
+            name: ctaName,
+            element: target.tagName,
+            href: 'N/A'
+          } 
+        });
+      }
+    };
+
+    document.addEventListener('click', handleCtaClick);
+    return () => document.removeEventListener('click', handleCtaClick);
+  }, []);
 
   return (
     <section className="relative overflow-hidden">
@@ -38,16 +47,12 @@ export function Hero() {
             <Link
               href="/signup"
               data-cta-name="Hero_GetStarted"
-              onClick={(e) => handleCTAClick(e, 'Hero_GetStarted')}
               className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-lg hover:shadow-xl"
             >
               Get Started
             </Link>
             <button
-              onClick={(e) => {
-                scrollToFeatures();
-                handleCTAClick(e, 'Hero_LearnMore');
-              }}
+              onClick={scrollToFeatures}
               data-cta-name="Hero_LearnMore"
               className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
             >

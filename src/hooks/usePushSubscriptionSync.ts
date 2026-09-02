@@ -36,7 +36,7 @@ export function usePushSubscriptionSync(userId: string | null) {
 
   const upsert = useCallback(async (subscription: PushSubscriptionData) => {
     if (!userId) {
-      dispatch({ type: 'error', error: 'User not authenticated' });
+      dispatch({ type: 'error', error: 'Vous devez être connecté.' });
       return;
     }
 
@@ -53,7 +53,7 @@ export function usePushSubscriptionSync(userId: string | null) {
 
     if (error) {
       console.warn('push_subscription_upsert_failed', { code: error.code });
-      dispatch({ type: 'error', error: 'Failed to save subscription. Please try again.' });
+      dispatch({ type: 'error', error: 'Impossible de sauvegarder l\'abonnement. Veuillez réessayer.' });
       return;
     }
 
@@ -62,7 +62,7 @@ export function usePushSubscriptionSync(userId: string | null) {
 
   const remove = useCallback(async (endpoint: string) => {
     if (!userId) {
-      dispatch({ type: 'error', error: 'User not authenticated' });
+      dispatch({ type: 'error', error: 'Vous devez être connecté.' });
       return;
     }
 
@@ -76,7 +76,7 @@ export function usePushSubscriptionSync(userId: string | null) {
 
     if (error) {
       console.warn('push_subscription_delete_failed', { code: error.code });
-      dispatch({ type: 'error', error: 'Failed to remove subscription. Please try again.' });
+      dispatch({ type: 'error', error: 'Impossible de supprimer l\'abonnement. Veuillez réessayer.' });
       return;
     }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import {
@@ -34,7 +34,7 @@ interface UseHouseholdResult {
 }
 
 export function useHousehold(householdId: string, options: UseHouseholdOptions = {}): UseHouseholdResult {
-  const supabase = options.supabase ?? createClient();
+  const supabase = useMemo(() => options.supabase ?? createClient(), [options.supabase]);
 
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);

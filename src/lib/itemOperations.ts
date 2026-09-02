@@ -129,6 +129,13 @@ function itemActionError(
   action: 'create' | 'update' | 'updateQuantity' | 'delete',
   error: { message?: string; code?: string } | null | undefined
 ): string {
+  if (action === 'update' && error?.message?.includes('row-level security')) {
+    return "Vous n'avez pas l'autorisation de modifier cet article.";
+  }
+  if (action === 'delete' && error?.message?.includes('row-level security')) {
+    return "Vous n'avez pas l'autorisation de supprimer cet article.";
+  }
+
   const fallback = {
     create: "Impossible de créer l'article. Vous pouvez réessayer.",
     update: "Impossible de mettre à jour l'article. Vous pouvez réessayer.",

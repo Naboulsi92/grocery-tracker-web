@@ -2,137 +2,24 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  householdActionError,
-  mergeHouseholdMembers,
-  type HouseholdMember,
-  type InvitationState,
-} from '@/lib/household';
-import { createClient } from '@/utils/supabase/client';
+import { useHousehold } from '@/hooks/useHousehold';
 import ThemeToggle from '@/components/ThemeToggle';
 
-interface Household {
-  id: string;
-  name: string;
-}
-
 export default function MembersPage() {
-  const [household, setHousehold] = useState<Household | null>(null);
-  const [members, setMembers] = useState<HouseholdMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadRequest, setLoadRequest] = useState(0);
-  const [error, setError] = useState('');
-  const [invitation, setInvitation] = useState<InvitationState>({ status: 'none' });
   const [copied, setCopied] = useState(false);
   const { user, householdId } = useAuth();
-  const [supabase] = useState(createClient);
+  const { household, members, loading, error, invitation, actions } = useHousehold(householdId ?? '');
 
   const currentMembership = members.find((member) => member.user_id === user?.id);
   const isOwner = currentMembership?.role === 'owner';
 
-  useEffect(() => {
-    let active = true;
-
-    async function fetchData() {
-      if (!householdId) return;
-      setLoading(true);
-      setError('');
-
-      const [householdResult, membersResult] = await Promise.all([
-        supabase.from('households').select('id, name').eq('id', householdId).maybeSingle(),
-        supabase
-          .from('household_members')
-          .select('user_id, role, joined_at')
-          .eq('household_id', householdId)
-          .order('joined_at', { ascending: true }),
-      ]);
-
-      if (!active) return;
-      if (householdResult.error || membersResult.error || !householdResult.data) {
-        setError(householdActionError('load', householdResult.error || membersResult.error));
-        setLoading(false);
-        return;
-      }
-
-      const memberships = membersResult.data ?? [];
-      const userIds = memberships.map((membership) => membership.user_id);
-      const profilesResult = userIds.length
-        ? await supabase.from('profiles').select('id, display_name').in('id', userIds)
-        : { data: [], error: null };
-
-      if (!active) return;
-      if (profilesResult.error) {
-        setError(householdActionError('load', profilesResult.error));
-        setLoading(false);
-        return;
-      }
-
-      setHousehold(householdResult.data);
-      setMembers(mergeHouseholdMembers(memberships, profilesResult.data ?? []));
-      setLoading(false);
-    }
-
-    void fetchData();
-    return () => { active = false; };
-  }, [householdId, loadRequest, supabase]);
-
-  const createInvitation = async () => {
-    if (!householdId) return;
-    setError('');
+  const handleCopyInvitation = async () => {
     setCopied(false);
-    setInvitation({ status: 'creating' });
-
-    const { data, error: invitationError } = await supabase.rpc('create_household_invitation', {
-      p_household_id: householdId,
-    });
-    const created = data?.[0];
-
-    if (invitationError || !created) {
-      setError(householdActionError('invite', invitationError));
-      setInvitation({ status: 'none' });
-      return;
-    }
-
-    setInvitation({
-      status: 'active',
-      invitationId: created.invitation_id,
-      token: created.token,
-      expiresAt: created.expires_at,
-    });
-  };
-
-  const copyInvitation = async () => {
-    if (invitation.status !== 'active') return;
-    setError('');
-    try {
-      await navigator.clipboard.writeText(invitation.token);
-      setCopied(true);
-    } catch (copyError) {
-      setError(householdActionError('copy', copyError instanceof Error ? copyError : null));
-    }
-  };
-
-  const revokeInvitation = async () => {
-    if (invitation.status !== 'active') return;
-    const activeInvitation = invitation;
-    setError('');
-    setInvitation({ ...activeInvitation, status: 'revoking' });
-
-    const { data: revoked, error: revokeError } = await supabase.rpc('revoke_household_invitation', {
-      p_invitation_id: activeInvitation.invitationId,
-    });
-
-    if (revokeError || !revoked) {
-      setError(householdActionError('revoke', revokeError));
-      setInvitation(activeInvitation);
-      return;
-    }
-
-    setInvitation({ status: 'none' });
-    setCopied(false);
+    await actions.copyInviteCode();
+    setCopied(true);
   };
 
   if (loading) {
@@ -168,7 +55,7 @@ export default function MembersPage() {
         {error && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1rem' }}>
             {error}
-            {!household && <button type="button" className="btn btn-secondary" onClick={() => setLoadRequest((request) => request + 1)}>Réessayer</button>}
+            {!household && <button type="button" className="btn btn-secondary" onClick={() => actions.refresh()}>Réessayer</button>}
           </div>
         )}
 
@@ -179,16 +66,16 @@ export default function MembersPage() {
               Créez un code à usage unique, valable sept jours. Le code complet n’est affiché qu’ici.
             </p>
             {invitation.status === 'none' || invitation.status === 'creating' ? (
-              <button type="button" onClick={createInvitation} disabled={invitation.status === 'creating'} className="btn btn-primary">
+              <button type="button" onClick={() => actions.createInvitation()} disabled={invitation.status === 'creating'} className="btn btn-primary">
                 {invitation.status === 'creating' ? 'Création...' : 'Créer une invitation'}
               </button>
             ) : (
               <div className="invite-code-display">
                 <code className="invite-code-text" style={{ overflowWrap: 'anywhere' }}>{invitation.token}</code>
-                <button type="button" onClick={copyInvitation} disabled={invitation.status === 'revoking'} className="btn btn-secondary" aria-describedby="copy-status">
+                <button type="button" onClick={handleCopyInvitation} disabled={invitation.status === 'revoking'} className="btn btn-secondary" aria-describedby="copy-status">
                   {copied ? 'Copié !' : 'Copier'}
                 </button>
-                <button type="button" onClick={revokeInvitation} disabled={invitation.status === 'revoking'} className="btn btn-secondary">
+                <button type="button" onClick={() => actions.revokeInvitation(invitation.invitationId)} disabled={invitation.status === 'revoking'} className="btn btn-secondary">
                   {invitation.status === 'revoking' ? 'Révocation...' : 'Révoquer'}
                 </button>
                 <span id="copy-status" className="sr-only" aria-live="polite">{copied ? 'Code d’invitation complet copié dans le presse-papiers' : ''}</span>

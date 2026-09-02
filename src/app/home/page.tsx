@@ -2,26 +2,15 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { createClient } from '@/utils/supabase/client';
+import { useHousehold } from '@/hooks/useHousehold';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { householdActionError } from '@/lib/household';
 import ThemeToggle from '@/components/ThemeToggle';
 
-interface Household {
-  id: string;
-  name: string;
-}
-
 export default function HomePage() {
-  const [household, setHousehold] = useState<Household | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [loadRequest, setLoadRequest] = useState(0);
   const { user, householdId, signOut } = useAuth();
-  const [supabase] = useState(createClient);
+  const { household, loading, error, actions: { refresh } } = useHousehold(householdId || '');
   const {
     permission,
     localSubscription,
@@ -34,33 +23,6 @@ export default function HomePage() {
     isSupported,
     isLoading: pushLoading,
   } = usePushNotifications(user?.id || null);
-
-  useEffect(() => {
-    async function fetchHousehold() {
-      if (!householdId) return;
-      setLoading(true);
-      setError('');
-
-      try {
-        const { data: householdData, error: householdError } = await supabase
-          .from('households')
-          .select('id, name')
-          .eq('id', householdId)
-          .maybeSingle();
-
-        if (householdError) {
-          setError(householdActionError('load', householdError));
-        } else if (householdData) {
-          setHousehold(householdData as Household);
-        }
-      } catch (err) {
-        setError(householdActionError('load', err instanceof Error ? err : null));
-      }
-      setLoading(false);
-    }
-
-    void fetchHousehold();
-  }, [householdId, loadRequest, supabase]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -85,7 +47,7 @@ export default function HomePage() {
         <ThemeToggle />
         <div className="loading-container">
           <p role="alert">{error || 'Foyer introuvable.'}</p>
-          <button type="button" className="btn btn-primary" onClick={() => setLoadRequest((request) => request + 1)}>Réessayer</button>
+          <button type="button" className="btn btn-primary" onClick={() => refresh()}>Réessayer</button>
         </div>
       </div>
     );

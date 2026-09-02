@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { getErrorMessage, groupItems, joinInventory, type Category, type InventoryItem, type Unit } from '@/lib/inventory';
+import { createItem, updateItem, updateItemQuantity, deleteItem } from '@/lib/itemOperations';
 
 export default function ItemsPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -84,7 +85,7 @@ export default function ItemsPage() {
     };
   }, [householdId, supabase]);
 
-  async function handleSubmit(e: React.FormEvent) {
+async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
@@ -100,31 +101,20 @@ export default function ItemsPage() {
 
     try {
       if (editingId) {
-        const { data, error: updateError } = await supabase
-          .from('items')
-          .update(editableItemData)
-          .eq('id', editingId)
-          .eq('household_id', householdId)
-          .select()
-          .single();
-        if (updateError) throw updateError;
-        setItems((current) => current.map((item) => item.id === data.id
-          ? joinInventory([data], categories, units)[0]
-          : item));
+        const { error } = await updateItem(editingId, householdId!, editableItemData);
+        if (error) throw error;
+        await fetchData();
       } else {
-        const itemData = {
+        const { error } = await createItem(householdId, {
           ...editableItemData,
           quantity: parseFloat(formQuantity) || 1,
-          household_id: householdId,
-        };
-        const { data, error: insertError } = await supabase.from('items').insert(itemData).select().single();
-        if (insertError) throw insertError;
-        setItems((current) => [...current, joinInventory([data], categories, units)[0]]
-          .sort((left, right) => left.name.localeCompare(right.name)));
+        });
+        if (error) throw error;
+        await fetchData();
       }
       resetForm();
     } catch (mutationError) {
-      setError(getErrorMessage(mutationError, 'Impossible d’enregistrer l’article.'));
+      setError(getErrorMessage(mutationError, 'Impossible d\'enregistrer l\'article.'));
     } finally {
       setMutating(null);
     }
@@ -137,17 +127,11 @@ export default function ItemsPage() {
     setMutating(id);
     setError('');
     try {
-      const { error: deleteError } = await supabase
-        .from('items')
-        .delete()
-        .eq('id', id)
-        .eq('household_id', householdId)
-        .select('id')
-        .single();
-      if (deleteError) throw deleteError;
+      const { error } = await deleteItem(id, householdId!);
+      if (error) throw error;
       setItems((current) => current.filter((item) => item.id !== id));
     } catch (mutationError) {
-      setError(getErrorMessage(mutationError, 'Impossible de supprimer l’article.'));
+      setError(getErrorMessage(mutationError, 'Impossible de supprimer l\'article.'));
     } finally {
       setMutating(null);
     }
@@ -158,13 +142,9 @@ export default function ItemsPage() {
     setMutating(id);
     setError('');
     try {
-      const { data, error: quantityError } = await supabase.rpc('adjust_item_quantity', {
-        p_item_id: id,
-        p_delta: delta,
-      });
-      if (quantityError) throw quantityError;
-      if (data.household_id !== householdId) throw new Error('Article hors du foyer courant.');
-      setItems((current) => current.map((item) => item.id === id ? { ...item, ...data } : item));
+      const { error } = await updateItemQuantity(id, delta);
+      if (error) throw error;
+      await fetchData();
     } catch (mutationError) {
       setError(getErrorMessage(mutationError, 'Impossible de modifier la quantité.'));
     } finally {

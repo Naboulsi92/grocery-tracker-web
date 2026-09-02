@@ -91,7 +91,7 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
 
     void fetchData();
     return () => { active = false; };
-  }, [householdId, options.supabase, refreshTrigger]);
+  }, [householdId, supabase, refreshTrigger]);
 
   const createInvitation = useCallback(async () => {
     if (!householdId) return;

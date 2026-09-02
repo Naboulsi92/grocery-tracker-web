@@ -96,12 +96,12 @@ async function handleSubmit(e: React.FormEvent) {
   if (!householdId || !formName.trim() || !formUnitId || mutating) return;
   setMutating('form');
 
-    const editableItemData = {
-      name: formName.trim(),
-      unit_id: formUnitId,
-      category_id: formCategoryId || null,
-      low_stock_threshold: parseFloat(formThreshold) || 1,
-    };
+  const editableItemData = {
+    name: formName.trim(),
+    unit_id: formUnitId,
+    category_id: formCategoryId || null,
+    low_stock_threshold: parseFloat(formThreshold) || 1,
+  };
 
     try {
       if (editingId) {

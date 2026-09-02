@@ -51,7 +51,7 @@ export function useRealtimeTable({
         void supabase.removeChannel(channel);
       });
     };
-  }, [supabase, householdId, tables.join(','), debounceMs]);
+  }, [supabase, householdId, tables, debounceMs]);
 
   return { setOnChange };
 }

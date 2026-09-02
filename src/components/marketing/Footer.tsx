@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 export function Footer() {
   return (
     <footer className="bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
@@ -11,15 +9,15 @@ export function Footer() {
             </p>
           </div>
           <div className="flex space-x-6">
-            <Link href="/about" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+            <a href="#" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               About
-            </Link>
-            <Link href="/contact" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+            </a>
+            <a href="#" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               Contact
-            </Link>
-            <Link href="/terms" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+            </a>
+            <a href="#" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               Terms
-            </Link>
+            </a>
           </div>
         </div>
       </div>

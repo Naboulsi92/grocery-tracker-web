@@ -91,10 +91,10 @@ export default function ItemsPage() {
 
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault();
-    setError('');
+  setError('');
 
-    if (!householdId || !formName.trim() || !formUnitId || mutating) return;
-    setMutating('form');
+  if (!householdId || !formName.trim() || !formUnitId || mutating) return;
+  setMutating('form');
 
     const editableItemData = {
       name: formName.trim(),

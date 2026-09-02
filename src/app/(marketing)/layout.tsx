@@ -2,6 +2,7 @@ import { Header } from '@/components/marketing/Header';
 import { Footer } from '@/components/marketing/Footer';
 import Script from 'next/script';
 import { ScrollTracker } from '@/components/marketing/ScrollTracker';
+import { PageViewTracker } from '@/components/marketing/PageViewTracker';
 
 export const metadata = {
   title: 'Grocery List App - Collaborative Shopping for Households',
@@ -63,6 +64,7 @@ export default function MarketingLayout({
       <main className="flex-1">
         {children}
         <ScrollTracker />
+        <PageViewTracker />
       </main>
       <Footer />
     </div>

@@ -10,6 +10,17 @@ export type ItemOperationError = {
   error: Error | null;
 };
 
+function logItemOperationError(
+  action: 'create' | 'update' | 'updateQuantity' | 'delete',
+  error: { code?: string } | null | undefined
+) {
+  console.warn('client_operation_failed', {
+    area: 'item',
+    action,
+    code: error?.code ?? 'unknown',
+  });
+}
+
 export async function createItem(
   householdId: string,
   data: {
@@ -35,11 +46,7 @@ export async function createItem(
   const { error } = await client.from('items').insert(itemData);
 
   if (error) {
-    console.warn('client_operation_failed', {
-      area: 'item',
-      action: 'create',
-      code: error.code ?? 'unknown',
-    });
+    logItemOperationError('create', error);
     return { error: new Error(itemActionError('create', error)) };
   }
 
@@ -66,18 +73,14 @@ export async function updateItem(
     low_stock_threshold: data.low_stock_threshold,
   };
 
-const { error } = await client
-      .from('items')
-      .update(updateData)
-      .eq('id', itemId)
-      .eq('household_id', householdId);
+  const { error } = await client
+    .from('items')
+    .update(updateData)
+    .eq('id', itemId)
+    .eq('household_id', householdId);
 
   if (error) {
-    console.warn('client_operation_failed', {
-      area: 'item',
-      action: 'update',
-      code: error.code ?? 'unknown',
-    });
+    logItemOperationError('update', error);
     return { error: new Error(itemActionError('update', error)) };
   }
 
@@ -97,11 +100,7 @@ export async function updateItemQuantity(
   });
 
   if (error) {
-    console.warn('client_operation_failed', {
-      area: 'item',
-      action: 'updateQuantity',
-      code: error.code ?? 'unknown',
-    });
+    logItemOperationError('updateQuantity', error);
     return { error: new Error(itemActionError('updateQuantity', error)) };
   }
 
@@ -116,17 +115,13 @@ export async function deleteItem(
   const client = supabase ?? createClient();
 
   const { error } = await client
-      .from('items')
-      .delete()
-      .eq('id', itemId)
-      .eq('household_id', householdId);
+    .from('items')
+    .delete()
+    .eq('id', itemId)
+    .eq('household_id', householdId);
 
   if (error) {
-    console.warn('client_operation_failed', {
-      area: 'item',
-      action: 'delete',
-      code: error.code ?? 'unknown',
-    });
+    logItemOperationError('delete', error);
     return { error: new Error(itemActionError('delete', error)) };
   }
 
@@ -137,12 +132,6 @@ function itemActionError(
   action: 'create' | 'update' | 'updateQuantity' | 'delete',
   error: { message?: string; code?: string } | null | undefined
 ): string {
-  console.warn('client_operation_failed', {
-    area: 'items',
-    action,
-    code: error?.code ?? 'unknown',
-  });
-
   if (action === 'update' && error?.message?.includes('row-level security')) {
     return "Vous n'avez pas l'autorisation de modifier cet article.";
   }

@@ -1,11 +1,13 @@
 import { Hero } from '@/components/marketing/Hero';
 import { Features } from '@/components/marketing/Features';
+import { HowItWorks } from '@/components/marketing/HowItWorks';
 
 export default function HomePage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <Hero />
       <Features />
+      <HowItWorks />
 
       {/* CTA Section Placeholder */}
       <section className="py-16 bg-blue-50 dark:bg-blue-900/20 rounded-lg">

@@ -1,32 +1,12 @@
+import { Hero } from '@/components/marketing/Hero';
+
 export default function HomePage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      {/* Hero Section */}
-      <section className="text-center py-16">
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-          Welcome to Grocery List
-        </h1>
-        <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">
-          Your shared grocery tracking application
-        </p>
-        <div className="flex justify-center space-x-4">
-          <a
-            href="/signup"
-            className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700"
-          >
-            Get Started
-          </a>
-          <a
-            href="/login"
-            className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white px-6 py-3 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
-          >
-            Login
-          </a>
-        </div>
-      </section>
+      <Hero />
 
-      {/* Features Section Placeholder */}
-      <section className="py-16">
+      {/* Features Section */}
+      <section id="features" className="py-16">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-8">
           Features
         </h2>

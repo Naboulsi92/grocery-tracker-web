@@ -28,6 +28,7 @@ beforeAll(() => {
   mockObserve = jest.fn();
   mockDisconnect = jest.fn();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (global as any).IntersectionObserver = class IntersectionObserver {
     constructor(callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {
       capturedCallback = callback;
@@ -114,10 +115,11 @@ describe('useScrollAnimation', () => {
 
   it('should skip null refs', () => {
     const ref1 = { current: createMockElement() };
-    const ref2 = { current: null as HTMLElement | null };
+    const ref2 = { current: null };
     const ref3 = { current: createMockElement() };
 
-    renderHook(() => useScrollAnimation([ref1, ref2, ref3] as React.RefObject<HTMLElement>[]));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    renderHook(() => useScrollAnimation([ref1, ref2, ref3] as any));
 
     // Verify only non-null refs were observed
     expect(mockObserve).toHaveBeenCalledTimes(2);

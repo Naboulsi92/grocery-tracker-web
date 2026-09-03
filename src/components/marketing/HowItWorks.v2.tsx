@@ -88,7 +88,7 @@ export function HowItWorksV2() {
             style={{ 
               fontFamily: 'var(--font-v2-heading)', 
               fontWeight: 600, 
-              fontSize: 'clamp(2rem, 4vw, 2.75rem)', 
+              fontSize: 'clamp(2rem, 4vw, 3rem)', 
               lineHeight: 1.2,
               color: 'var(--color-v2-text-charcoal)',
               marginBottom: '1rem'
@@ -181,7 +181,7 @@ export function HowItWorksV2() {
                     display: 'flex',
                     gap: '1.25rem',
                     alignItems: 'flex-start',
-                    padding: '1.25rem',
+                    padding: '1.5rem',
                     background: 'var(--color-v2-bg-cream)',
                     borderRadius: 'var(--v2-radius-md)',
                     border: '1px solid var(--color-v2-border-subtle)'

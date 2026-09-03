@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { usePlausibleAnalytics } from '@/hooks/usePlausibleAnalytics';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
+import { useCtaTracking } from '@/hooks/useCtaTracking';
 
 export function CTAV2() {
   const { trackCtaClick } = usePlausibleAnalytics();
@@ -12,24 +13,7 @@ export function CTAV2() {
 
   useScrollAnimation([contentRef].map(ref => ({ current: ref.current as HTMLElement })) as React.RefObject<HTMLElement>[], { threshold: 0.2 });
 
-  useEffect(() => {
-    const handleCtaClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const ctaElement = target.closest('[data-cta-name]') as HTMLElement | null;
-      const ctaName = ctaElement?.getAttribute('data-cta-name');
-      
-      if (ctaName) {
-        trackCtaClick({
-          name: ctaName,
-          element: target.tagName,
-          href: (target as HTMLElement).getAttribute('href') || undefined,
-        });
-      }
-    };
-
-    document.addEventListener('click', handleCtaClick);
-    return () => document.removeEventListener('click', handleCtaClick);
-  }, [trackCtaClick]);
+  useCtaTracking({ trackCtaClick });
 
   return (
     <section 

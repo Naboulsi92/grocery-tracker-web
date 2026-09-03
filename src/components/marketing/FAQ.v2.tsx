@@ -38,6 +38,8 @@ export function FAQV2() {
     setOpenIndex(openIndex === index ? null : index);
   };
 
+  // Setup IntersectionObserver to trigger fade-in animations when FAQ items come into view
+  // Each item gets a staggered delay based on its index for a cascading effect
   useEffect(() => {
     const observerOptions = {
       threshold: 0.1,
@@ -123,6 +125,7 @@ export function FAQV2() {
                 }}
               >
                 <button
+                  id={`faq-question-${index}`}
                   onClick={() => toggleFaq(index)}
                   className="v2-focus-visible"
                   aria-expanded={isOpen}
@@ -179,7 +182,7 @@ export function FAQV2() {
                   style={{
                     overflow: 'hidden',
                     transition: `max-height var(--v2-transition-smooth), opacity var(--v2-transition-smooth)`,
-                    maxHeight: isOpen ? '200px' : '0',
+                    maxHeight: isOpen ? '500px' : '0',
                     opacity: isOpen ? 1 : 0
                   }}
                 >

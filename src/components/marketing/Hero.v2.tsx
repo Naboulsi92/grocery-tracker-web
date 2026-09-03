@@ -19,6 +19,8 @@ export function HeroV2() {
     }
   };
 
+  // Setup IntersectionObserver to trigger fade-in animations for hero elements
+  // Each element gets a staggered delay (0.15s apart) for a smooth cascading entrance
   useEffect(() => {
     const observerOptions = {
       threshold: 0.2,
@@ -51,6 +53,8 @@ export function HeroV2() {
     return () => observer.disconnect();
   }, []);
 
+  // Global CTA click tracking: listens for clicks on any element with data-cta-name attribute
+  // This allows tracking CTA buttons across the entire page from a single handler
   useEffect(() => {
     const handleCtaClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -119,7 +123,7 @@ export function HeroV2() {
             className="v2-animate-fade-in-up"
             style={{ opacity: '0', marginBottom: '1.5rem' }}
           >
-            <span style={{ fontFamily: 'var(--font-v2-heading)', fontWeight: 700, fontSize: 'clamp(2.5rem, 5vw, 3.5rem)', lineHeight: 1.1, color: 'var(--color-v2-text-charcoal)' }}>
+            <span style={{ fontFamily: 'var(--font-v2-heading)', fontWeight: 700, fontSize: 'clamp(2.5rem, 5vw, 4rem)', lineHeight: 1.1, color: 'var(--color-v2-text-charcoal)' }}>
               Grocery Shopping,
             </span>
             <br />

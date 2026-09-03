@@ -110,7 +110,7 @@ export function CTAV2() {
           style={{ 
             fontFamily: 'var(--font-v2-heading)', 
             fontWeight: 700, 
-            fontSize: 'clamp(2rem, 4vw, 2.75rem)', 
+            fontSize: 'clamp(2rem, 4vw, 3rem)', 
             lineHeight: 1.2,
             color: '#ffffff',
             marginBottom: '1rem'

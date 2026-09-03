@@ -34,7 +34,8 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+# Note: .env.local.example should be committed for contributor reference
+.env.local
 
 # vercel
 .vercel
@@ -45,6 +46,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-.vercel
-.env*

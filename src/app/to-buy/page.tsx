@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, useEffectEvent, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useHousehold } from '@/hooks/useHousehold';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { getErrorMessage, getLowStockItems, joinInventory, type InventoryItem } from '@/lib/inventory';
@@ -15,6 +16,9 @@ export default function ToBuyPage() {
   const [error, setError] = useState('');
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const { householdId } = useAuth();
+  const { household, members, loading: householdLoading, error: householdError } = useHousehold(householdId ?? '');
+  const isLoading = loading || householdLoading;
+  const combinedError = householdError || error;
   const [supabase] = useState(createClient);
   const requestId = useRef(0);
 
@@ -90,7 +94,7 @@ export default function ToBuyPage() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="page-container">
         <ThemeToggle />
@@ -120,9 +124,9 @@ export default function ToBuyPage() {
       </header>
 
       <main className="app-main">
-        {error && (
+        {combinedError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>
-            {error}
+            {combinedError}
             <button type="button" className="btn btn-secondary" onClick={() => void fetchItems(true)}>Réessayer</button>
           </div>
         )}

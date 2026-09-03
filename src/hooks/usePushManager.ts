@@ -19,9 +19,23 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   return outputArray.buffer;
 }
 
+function getInitialSupport(): 'supported' | 'unsupported' {
+  if (typeof window === 'undefined') return 'unsupported';
+  const supported = 'Notification' in window
+    && 'serviceWorker' in navigator
+    && 'PushManager' in window;
+  return supported ? 'supported' : 'unsupported';
+}
+
+function getInitialPermission(): NotificationPermission {
+  if (typeof window === 'undefined') return 'default';
+  if (!('Notification' in window)) return 'default';
+  return Notification.permission;
+}
+
 export function usePushManager() {
-  const [support, setSupport] = useState<'supported' | 'unsupported'>('unsupported');
-  const [permission, setPermission] = useState<NotificationPermission>('default');
+  const [support] = useState<'supported' | 'unsupported'>(getInitialSupport);
+  const [permission, setPermission] = useState<NotificationPermission>(getInitialPermission);
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [endpoint, setEndpoint] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,17 +43,9 @@ export function usePushManager() {
   useEffect(() => {
     let active = true;
 
-    const supported = 'Notification' in window
-      && 'serviceWorker' in navigator
-      && 'PushManager' in window;
-
-    if (!supported) {
-      setSupport('unsupported');
+    if (support !== 'supported') {
       return;
     }
-
-    setSupport('supported');
-    setPermission(Notification.permission);
 
     async function initialize() {
       try {
@@ -57,7 +63,7 @@ export function usePushManager() {
 
     void initialize();
     return () => { active = false; };
-  }, []);
+  }, [support]);
 
   const requestPermission = useCallback(async (): Promise<NotificationPermission> => {
     if (support !== 'supported') {
@@ -123,7 +129,6 @@ export function usePushManager() {
         await currentSubscription.unsubscribe();
       }
 
-      const storedEndpoint = localStorage.getItem(ENDPOINT_STORAGE_KEY);
       localStorage.removeItem(ENDPOINT_STORAGE_KEY);
       
       setSubscription(null);

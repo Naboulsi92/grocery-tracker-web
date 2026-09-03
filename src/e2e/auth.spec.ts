@@ -65,9 +65,10 @@ test.describe('Authentication', () => {
 });
 
 test.describe('Navigation', () => {
-  test('root redirects to login when not authenticated', async ({ page }) => {
+  test('root shows marketing homepage when not authenticated', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL('/');
+    await expect(page.getByRole('heading', { name: /Collaborative grocery lists/i })).toBeVisible();
   });
 
   test('home page redirects to login when not authenticated', async ({ page }) => {

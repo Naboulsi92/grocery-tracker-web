@@ -28,6 +28,29 @@ export function usePushNotifications(userId: string | null) {
   const isSupported = pushManager.support === 'supported';
   const isLoading = pushManager.isLoading || pushManager.permission === 'default' || operation !== 'idle';
 
+  const subscribeCurrentDevice = useCallback(async () => {
+    if (!userId) {
+      return { error: new Error('Vous devez être connecté pour activer les notifications.') };
+    }
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey) {
+      return { error: new Error(MISSING_VAPID_ERROR) };
+    }
+
+    try {
+      const subscription = await pushManager.subscribe(vapidPublicKey);
+      const subscriptionData = {
+        endpoint: subscription.endpoint,
+        subscription: subscriptionToJson(subscription),
+      };
+      await sync.actions.upsert(subscriptionData);
+      return { error: null };
+    } catch (error) {
+      const normalized = error instanceof Error ? error : new Error('Impossible d\'activer les notifications.');
+      return { error: normalized };
+    }
+  }, [userId, pushManager, sync]);
+
   const requestPermission = useCallback(async () => {
     if (!isSupported) {
       return { error: new Error('Ce navigateur ne prend pas en charge les notifications push.') };
@@ -61,7 +84,7 @@ export function usePushNotifications(userId: string | null) {
       const normalized = error instanceof Error ? error : new Error('Impossible d\'activer les notifications.');
       return { error: normalized };
     }
-  }, [isSupported, userId, pushManager]);
+  }, [isSupported, userId, pushManager, subscribeCurrentDevice]);
 
   const subscribe = useCallback(async () => {
     if (!isSupported) {
@@ -81,7 +104,7 @@ export function usePushNotifications(userId: string | null) {
     const result = await subscribeCurrentDevice();
     setOperation('idle');
     return result;
-  }, [isSupported, pushManager.permission, userId]);
+  }, [isSupported, pushManager.permission, userId, subscribeCurrentDevice]);
 
   const unsubscribe = useCallback(async () => {
     if (!isSupported) {
@@ -108,29 +131,6 @@ export function usePushNotifications(userId: string | null) {
       return { error: normalized };
     }
   }, [isSupported, userId, pushManager, sync]);
-
-  const subscribeCurrentDevice = useCallback(async () => {
-    if (!userId) {
-      return { error: new Error('Vous devez être connecté pour activer les notifications.') };
-    }
-    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!vapidPublicKey) {
-      return { error: new Error(MISSING_VAPID_ERROR) };
-    }
-
-    try {
-      const subscription = await pushManager.subscribe(vapidPublicKey);
-      const subscriptionData = {
-        endpoint: subscription.endpoint,
-        subscription: subscriptionToJson(subscription),
-      };
-      await sync.actions.upsert(subscriptionData);
-      return { error: null };
-    } catch (error) {
-      const normalized = error instanceof Error ? error : new Error('Impossible d\'activer les notifications.');
-      return { error: normalized };
-    }
-  }, [userId, pushManager, sync]);
 
   const localSubscription = useMemo(() => {
     if (pushManager.support === 'unsupported') return 'unsubscribed';

@@ -3,12 +3,7 @@ import { Footer } from '@/components/marketing/Footer';
 import Script from 'next/script';
 import { ScrollTracker } from '@/components/marketing/ScrollTracker';
 import { PageViewTracker } from '@/components/marketing/PageViewTracker';
-import { Inter } from 'next/font/google';
-
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-});
+import './marketing.css';
 
 export const metadata = {
   title: 'Grocery List App - Collaborative Shopping for Households',
@@ -53,7 +48,7 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`flex flex-col min-h-screen ${inter.className}`}>
+    <div className="flex flex-col min-h-screen">
       <Script
         defer
         data-domain="grocerylist.app"

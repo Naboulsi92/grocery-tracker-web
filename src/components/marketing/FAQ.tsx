@@ -33,46 +33,39 @@ export function FAQ() {
   };
 
   return (
-    <section className="py-16 sm:py-20">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white text-center mb-12">
-          Frequently Asked Questions
-        </h2>
-        <div className="space-y-4">
+    <section className="mk-section" id="faq">
+      <div className="mk-container mk-faq">
+        <h2 className="mk-h2">Frequently asked questions</h2>
+        <p className="mk-section-sub">
+          Everything else people usually ask before creating a household.
+        </p>
+        <div className="mk-faq-list">
           {faqs.map((faq, index) => (
-            <div
-              key={index}
-              className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
-            >
+            <div key={index} className="mk-faq-item">
               <button
                 onClick={() => toggleFaq(index)}
-                className="w-full flex items-center justify-between p-4 sm:p-5 text-left min-h-[44px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+                className="mk-faq-q"
                 aria-expanded={openIndex === index}
               >
-                <span className="font-semibold text-gray-900 dark:text-white pr-4">
-                  {faq.question}
-                </span>
+                <span>{faq.question}</span>
                 <svg
-                  className={`w-5 h-5 text-gray-500 dark:text-gray-400 flex-shrink-0 transition-transform duration-200 ${
-                    openIndex === index ? 'rotate-180' : ''
-                  }`}
-                  fill="none"
+                  className="mk-faq-chevron"
+                  width="20"
+                  height="20"
                   viewBox="0 0 24 24"
+                  fill="none"
                   stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
+                  <path d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
               {openIndex === index && (
-                <div className="overflow-hidden animate-in fade-in duration-200">
-                  <div className="p-4 sm:p-5 pt-0 text-gray-600 dark:text-gray-400">
-                    {faq.answer}
-                  </div>
+                <div className="mk-faq-a">
+                  {faq.answer}
                 </div>
               )}
             </div>

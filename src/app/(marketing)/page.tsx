@@ -6,20 +6,14 @@ import { CTA } from '@/components/marketing/CTA';
 
 export default function HomePage() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <>
       <section id="hero">
         <Hero />
       </section>
-      <section id="features">
-        <Features />
-      </section>
-      <section id="how-it-works">
-        <HowItWorks />
-      </section>
-      <section id="faq">
-        <FAQ />
-      </section>
+      <Features />
+      <HowItWorks />
+      <FAQ />
       <CTA />
-    </div>
+    </>
   );
 }

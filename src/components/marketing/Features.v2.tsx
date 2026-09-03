@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 
 export function FeaturesV2() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useScrollAnimation(cardRefs.current.map(ref => ({ current: ref as HTMLElement })) as React.RefObject<HTMLElement>[], { threshold: 0.1 });
 
   const features = [
     {
@@ -53,32 +56,6 @@ export function FeaturesV2() {
       color: 'var(--color-v2-primary-green)'
     }
   ];
-
-  useEffect(() => {
-    const observerOptions = {
-      threshold: 0.1,
-      rootMargin: '0px'
-    };
-
-    const handleObserve = (entries: IntersectionObserverEntry[]) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('v2-animate-fade-in-up');
-        }
-      });
-    };
-
-    const observer = new IntersectionObserver(handleObserve, observerOptions);
-    
-    cardRefs.current.forEach((card) => {
-      if (card) {
-        card.style.opacity = '0';
-        observer.observe(card);
-      }
-    });
-
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <section 

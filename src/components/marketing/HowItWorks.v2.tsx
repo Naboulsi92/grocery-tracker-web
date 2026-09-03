@@ -1,11 +1,17 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 
 export function HowItWorksV2() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useScrollAnimation(
+    [...stepRefs.current, ...lineRefs.current].map(r => ({ current: r as HTMLElement })) as React.RefObject<HTMLElement>[],
+    { threshold: 0.15, staggerDelay: '0.15s' }
+  );
 
   const steps = [
     {
@@ -59,40 +65,6 @@ export function HowItWorksV2() {
       )
     }
   ];
-
-  useEffect(() => {
-    const observerOptions = {
-      threshold: 0.15,
-      rootMargin: '0px'
-    };
-
-    const handleObserve = (entries: IntersectionObserverEntry[]) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('v2-animate-fade-in-up');
-        }
-      });
-    };
-
-    const observer = new IntersectionObserver(handleObserve, observerOptions);
-    
-    stepRefs.current.forEach((step, index) => {
-      if (step) {
-        step.style.opacity = '0';
-        step.style.animationDelay = `${index * 0.15}s`;
-        observer.observe(step);
-      }
-    });
-
-    lineRefs.current.forEach((line) => {
-      if (line) {
-        line.style.opacity = '0';
-        observer.observe(line);
-      }
-    });
-
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <section 

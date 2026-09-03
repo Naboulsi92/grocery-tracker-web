@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 
 const faqs = [
   {
@@ -38,34 +39,7 @@ export function FAQV2() {
     setOpenIndex(openIndex === index ? null : index);
   };
 
-  // Setup IntersectionObserver to trigger fade-in animations when FAQ items come into view
-  // Each item gets a staggered delay based on its index for a cascading effect
-  useEffect(() => {
-    const observerOptions = {
-      threshold: 0.1,
-      rootMargin: '0px'
-    };
-
-    const handleObserve = (entries: IntersectionObserverEntry[]) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('v2-animate-fade-in-up');
-        }
-      });
-    };
-
-    const observer = new IntersectionObserver(handleObserve, observerOptions);
-    
-    faqRefs.current.forEach((faq, index) => {
-      if (faq) {
-        faq.style.opacity = '0';
-        faq.style.animationDelay = `${index * 0.1}s`;
-        observer.observe(faq);
-      }
-    });
-
-    return () => observer.disconnect();
-  }, []);
+  useScrollAnimation(faqRefs.current.map(ref => ({ current: ref as HTMLElement })) as React.RefObject<HTMLElement>[], { threshold: 0.1, staggerDelay: '0.1s' });
 
   return (
     <section 

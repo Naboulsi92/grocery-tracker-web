@@ -1,16 +1,24 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { usePlausibleAnalytics } from '@/hooks/usePlausibleAnalytics';
+import { useCtaTracking } from '@/hooks/useCtaTracking';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 
 export function HeroV2() {
   const { trackCtaClick } = usePlausibleAnalytics();
+  useCtaTracking({ trackCtaClick });
   const heroRef = useRef<HTMLDivElement>(null);
   const illustrationRef = useRef<HTMLDivElement>(null);
   const headlineRef = useRef<HTMLHeadingElement>(null);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const ctaContainerRef = useRef<HTMLDivElement>(null);
+
+  useScrollAnimation(
+    [illustrationRef, headlineRef, descriptionRef, ctaContainerRef].map(ref => ({ current: ref.current as HTMLElement })) as React.RefObject<HTMLElement>[],
+    { threshold: 0.2, staggerDelay: '0.15s' }
+  );
 
   const scrollToFeatures = () => {
     const featuresSection = document.getElementById('features-v2');
@@ -18,61 +26,6 @@ export function HeroV2() {
       featuresSection.scrollIntoView({ behavior: 'smooth' });
     }
   };
-
-  // Setup IntersectionObserver to trigger fade-in animations for hero elements
-  // Each element gets a staggered delay (0.15s apart) for a smooth cascading entrance
-  useEffect(() => {
-    const observerOptions = {
-      threshold: 0.2,
-      rootMargin: '0px'
-    };
-
-    const handleObserve = (entries: IntersectionObserverEntry[]) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('v2-animate-fade-in-up');
-        }
-      });
-    };
-
-    const observer = new IntersectionObserver(handleObserve, observerOptions);
-    
-    const elementsToObserve = [
-      illustrationRef.current,
-      headlineRef.current,
-      descriptionRef.current,
-      ctaContainerRef.current
-    ].filter((el): el is NonNullable<typeof el> => el !== null);
-
-    elementsToObserve.forEach((el, index) => {
-      el.style.opacity = '0';
-      el.style.animationDelay = `${index * 0.15}s`;
-      observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  // Global CTA click tracking: listens for clicks on any element with data-cta-name attribute
-  // This allows tracking CTA buttons across the entire page from a single handler
-  useEffect(() => {
-    const handleCtaClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const ctaElement = target.closest('[data-cta-name]') as HTMLElement | null;
-      const ctaName = ctaElement?.getAttribute('data-cta-name');
-      
-      if (ctaName) {
-        trackCtaClick({
-          name: ctaName,
-          element: target.tagName,
-          href: (target as HTMLElement).getAttribute('href') || undefined,
-        });
-      }
-    };
-
-    document.addEventListener('click', handleCtaClick);
-    return () => document.removeEventListener('click', handleCtaClick);
-  }, [trackCtaClick]);
 
   return (
     <section ref={heroRef} className="relative overflow-hidden v2-section" style={{ padding: '4rem 1.5rem 6rem' }}>
@@ -102,10 +55,7 @@ export function HeroV2() {
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
               >
-                <path
-                  d="M60 10L70 35L95 35L75 55L85 80L60 65L35 80L45 55L25 35L50 35L60 10Z"
-                  fill="white"
-                  fillOpacity="0.9"
+                <path d="M60 10L70 35L95 35L75 55L85 80L60 65L35 80L45 55L25 35L50 35L60 10Z"
                 />
                 <circle cx="60" cy="60" r="25" fill="white" fillOpacity="0.8" />
                 <path

@@ -3,11 +3,14 @@
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { usePlausibleAnalytics } from '@/hooks/usePlausibleAnalytics';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 
 export function CTAV2() {
   const { trackCtaClick } = usePlausibleAnalytics();
   const sectionRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  useScrollAnimation([contentRef].map(ref => ({ current: ref.current as HTMLElement })) as React.RefObject<HTMLElement>[], { threshold: 0.2 });
 
   useEffect(() => {
     const handleCtaClick = (e: MouseEvent) => {
@@ -27,26 +30,6 @@ export function CTAV2() {
     document.addEventListener('click', handleCtaClick);
     return () => document.removeEventListener('click', handleCtaClick);
   }, [trackCtaClick]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('v2-animate-fade-in-up');
-          }
-        });
-      },
-      { threshold: 0.2 }
-    );
-
-    if (contentRef.current) {
-      contentRef.current.style.opacity = '0';
-      observer.observe(contentRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <section 

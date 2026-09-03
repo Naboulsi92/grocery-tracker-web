@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback, useEffectEvent, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useHousehold } from '@/hooks/useHousehold';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { getErrorMessage, groupItems, joinInventory, type Category, type InventoryItem, type Unit } from '@/lib/inventory';
@@ -25,6 +26,9 @@ export default function ItemsPage() {
   const [error, setError] = useState('');
   const [mutating, setMutating] = useState<string | null>(null);
   const { householdId } = useAuth();
+  const { household, members, loading: householdLoading, error: householdError } = useHousehold(householdId ?? '');
+  const isLoading = loading || householdLoading;
+  const combinedError = householdError || error;
   const [supabase] = useState(createClient);
   const requestId = useRef(0);
 
@@ -86,18 +90,18 @@ export default function ItemsPage() {
   }, [householdId, supabase]);
 
 async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
+  e.preventDefault();
+  setError('');
 
-    if (!householdId || !formName.trim() || !formUnitId || mutating) return;
-    setMutating('form');
+  if (!householdId || !formName.trim() || !formUnitId || mutating) return;
+  setMutating('form');
 
-    const editableItemData = {
-      name: formName.trim(),
-      unit_id: formUnitId,
-      category_id: formCategoryId || null,
-      low_stock_threshold: parseFloat(formThreshold) || 1,
-    };
+  const editableItemData = {
+    name: formName.trim(),
+    unit_id: formUnitId,
+    category_id: formCategoryId || null,
+    low_stock_threshold: parseFloat(formThreshold) || 1,
+  };
 
     try {
       if (editingId) {
@@ -172,7 +176,7 @@ async function handleSubmit(e: React.FormEvent) {
     setShowForm(true);
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="page-container">
         <ThemeToggle />
@@ -211,14 +215,14 @@ async function handleSubmit(e: React.FormEvent) {
       </header>
 
       <main className="app-main">
-        {error && (
+        {combinedError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            {error}
+            {combinedError}
             <button type="button" className="btn btn-secondary" onClick={() => void fetchData(true)}>Réessayer</button>
           </div>
         )}

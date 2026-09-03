@@ -30,7 +30,7 @@ beforeAll(() => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (global as any).IntersectionObserver = class IntersectionObserver {
-    constructor(callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {
+    constructor(callback: IntersectionObserverCallback) {
       capturedCallback = callback;
     }
     observe = mockObserve;

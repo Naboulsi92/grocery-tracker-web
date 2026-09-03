@@ -135,7 +135,7 @@ describe('useCtaTracking', () => {
     const trackCtaClick2 = jest.fn();
 
     const { rerender } = renderHook(
-      ({ trackCtaClick }: { trackCtaClick: (data: any) => void }) =>
+      ({ trackCtaClick }: { trackCtaClick: Parameters<typeof useCtaTracking>[0]['trackCtaClick'] }) =>
         useCtaTracking({ trackCtaClick }),
       { initialProps: { trackCtaClick: trackCtaClick1 } }
     );

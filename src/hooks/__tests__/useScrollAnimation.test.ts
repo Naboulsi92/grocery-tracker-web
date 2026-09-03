@@ -117,7 +117,7 @@ describe('useScrollAnimation', () => {
     const ref2 = { current: null as HTMLElement | null };
     const ref3 = { current: createMockElement() };
 
-    renderHook(() => useScrollAnimation([ref1, ref2, ref3] as any));
+    renderHook(() => useScrollAnimation([ref1, ref2, ref3] as React.RefObject<HTMLElement>[]));
 
     // Verify only non-null refs were observed
     expect(mockObserve).toHaveBeenCalledTimes(2);

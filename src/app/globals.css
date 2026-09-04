@@ -105,8 +105,13 @@ h1, h2, h3, h4, h5, h6 {
 
 a {
   color: inherit;
+  text-decoration: none;
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.15em;
+}
+
+a:hover {
+  text-decoration: underline;
 }
 
 input, button, textarea, select {

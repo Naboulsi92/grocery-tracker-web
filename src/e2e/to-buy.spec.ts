@@ -6,10 +6,15 @@ import {
   writesDisabledReason,
 } from './environment';
 import type { Page } from '@playwright/test';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 type Account = {
   email: string;
   password: string;
+};
+
+const createClient = async (url: string, key: string) => {
+  return createSupabaseClient(url, key);
 };
 
 async function createItemWithLowStock(
@@ -27,8 +32,7 @@ async function createItemWithLowStock(
     throw new Error('Database writes require E2E_SUPABASE_URL and E2E_SUPABASE_SERVICE_ROLE_KEY');
   }
   
-  const { createClient } = await import('@supabase/supabase-js');
-  const supabase = createClient(supabaseURL, serviceRoleKey);
+  const supabase = await createClient(supabaseURL, serviceRoleKey);
   
   const { data: item, error } = await supabase
     .from('items')
@@ -54,8 +58,7 @@ async function getHouseholdId(page: Page): Promise<string> {
     throw new Error('Database reads require E2E_SUPABASE_URL and E2E_SUPABASE_SERVICE_ROLE_KEY');
   }
   
-  const { createClient } = await import('@supabase/supabase-js');
-  const supabase = createClient(supabaseURL, serviceRoleKey);
+  const supabase = await createClient(supabaseURL, serviceRoleKey);
   
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No authenticated user');
@@ -81,8 +84,7 @@ async function createCategory(
     throw new Error('Database writes require E2E_SUPABASE_URL and E2E_SUPABASE_SERVICE_ROLE_KEY');
   }
   
-  const { createClient } = await import('@supabase/supabase-js');
-  const supabase = createClient(supabaseURL, serviceRoleKey);
+  const supabase = await createClient(supabaseURL, serviceRoleKey);
   
   const { data, error } = await supabase
     .from('categories')
@@ -109,8 +111,7 @@ async function createUnit(
     throw new Error('Database writes require E2E_SUPABASE_URL and E2E_SUPABASE_SERVICE_ROLE_KEY');
   }
   
-  const { createClient } = await import('@supabase/supabase-js');
-  const supabase = createClient(supabaseURL, serviceRoleKey);
+  const supabase = await createClient(supabaseURL, serviceRoleKey);
   
   const { data, error } = await supabase
     .from('units')
@@ -133,8 +134,7 @@ async function cleanupHousehold(householdId: string) {
     return;
   }
   
-  const { createClient } = await import('@supabase/supabase-js');
-  const supabase = createClient(supabaseURL, serviceRoleKey);
+  const supabase = await createClient(supabaseURL, serviceRoleKey);
   
   await supabase.from('items').delete().eq('household_id', householdId);
   await supabase.from('categories').delete().eq('household_id', householdId);
@@ -218,7 +218,12 @@ test.describe('To-Buy Page', () => {
     await page.getByRole('button', { name: /Ajouter une unité de Riz/i }).click();
     await page.waitForTimeout(500);
     
-    const supabase = await createClient(process.env.E2E_SUPABASE_URL!, process.env.E2E_SUPABASE_SERVICE_ROLE_KEY!);
+    const supabaseURL = process.env.E2E_SUPABASE_URL;
+    const serviceRoleKey = process.env.E2E_SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseURL || !serviceRoleKey) {
+      throw new Error('Database reads require E2E_SUPABASE_URL and E2E_SUPABASE_SERVICE_ROLE_KEY');
+    }
+    const supabase = await createClient(supabaseURL, serviceRoleKey);
     const updatedItem = await supabase
       .from('items')
       .select('quantity')
@@ -277,28 +282,41 @@ test.describe('To-Buy Page', () => {
     await expect(firstItem.locator('.to-buy-icon').getByText('🅰')).toBeVisible();
   });
 
-  test('shows error message when data fetch fails', async ({ page }) => {
+  test('US # - shows error message when data fetch fails', async ({ page }) => {
+    await page.route('**/rest/v2/items', route => {
+      route.abort('failed');
+    });
+    
     await page.goto('/to-buy');
-    await page.waitForSelector('.loading-container', { state: 'detached' });
     
     const errorAlert = page.locator('[role="alert"]');
-    const hasError = await errorAlert.count() > 0;
-    
-    if (hasError) {
-      await expect(errorAlert).toBeVisible();
-    }
+    await expect(errorAlert).toBeVisible();
+    await expect(errorAlert).toContainText(/erreur|error/i);
   });
 
   test('allows retry after failed data fetch', async ({ page }) => {
+    let failRequest = true;
+    
+    await page.route('**/rest/v2/items', route => {
+      if (failRequest) {
+        failRequest = false;
+        route.abort('failed');
+      } else {
+        route.continue();
+      }
+    });
+    
     await page.goto('/to-buy');
-    await page.waitForSelector('.loading-container', { state: 'detached' });
+    
+    const errorAlert = page.locator('[role="alert"]');
+    await expect(errorAlert).toBeVisible();
     
     const retryButton = page.getByRole('button', { name: 'Réessayer' });
-    if (await retryButton.count() > 0) {
-      await expect(retryButton).toBeVisible();
-      await retryButton.click();
-      await page.waitForTimeout(1000);
-    }
+    await expect(retryButton).toBeVisible();
+    await retryButton.click();
+    
+    await page.waitForTimeout(1000);
+    await expect(errorAlert).not.toBeVisible();
   });
 
   test('shows visual distinction for critically low items', async ({ page }) => {
@@ -321,16 +339,41 @@ test.describe('To-Buy Page', () => {
     await expect(page.getByText('Égouttoir')).toBeVisible();
     await expect(page.getByText('2/5 pcs')).toBeVisible();
     
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(process.env.E2E_SUPABASE_URL!, process.env.E2E_SUPABASE_SERVICE_ROLE_KEY!);
+    const supabaseURL = process.env.E2E_SUPABASE_URL;
+    const serviceRoleKey = process.env.E2E_SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseURL || !serviceRoleKey) {
+      throw new Error('Database reads require E2E_SUPABASE_URL and E2E_SUPABASE_SERVICE_ROLE_KEY');
+    }
+    const supabase = await createClient(supabaseURL, serviceRoleKey);
     await supabase.from('items').update({ quantity: 6 }).eq('id', item.id);
     
     await page.waitForTimeout(1000);
     await expect(page.getByText('Égouttoir')).toHaveCount(0);
   });
-});
 
-async function createClient(url: string, key: string) {
-  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
-  return createSupabaseClient(url, key);
-}
+  test('meets accessibility standards for screen readers', async ({ page }) => {
+    await page.goto('/to-buy');
+    
+    await expect(page.getByRole('heading', { name: 'À acheter' })).toBeVisible();
+    
+    await expect(page.getByRole('status', { name: 'Chargement...' })).toBeVisible({ timeout: 5000 });
+    
+    const mainRegion = page.getByRole('main');
+    await expect(mainRegion).toBeVisible();
+    
+    const backButton = page.getByTestId('back-link');
+    await expect(backButton).toHaveAttribute('aria-label');
+    
+    const toBuyItems = page.locator('.to-buy-item');
+    for (const item of await toBuyItems.all()) {
+      const hasRole = await item.getAttribute('role');
+      const hasLabel = await item.getAttribute('aria-label');
+      expect(hasRole === 'listitem' || hasLabel).toBeTruthy();
+    }
+    
+    const addButtons = page.getByRole('button', { name: /Ajouter une unité/i });
+    for (const button of await addButtons.all()) {
+      await expect(button).toHaveAttribute('aria-label');
+    }
+  });
+});

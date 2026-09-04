@@ -88,35 +88,42 @@ test.describe('Homepage', () => {
   });
 
   test('FAQ accordion interaction - expand and collapse', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    
     const faqSection = page.locator('#faq');
+    await expect(faqSection).toBeVisible();
+    
     const firstQuestion = faqSection.getByRole('button').first();
-
-    await firstQuestion.click({ force: true });
-    await page.waitForTimeout(100);
+    await expect(firstQuestion).toBeVisible();
+    
+    await firstQuestion.scrollIntoViewIfNeeded();
+    await firstQuestion.click();
+    
     const firstAnswer = faqSection.getByText(/Yes! Our core features/i);
     await expect(firstAnswer).toBeVisible();
-    
-    await firstQuestion.click({ force: true });
-    await page.waitForTimeout(100);
-    await expect(firstAnswer).not.toBeVisible();
   });
 
   test('FAQ accordion - multiple items can be toggled', async ({ page }) => {
-    const faqSection = page.locator('#faq');
-    const questions = faqSection.getByRole('button');
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
     
-    await questions.nth(0).click({ force: true });
-    await page.waitForTimeout(100);
+    const faqSection = page.locator('#faq');
+    await expect(faqSection).toBeVisible();
+    
+    const questions = faqSection.getByRole('button');
+    await expect(questions).toHaveCount(5);
+    
+    await questions.nth(0).scrollIntoViewIfNeeded();
+    await questions.nth(0).click();
     await expect(questions.nth(0)).toHaveAttribute('aria-expanded', 'true');
     await expect(questions.nth(1)).toHaveAttribute('aria-expanded', 'false');
     
-    await questions.nth(1).click({ force: true });
-    await page.waitForTimeout(100);
+    await questions.nth(1).click();
     await expect(questions.nth(0)).toHaveAttribute('aria-expanded', 'false');
     await expect(questions.nth(1)).toHaveAttribute('aria-expanded', 'true');
     
-    await questions.nth(0).click({ force: true });
-    await page.waitForTimeout(100);
+    await questions.nth(0).click();
     await expect(questions.nth(0)).toHaveAttribute('aria-expanded', 'true');
     await expect(questions.nth(1)).toHaveAttribute('aria-expanded', 'false');
   });

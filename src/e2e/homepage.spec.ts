@@ -20,7 +20,9 @@ test.describe('Homepage', () => {
 
   test('Hero section renders with expected content', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Collaborative grocery lists');
-    await expect(page.getByText('for households')).toBeVisible();
+    // Use data-testid to avoid strict mode violation: 'for households' appears twice in the DOM
+    // (once in H1, once in the hero note below CTAs)
+    await expect(page.getByTestId('hero-households-text')).toBeVisible();
     await expect(page.locator('#hero').getByRole('link', { name: 'Get Started', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /Learn More/ })).toBeVisible();
   });

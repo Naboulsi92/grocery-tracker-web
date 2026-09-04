@@ -63,7 +63,7 @@ export function Hero() {
           <h1>
             Collaborative grocery lists
             <br />
-            <span>for households</span>
+            <span data-testid="hero-households-text">for households</span>
           </h1>
           <p className="mk-hero-sub">
             Share one list with everyone you live with. Track quantities, sort by

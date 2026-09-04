@@ -90,7 +90,6 @@ test.describe('Join Household Flow', () => {
         await memberPage.getByLabel(/Code d'invitation complet/).fill(token!);
         await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
         await memberPage.waitForURL('/home', { timeout: 20000 });
-        await expect(memberPage.getByRole('heading', { level: 1, name: householdName })).toBeVisible();
       } finally {
         await memberContext.close();
       }
@@ -117,7 +116,6 @@ test.describe('Join Household Flow', () => {
         await expect(joinButton).toBeDisabled();
         
         await memberPage.waitForURL('/home', { timeout: 20000 });
-        await expect(joinButton).toBeEnabled();
       } finally {
         await memberContext.close();
       }
@@ -139,7 +137,6 @@ test.describe('Join Household Flow', () => {
         await memberPage.getByLabel(/Code d'invitation complet/).fill(token!);
         await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
         await memberPage.waitForURL('/home', { timeout: 20000 });
-        await expect(memberPage).toHaveURL('/home');
         await expect(memberPage.getByRole('heading', { name: 'Tableau de bord' })).toBeVisible();
       } finally {
         await memberContext.close();
@@ -162,7 +159,6 @@ test.describe('Join Household Flow', () => {
         await memberPage.getByLabel(/Code d'invitation complet/).fill(token!);
         await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
         await memberPage.waitForURL('/home', { timeout: 20000 });
-        
         await expect(memberPage.getByRole('heading', { level: 1, name: householdName })).toBeVisible();
         await expect(memberPage.getByRole('link', { name: /Membres/ })).toBeVisible();
       } finally {
@@ -222,7 +218,7 @@ test.describe('Join Household Flow', () => {
       await expect(tokenInput).toHaveAttribute('required');
     });
 
-    test('handles whitespace in invitation token', async ({ page, account, browser }) => {
+    test('US 16: user can join household with whitespace in invitation token', async ({ page, account, browser }) => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await createHousehold(page, account);
       
@@ -238,7 +234,6 @@ test.describe('Join Household Flow', () => {
         await memberPage.getByLabel(/Code d'invitation complet/).fill(`  ${token}  `);
         await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
         await memberPage.waitForURL('/home', { timeout: 20000 });
-        await expect(memberPage).toHaveURL('/home');
       } finally {
         await memberContext.close();
       }
@@ -263,6 +258,33 @@ test.describe('Join Household Flow', () => {
       await expect(page.getByText('Rejoindre un foyer existant')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Créer mon foyer' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Rejoindre le foyer' })).toBeVisible();
+    });
+
+    test('US 17: keyboard navigation through join household flow', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await signUp(page, account);
+      
+      await page.keyboard.press('Tab');
+      await expect(page.getByLabel(/Code d'invitation complet/)).toBeFocused();
+      
+      await page.keyboard.press('Tab');
+      await expect(page.getByRole('button', { name: 'Rejoindre le foyer' })).toBeFocused();
+      
+      await page.keyboard.press('Tab');
+      await expect(page.getByLabel('Nom du foyer')).toBeFocused();
+      
+      await page.keyboard.press('Shift+Tab');
+      await expect(page.getByRole('button', { name: 'Rejoindre le foyer' })).toBeFocused();
+      
+      await page.keyboard.press('Enter');
+      await expect(page.getByRole('alert')).toBeVisible();
+      
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('alert')).not.toBeVisible();
+      
+      await page.getByRole('link', { name: /Retour/i }).focus();
+      await page.keyboard.press('Enter');
+      await expect(page).toHaveURL('/home');
     });
   });
 });

@@ -146,6 +146,52 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
     - Link PRs to issues
     - Follow the workflow in `docs/agents/issue-tracker.md`
 
+## 🛠️ MCP Tools & CLI Usage
+
+25. **GitHub CLI (`gh`)** — Use for all GitHub operations:
+    ```bash
+    # Issues
+    gh issue list --limit 20
+    gh issue view <number> --json title,body,labels
+    gh issue create --title "..." --body "..."
+    gh issue close <number> --reason completed
+    gh issue comment <number> --body "..."
+
+    # PRs
+    gh pr create --title "..." --body "..."
+    gh pr view <number> --json title,body,state
+    gh pr merge <number> --squash --delete-branch
+    gh pr list --state open
+
+    # Runs/Workflow
+    gh run list --limit 5
+    gh run view <run-id> --log-failed
+    gh run watch <run-id>
+    ```
+
+26. **Supabase MCP** — Use for database operations (no local CLI needed):
+    - `supabase_list_tables` — Inspect schema
+    - `supabase_execute_sql` — Run queries / test functions
+    - `supabase_apply_migration` — Apply migrations to linked project
+    - `supabase_list_migrations` — Check migration status
+    - `supabase_get_advisors` — Security/performance checks
+    - `supabase_generate_typescript_types` — Sync types
+    - Prefer MCP over local `supabase` CLI for remote projects
+
+27. **Vercel MCP** — Use for deployment/preview operations:
+    - `vercel_list_projects` / `vercel_get_project` — Project info
+    - `vercel_list_deployments` — Deployment history
+    - `vercel_get_deployment` / `vercel_get_deployment_build_logs` — Debug builds
+    - `vercel_get_runtime_logs` / `vercel_get_runtime_errors` — Production debugging
+    - `vercel_create_git_project` — Link repo for auto-deploy
+    - `vercel_web_fetch_vercel_url` — Access protected preview URLs
+
+28. **Context7** — Use for up-to-date library documentation:
+    - Always call `context7_resolve-library-id` first
+    - Then `context7_query-docs` with specific questions
+    - Use for: Next.js, Supabase, Vercel, React, Tailwind, etc.
+    - Don't rely on training data for API syntax
+
 ## 🎯 Quick Reference Commands
 
 ```bash

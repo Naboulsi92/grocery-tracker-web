@@ -181,6 +181,9 @@ select public.revoke_household_invitation(:'revoked_invitation_id'::uuid) as rev
 -- Verify second invitation was revoked
 select revoked_at is not null as revoked_revoked from public.household_invitations where id = :'revoked_invitation_id'::uuid \gset
 
+-- Revoking an already-retired invitation is a no-op
+select public.revoke_household_invitation(:'revoked_invitation_id'::uuid) as revoke_retired_ok \gset
+
 -- Create third invitation (becomes the single live invitation)
 select * from public.create_household_invitation(:'household_id'::uuid, interval '1 day') \gset occupied_
 
@@ -208,6 +211,7 @@ select set_config('test.revoked_ok', :'revoked_ok', true);
 select set_config('test.invite_retired', :'invite_retired', true);
 select set_config('test.revoked_revoked', :'revoked_revoked', true);
 select set_config('test.occupied_live', :'occupied_live', true);
+select set_config('test.revoke_retired_ok', :'revoke_retired_ok', true);
 
 set local role authenticated;
 
@@ -218,6 +222,7 @@ begin
   if not current_setting('test.invite_retired')::boolean then raise exception 'first invitation was not retired when second was created'; end if;
   if not current_setting('test.revoked_revoked')::boolean then raise exception 'second invitation was not revoked'; end if;
   if not current_setting('test.occupied_live')::boolean then raise exception 'third invitation is not live'; end if;
+  if current_setting('test.revoke_retired_ok')::boolean then raise exception 'revoking an already-retired invitation unexpectedly succeeded'; end if;
 end;
 $$;
 

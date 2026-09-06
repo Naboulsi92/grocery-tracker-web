@@ -31,9 +31,13 @@ export async function middleware(request: NextRequest) {
   try {
     const { data } = await supabase.auth.getSession();
     session = data.session;
-  } catch {
+  } catch (error) {
     // Supabase not configured or unreachable - continue without session
     // This allows the middleware to work in test environments without a real Supabase backend
+    // Log error for debugging (but not secrets)
+    console.error('middleware_session_refresh_failed', {
+      error: error instanceof Error ? error.message : 'unknown',
+    });
   }
 
   const pathname = request.nextUrl.pathname;
@@ -51,6 +55,7 @@ export async function middleware(request: NextRequest) {
     if (!session) {
       const loginUrl = new URL('/login', request.url);
       // Don't add redirectTo parameter to keep existing tests passing
+      // Client-side redirects handle post-auth navigation
       return NextResponse.redirect(loginUrl);
     }
   }

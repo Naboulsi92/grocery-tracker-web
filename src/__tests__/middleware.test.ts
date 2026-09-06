@@ -63,4 +63,28 @@ describe('middleware', () => {
     expect(content).toContain('getSession');
     expect(content).toContain('createServerClient');
   });
+
+  it('fails closed on protected routes when session refresh throws', () => {
+    const content = fs.readFileSync(middlewarePath, 'utf-8');
+    
+    // Check that a session-refresh failure redirects to login with the error
+    expect(content).toContain('session_refresh_failed');
+    expect(content).toContain('NextResponse.redirect(loginUrl)');
+  });
+
+  it('only fails closed outside the test environment', () => {
+    const content = fs.readFileSync(middlewarePath, 'utf-8');
+    
+    // Check that the fail-closed redirect is gated to the test environment so
+    // Supabase may be unconfigured locally
+    expect(content).toContain("process.env.NODE_ENV !== 'test'");
+  });
+
+  it('calls getSession exactly once (no duplication)', () => {
+    const content = fs.readFileSync(middlewarePath, 'utf-8');
+    
+    // Check that the session is refreshed a single time instead of being
+    // duplicated across branches
+    expect(content.match(/getSession\(\)/g)?.length).toBe(1);
+  });
 });

@@ -166,7 +166,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
     # Runs/Workflow
     gh run list --limit 5
     gh run view <run-id> --log-failed
-    gh run watch <run-id>
+    gh run watch <run-id> --interval 30
     ```
 
 26. **Supabase MCP** — Use for database operations (no local CLI needed):

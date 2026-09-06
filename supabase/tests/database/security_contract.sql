@@ -172,9 +172,6 @@ select * from public.create_household_invitation(:'household_id'::uuid, interval
 -- Create second invitation (retires the first)
 select * from public.create_household_invitation(:'household_id'::uuid, interval '1 day') \gset revoked_
 
--- Create third invitation (retires the second)
-select * from public.create_household_invitation(:'household_id'::uuid, interval '1 day') \gset occupied_
-
 -- Verify first invitation was retired (revoked)
 select revoked_at is not null as invite_retired from public.household_invitations where id = :'invite_invitation_id'::uuid \gset
 
@@ -183,6 +180,9 @@ select public.revoke_household_invitation(:'revoked_invitation_id'::uuid) as rev
 
 -- Verify second invitation was revoked
 select revoked_at is not null as revoked_revoked from public.household_invitations where id = :'revoked_invitation_id'::uuid \gset
+
+-- Create third invitation (becomes the single live invitation)
+select * from public.create_household_invitation(:'household_id'::uuid, interval '1 day') \gset occupied_
 
 -- Verify third invitation is still live
 select revoked_at is null and consumed_at is null as occupied_live from public.household_invitations where id = :'occupied_invitation_id'::uuid \gset

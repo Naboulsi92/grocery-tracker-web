@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { householdActionError, normalizeInvitationToken } from '@/lib/household';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
+import { AuthHeader } from '@/components/AuthHeader';
 
 type PendingAction = 'create' | 'join' | null;
 
@@ -83,16 +84,12 @@ export default function JoinHouseholdPage() {
     <div className="auth-container">
       <ThemeToggle />
       <div className="auth-card animate-fade-in">
-        <div className="auth-header">
-          <div className="auth-icon" aria-hidden="true">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-          </div>
-          <h1>Votre foyer</h1>
-          <p className="text-muted">Choisissez de créer un foyer ou d&apos;en rejoindre un avec une invitation.</p>
-        </div>
+        <AuthHeader
+          showBackHome
+          showSignOut
+          title="Votre foyer"
+          subtitle="Choisissez de créer un foyer ou d'en rejoindre un avec une invitation."
+        />
 
         {access.status === 'error' && (
           <div className="auth-error" role="alert">

@@ -13,6 +13,7 @@ export function PrivateRoute({ children }: { children: ReactNode }) {
   const redirectHref = decision.outcome === 'redirect' ? decision.href : null;
   const retriedMembership = useRef(false);
   const [hasRenderedChildren, setHasRenderedChildren] = useState(false);
+  const lastMemberAccess = useRef<{ householdId: string } | null>(null);
 
   useEffect(() => {
     if (access.status === 'no-household' && !retriedMembership.current) {
@@ -27,6 +28,7 @@ export function PrivateRoute({ children }: { children: ReactNode }) {
   }, [access.status, redirectHref, retryHousehold, router]);
 
   if (decision.outcome === 'render') {
+    lastMemberAccess.current = { householdId: decision.householdId };
     if (!hasRenderedChildren) {
       setHasRenderedChildren(true);
     }
@@ -34,8 +36,14 @@ export function PrivateRoute({ children }: { children: ReactNode }) {
   }
 
   // If we previously rendered children (background re-resolution), keep them mounted
-  if (hasRenderedChildren && decision.outcome === 'loading') {
+  // Only if the last access was a valid member (not an error/no-household state)
+  if (hasRenderedChildren && decision.outcome === 'loading' && lastMemberAccess.current) {
     return children;
+  }
+
+  // If we lost household membership during background re-resolution, clear the flag
+  if (hasRenderedChildren && (decision.outcome === 'no-household' || decision.outcome === 'error')) {
+    setHasRenderedChildren(false);
   }
 
   const retry = () => {

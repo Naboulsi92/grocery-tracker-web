@@ -3,7 +3,6 @@
 export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -39,7 +38,6 @@ return (
     <div className="page-container">
       <AuthenticatedHeader
         showBackLink
-        onBackLinkClick={() => void window.history.back()}
         trailingAction={
           <button onClick={() => actions.refresh()} className="btn btn-secondary">
             Réessayer

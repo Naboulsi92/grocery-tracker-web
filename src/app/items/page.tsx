@@ -3,7 +3,6 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback, useEffectEvent, useRef } from 'react';
-import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import { createClient } from '@/utils/supabase/client';
@@ -193,10 +192,7 @@ async function handleSubmit(e: React.FormEvent) {
 
 return (
     <div className="page-container">
-      <AuthenticatedHeader
-        showBackLink
-        onBackLinkClick={() => void window.history.back()}
-      />
+      <AuthenticatedHeader showBackLink />
 
       <main className="app-main">
         {combinedError && (

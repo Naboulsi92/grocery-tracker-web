@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import ThemeToggle from '@/components/ThemeToggle';
+import { AuthHeader } from '@/components/AuthHeader';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -69,18 +70,11 @@ export default function SignupPage() {
     <div className="auth-container">
       <ThemeToggle />
       <div className="auth-card animate-fade-in">
-        <div className="auth-header">
-          <div className="auth-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="8.5" cy="7" r="4"/>
-              <line x1="20" y1="8" x2="20" y2="14"/>
-              <line x1="23" y1="11" x2="17" y2="11"/>
-            </svg>
-          </div>
-          <h1>Inscription</h1>
-          <p className="text-muted">Créez votre compte</p>
-        </div>
+        <AuthHeader
+          showBackHome
+          title="Inscription"
+          subtitle="Créez votre compte"
+        />
         
         {error && (
           <div className="auth-error" role="alert">

@@ -11,6 +11,8 @@ export type PrivateAccess =
   | { status: 'error'; user: User | null; error: Error }
   | { status: 'member'; user: User; householdId: string };
 
+export type { User };
+
 type AuthContextType = {
   user: User | null;
   session: Session | null;

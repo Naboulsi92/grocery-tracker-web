@@ -126,55 +126,55 @@ describe('shouldReResolve', () => {
       { name: 'user-1 -> user-2 (different)', previousUser: createUser('user-1'), nextUser: createUser('user-2') },
     ];
 
-    const expected: Record<string, Record<string, Record<boolean, boolean>>> = {
+    const expected: Record<string, Record<string, { 'false': boolean; 'true': boolean }>> = {
       INITIAL_SESSION: {
-        'null -> null': { false: true, true: false },
-        'null -> user-1': { false: true, true: false },
-        'user-1 -> null': { false: true, true: false },
-        'user-1 -> user-1 (same)': { false: true, true: false },
-        'user-1 -> user-2 (different)': { false: true, true: false },
+        'null -> null': { 'false': true, 'true': false },
+        'null -> user-1': { 'false': true, 'true': false },
+        'user-1 -> null': { 'false': true, 'true': false },
+        'user-1 -> user-1 (same)': { 'false': true, 'true': false },
+        'user-1 -> user-2 (different)': { 'false': true, 'true': false },
       },
       SIGNED_IN: {
-        'null -> null': { false: true, true: true },
-        'null -> user-1': { false: true, true: true },
-        'user-1 -> null': { false: true, true: true },
-        'user-1 -> user-1 (same)': { false: true, true: true },
-        'user-1 -> user-2 (different)': { false: true, true: true },
+        'null -> null': { 'false': true, 'true': true },
+        'null -> user-1': { 'false': true, 'true': true },
+        'user-1 -> null': { 'false': true, 'true': true },
+        'user-1 -> user-1 (same)': { 'false': true, 'true': true },
+        'user-1 -> user-2 (different)': { 'false': true, 'true': true },
       },
       SIGNED_OUT: {
-        'null -> null': { false: true, true: true },
-        'null -> user-1': { false: true, true: true },
-        'user-1 -> null': { false: true, true: true },
-        'user-1 -> user-1 (same)': { false: true, true: true },
-        'user-1 -> user-2 (different)': { false: true, true: true },
+        'null -> null': { 'false': true, 'true': true },
+        'null -> user-1': { 'false': true, 'true': true },
+        'user-1 -> null': { 'false': true, 'true': true },
+        'user-1 -> user-1 (same)': { 'false': true, 'true': true },
+        'user-1 -> user-2 (different)': { 'false': true, 'true': true },
       },
       TOKEN_REFRESHED: {
-        'null -> null': { false: false, true: false },
-        'null -> user-1': { false: false, true: false },
-        'user-1 -> null': { false: false, true: false },
-        'user-1 -> user-1 (same)': { false: false, true: false },
-        'user-1 -> user-2 (different)': { false: false, true: false },
+        'null -> null': { 'false': false, 'true': false },
+        'null -> user-1': { 'false': false, 'true': false },
+        'user-1 -> null': { 'false': false, 'true': false },
+        'user-1 -> user-1 (same)': { 'false': false, 'true': false },
+        'user-1 -> user-2 (different)': { 'false': false, 'true': false },
       },
       USER_UPDATED: {
-        'null -> null': { false: false, true: false },
-        'null -> user-1': { false: false, true: false },
-        'user-1 -> null': { false: false, true: false },
-        'user-1 -> user-1 (same)': { false: false, true: false },
-        'user-1 -> user-2 (different)': { false: true, true: true },
+        'null -> null': { 'false': false, 'true': false },
+        'null -> user-1': { 'false': false, 'true': false },
+        'user-1 -> null': { 'false': true, 'true': true },
+        'user-1 -> user-1 (same)': { 'false': false, 'true': false },
+        'user-1 -> user-2 (different)': { 'false': true, 'true': true },
       },
       PASSWORD_RECOVERY: {
-        'null -> null': { false: false, true: false },
-        'null -> user-1': { false: false, true: false },
-        'user-1 -> null': { false: false, true: false },
-        'user-1 -> user-1 (same)': { false: false, true: false },
-        'user-1 -> user-2 (different)': { false: false, true: false },
+        'null -> null': { 'false': false, 'true': false },
+        'null -> user-1': { 'false': false, 'true': false },
+        'user-1 -> null': { 'false': false, 'true': false },
+        'user-1 -> user-1 (same)': { 'false': false, 'true': false },
+        'user-1 -> user-2 (different)': { 'false': false, 'true': false },
       },
       MFA_CHALLENGE_VERIFIED: {
-        'null -> null': { false: false, true: false },
-        'null -> user-1': { false: false, true: false },
-        'user-1 -> null': { false: false, true: false },
-        'user-1 -> user-1 (same)': { false: false, true: false },
-        'user-1 -> user-2 (different)': { false: false, true: false },
+        'null -> null': { 'false': false, 'true': false },
+        'null -> user-1': { 'false': false, 'true': false },
+        'user-1 -> null': { 'false': false, 'true': false },
+        'user-1 -> user-1 (same)': { 'false': false, 'true': false },
+        'user-1 -> user-2 (different)': { 'false': false, 'true': false },
       },
     };
 
@@ -189,7 +189,7 @@ describe('shouldReResolve', () => {
               nextUser: scenario.nextUser,
               hasResolvedBefore,
             });
-            expect(result).toBe(expected[event][scenario.name][hasResolvedBefore]);
+            expect(result).toBe(expected[event][scenario.name][hasResolvedBefore.toString() as 'false' | 'true']);
           });
         }
       }

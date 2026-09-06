@@ -11,9 +11,10 @@ export function PrivateRoute({ children }: { children: ReactNode }) {
   const router = useRouter();
   const decision = resolvePrivateRoute(access);
   const redirectHref = decision.outcome === 'redirect' ? decision.href : null;
+  const currentHouseholdId = decision.outcome === 'render' ? decision.householdId : null;
   const retriedMembership = useRef(false);
   const [hasRenderedChildren, setHasRenderedChildren] = useState(false);
-  const lastMemberAccess = useRef<{ householdId: string } | null>(null);
+  const [lastMemberHouseholdId, setLastMemberHouseholdId] = useState<string | null>(null);
 
   useEffect(() => {
     if (access.status === 'no-household' && !retriedMembership.current) {
@@ -27,23 +28,37 @@ export function PrivateRoute({ children }: { children: ReactNode }) {
     }
   }, [access.status, redirectHref, retryHousehold, router]);
 
-  if (decision.outcome === 'render') {
-    lastMemberAccess.current = { householdId: decision.householdId };
-    if (!hasRenderedChildren) {
-      setHasRenderedChildren(true);
+  // Track when we've successfully rendered children as a member
+  useEffect(() => {
+    if (currentHouseholdId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLastMemberHouseholdId(currentHouseholdId);
+      if (!hasRenderedChildren) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setHasRenderedChildren(true);
+      }
     }
+  }, [currentHouseholdId, hasRenderedChildren]);
+
+  // Clear flag when access is lost (no-household or error)
+  useEffect(() => {
+    if (hasRenderedChildren && (access.status === 'no-household' || access.status === 'error')) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHasRenderedChildren(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLastMemberHouseholdId(null);
+    }
+  }, [hasRenderedChildren, access.status]);
+
+  // If currently rendering as member, show children
+  if (decision.outcome === 'render') {
     return children;
   }
 
   // If we previously rendered children (background re-resolution), keep them mounted
   // Only if the last access was a valid member (not an error/no-household state)
-  if (hasRenderedChildren && decision.outcome === 'loading' && lastMemberAccess.current) {
+  if (hasRenderedChildren && decision.outcome === 'loading' && lastMemberHouseholdId) {
     return children;
-  }
-
-  // If we lost household membership during background re-resolution, clear the flag
-  if (hasRenderedChildren && (decision.outcome === 'no-household' || decision.outcome === 'error')) {
-    setHasRenderedChildren(false);
   }
 
   const retry = () => {

@@ -151,6 +151,40 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
     - Link PRs to issues
     - Follow the workflow in `docs/agents/issue-tracker.md`
 
+## 🎯 Goal Orchestration Workflow (how we work on issues)
+
+This is the loop that worked on tickets #60/#67 and should be reused for every issue:
+
+1. **Per-goal worktree isolation** — before any work, create a dedicated worktree:
+   `git worktree add ../<goal-slug> -b feature/<goal-slug>` (from the repo root).
+   All workers edit and verify INSIDE that worktree (absolute paths + bash `workdir`).
+   Workers commit each completed step to the branch. The judge reviews `git diff main...HEAD`.
+   This keeps parallel `/goal` sessions from interfering with each other.
+
+2. **Implement → Review → Fix → Merge loop**:
+   - Implement the ticket on the branch (worktree).
+   - Run the two-axis code review (Standards + Spec) in parallel sub-agents (see the `code-review` skill).
+   - Fix the remarks; re-review until both axes approve.
+   - If a bug is found during review: diagnose evidence-first (CI logs, repro — see the `diagnosing-bugs` skill), trace it in a GitHub bug ticket BEFORE fixing it, then fix.
+   - Final review → commit → push → open a PR (body: what changed / why / how to test + `Closes #n`).
+
+3. **PR review exchange** — post review findings as a PR comment signed with the reviewer's name; the author responds point-by-point (accept/deny, citing code evidence); reviewers concede incorrect claims. This multi-model exchange catches misunderstandings early.
+
+4. **Merge & cleanup checklist** (after both reviews approve):
+   - `gh pr merge <n> --squash --delete-branch` (squash keeps main history clean).
+   - Remove the local worktree + branch: `git worktree remove ../<goal-slug>` then `git branch -D feature/<goal-slug>`.
+   - Verify linked issues auto-closed: `gh issue view <n> --json state,stateReason`.
+   - Verify the production deployment is READY (Vercel) for the merge commit.
+   - Smoke-test the live site; check runtime errors.
+   - Create follow-up tickets for any PRE-EXISTING CI failures you hit — don't fix them in the same PR unless they're yours.
+
+5. **SQL / Supabase verification** — Supabase CLI and Docker are NOT available locally. The CI database job is the verification signal for SQL changes: it runs `psql -v ON_ERROR_STOP=1 -f supabase/tests/database/security_contract.sql`. A green database job on the PR = the security contract passes.
+
+6. **Known pre-existing CI failures on main** (tracked; do NOT attribute to new branches):
+   - #73 — secrets scan fails (email/password literals in `src/e2e/error-states.spec.ts:20-21`).
+   - #74 — 8 unit test failures (use-push-notifications, members-page, marketing/faq).
+   - #75 — E2E job fails/hangs (90/90 "No authenticated user" auth harness).
+
 ## 🛠️ MCP Tools & CLI Usage
 
 26. **GitHub CLI (`gh`)** — Use for all GitHub operations:

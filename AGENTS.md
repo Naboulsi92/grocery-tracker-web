@@ -183,7 +183,8 @@ This is the loop that worked on tickets #60/#67 and should be reused for every i
 6. **Known pre-existing CI failures on main** (tracked; do NOT attribute to new branches):
    - #73 — secrets scan fails (email/password literals in `src/e2e/error-states.spec.ts:20-21`).
    - #74 — 8 unit test failures (use-push-notifications, members-page, marketing/faq).
-   - #75 — E2E job fails/hangs (90/90 "No authenticated user" auth harness).
+   - #75 — E2E job fails (90/90 "No authenticated user" auth harness).
+   These are pre-existing on main and tracked in their own tickets: they do not block merges (rule #13 applies to NEW failures introduced by a branch).
 
 ## 🛠️ MCP Tools & CLI Usage
 

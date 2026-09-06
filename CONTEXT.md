@@ -26,12 +26,12 @@ Items that have fallen below their low-stock threshold. The system automatically
 A mechanism for adding new members to a household. Invitations have:
 - Token (unique identifier)
 - Expiration time
-- Status (pending, accepted, revoked, expired)
+- Status (pending, consumed, revoked, expired)
 
 - A household has AT MOST ONE live invitation. Creating a new invitation RETIRES the previous live one (sets `revoked_at`).
 - `revoke_household_invitation(id)` returns `true` ONLY when it revoked a live invitation (1 row updated); returns `false` for any no-op (already revoked, already consumed, or caller is not the owner). Tests assert `false` for no-op revokes.
 - `consume_household_invitation(token)` raises `23505` (unique_violation) if the caller is already a household member, and `22023` for retired / revoked / expired / unknown tokens.
-- Tokens are stored as `sha256(token_hash)`; the raw token is returned once at creation.
+- The `sha256` digest of the raw token is stored in the `token_hash` column; the raw token is returned once at creation.
 - Token-invalid probes must run as a NON-member user — as a member, the `23505` membership guard fires before token validation, making `22023` handlers unreachable.
 
 ### Member

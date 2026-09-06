@@ -8,7 +8,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 
 export default function HomePage() {
-  const { user, householdId } = useAuth();
+  const { user, householdId, signOut } = useAuth();
   const { household, loading, error, actions: { refresh } } = useHousehold(householdId || '');
   const {
     permission,
@@ -24,7 +24,8 @@ export default function HomePage() {
   } = usePushNotifications(user?.id || null);
 
   const handleSignOut = async () => {
-    // Will be handled by AuthenticatedHeader trailing action
+    await signOut();
+    // AuthContext transitions the private route guard to /login
   };
 
   if (loading) {

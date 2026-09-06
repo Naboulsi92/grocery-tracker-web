@@ -172,9 +172,6 @@ select * from public.create_household_invitation(:'household_id'::uuid, interval
 -- Create second invitation (retires the first)
 select * from public.create_household_invitation(:'household_id'::uuid, interval '1 day') \gset revoked_
 
--- Create third invitation (retires the second)
-select * from public.create_household_invitation(:'household_id'::uuid, interval '1 day') \gset occupied_
-
 -- Verify first invitation was retired (revoked)
 select revoked_at is not null as invite_retired from public.household_invitations where id = :'invite_invitation_id'::uuid \gset
 
@@ -183,6 +180,12 @@ select public.revoke_household_invitation(:'revoked_invitation_id'::uuid) as rev
 
 -- Verify second invitation was revoked
 select revoked_at is not null as revoked_revoked from public.household_invitations where id = :'revoked_invitation_id'::uuid \gset
+
+-- Revoking an already-revoked invitation is a no-op
+select public.revoke_household_invitation(:'revoked_invitation_id'::uuid) as revoke_inactive_ok \gset
+
+-- Create third invitation (becomes the single live invitation)
+select * from public.create_household_invitation(:'household_id'::uuid, interval '1 day') \gset occupied_
 
 -- Verify third invitation is still live
 select revoked_at is null and consumed_at is null as occupied_live from public.household_invitations where id = :'occupied_invitation_id'::uuid \gset
@@ -208,6 +211,7 @@ select set_config('test.revoked_ok', :'revoked_ok', true);
 select set_config('test.invite_retired', :'invite_retired', true);
 select set_config('test.revoked_revoked', :'revoked_revoked', true);
 select set_config('test.occupied_live', :'occupied_live', true);
+select set_config('test.revoke_inactive_ok', :'revoke_inactive_ok', true);
 
 set local role authenticated;
 
@@ -218,6 +222,7 @@ begin
   if not current_setting('test.invite_retired')::boolean then raise exception 'first invitation was not retired when second was created'; end if;
   if not current_setting('test.revoked_revoked')::boolean then raise exception 'second invitation was not revoked'; end if;
   if not current_setting('test.occupied_live')::boolean then raise exception 'third invitation is not live'; end if;
+  if current_setting('test.revoke_inactive_ok')::boolean then raise exception 'revoking an already-revoked invitation unexpectedly succeeded'; end if;
 end;
 $$;
 
@@ -260,26 +265,6 @@ begin
   exception when unique_violation then null;
   end;
   begin
-    perform public.consume_household_invitation(current_setting('test.invite_token'));
-    raise exception 'retired invitation unexpectedly consumed';
-  exception when sqlstate '22023' then null;
-  end;
-  begin
-    perform public.consume_household_invitation(current_setting('test.revoked_token'));
-    raise exception 'revoked invitation unexpectedly consumed';
-  exception when sqlstate '22023' then null;
-  end;
-  begin
-    perform public.consume_household_invitation(current_setting('test.expired_token'));
-    raise exception 'expired invitation unexpectedly consumed';
-  exception when sqlstate '22023' then null;
-  end;
-  begin
-    perform public.consume_household_invitation('unknown-token');
-    raise exception 'unknown invitation unexpectedly consumed';
-  exception when sqlstate '22023' then null;
-  end;
-  begin
     perform public.create_household_invitation(current_setting('test.household_id')::uuid, interval '1 day');
     raise exception 'member unexpectedly issued an invitation';
   exception when insufficient_privilege then null;
@@ -302,11 +287,44 @@ begin
   end if;
   if exists (
     select 1 from public.household_invitations
-    where token_hash = sha256(convert_to(current_setting('test.occupied_token'), 'UTF8'))
+    where token_hash = sha256(convert_to(current_setting('test.expired_token'), 'UTF8'))
       and consumed_at is not null
   ) then raise exception 'failed invitation consumption consumed its token'; end if;
 end;
 $$;
+
+-- Token validation probes as a non-member (single@example.test)
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000004', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+
+do $$
+begin
+  begin
+    perform public.consume_household_invitation(current_setting('test.invite_token'));
+    raise exception 'retired invitation unexpectedly consumed';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.consume_household_invitation(current_setting('test.revoked_token'));
+    raise exception 'revoked invitation unexpectedly consumed';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.consume_household_invitation(current_setting('test.expired_token'));
+    raise exception 'expired invitation unexpectedly consumed';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.consume_household_invitation('unknown-token');
+    raise exception 'unknown invitation unexpectedly consumed';
+  exception when sqlstate '22023' then null;
+  end;
+end;
+$$;
+
+reset role;
 
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000001', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);

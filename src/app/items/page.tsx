@@ -10,6 +10,7 @@ import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { getErrorMessage, groupItems, joinInventory, type Category, type InventoryItem, type Unit } from '@/lib/inventory';
 import { createItem, updateItem, updateItemQuantity, deleteItem } from '@/lib/itemOperations';
+import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 
 export default function ItemsPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -190,29 +191,12 @@ async function handleSubmit(e: React.FormEvent) {
 
   const itemGroups = groupItems(items, categories);
 
-  return (
+return (
     <div className="page-container">
-      <ThemeToggle />
-      <header className="app-header">
-        <div className="header-content">
-          <div className="header-brand">
-            <Link href="/home" className="back-link" aria-label="Retour à l’accueil" data-testid="back-link">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"/>
-                <polyline points="12 19 5 12 12 5"/>
-              </svg>
-            </Link>
-            <h1>Articles</h1>
-          </div>
-          <button onClick={() => setShowForm(true)} className="btn btn-primary" data-testid="btn-new-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Nouveau
-          </button>
-        </div>
-      </header>
+      <AuthenticatedHeader
+        showBackLink
+        onBackLinkClick={() => void window.history.back()}
+      />
 
       <main className="app-main">
         {combinedError && (

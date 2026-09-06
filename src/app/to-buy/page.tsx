@@ -9,6 +9,7 @@ import { useHousehold } from '@/hooks/useHousehold';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { getErrorMessage, getLowStockItems, joinInventory, type InventoryItem } from '@/lib/inventory';
+import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 
 export default function ToBuyPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -106,22 +107,12 @@ export default function ToBuyPage() {
     );
   }
 
-  return (
+return (
     <div className="page-container">
-      <ThemeToggle />
-      <header className="app-header">
-        <div className="header-content">
-          <div className="header-brand">
-            <Link href="/home" className="back-link" aria-label="Retour à l’accueil" data-testid="back-link">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"/>
-                <polyline points="12 19 5 12 12 5"/>
-              </svg>
-            </Link>
-            <h1>À acheter</h1>
-          </div>
-        </div>
-      </header>
+      <AuthenticatedHeader
+        showBackLink
+        onBackLinkClick={() => void window.history.back()}
+      />
 
       <main className="app-main">
         {combinedError && (

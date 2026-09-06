@@ -73,4 +73,35 @@ describe('PrivateRoute', () => {
     expect(screen.getByText('Contenu privé')).toBeVisible();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
+
+  it('keeps children mounted during background re-resolution (member -> loading -> member)', () => {
+    access = { status: 'member', user: { id: 'user-1' } as never, householdId: 'home-1' };
+    const view = render(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+
+    expect(screen.getByText('Contenu privé')).toBeVisible();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    // Simulate background re-resolution: access becomes loading
+    access = { status: 'loading' };
+    view.rerender(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+
+    // Children should stay mounted
+    expect(screen.getByText('Contenu privé')).toBeVisible();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    // Access resolves back to member
+    access = { status: 'member', user: { id: 'user-1' } as never, householdId: 'home-1' };
+    view.rerender(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+
+    expect(screen.getByText('Contenu privé')).toBeVisible();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('shows loading on initial load before any member access', () => {
+    access = { status: 'loading' };
+    render(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Chargement...');
+    expect(screen.queryByText('Contenu privé')).not.toBeInTheDocument();
+  });
 });

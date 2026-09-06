@@ -1,15 +1,14 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import ThemeToggle from '@/components/ThemeToggle';
+import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 
 export default function HomePage() {
-  const { user, householdId, signOut } = useAuth();
+  const { user, householdId } = useAuth();
   const { household, loading, error, actions: { refresh } } = useHousehold(householdId || '');
   const {
     permission,
@@ -25,8 +24,7 @@ export default function HomePage() {
   } = usePushNotifications(user?.id || null);
 
   const handleSignOut = async () => {
-    await signOut();
-    // AuthContext transitions the private route guard to /login.
+    // Will be handled by AuthenticatedHeader trailing action
   };
 
   if (loading) {
@@ -55,19 +53,9 @@ export default function HomePage() {
 
   return (
     <div className="page-container">
-      <ThemeToggle />
-      <header className="app-header">
-        <div className="header-content">
-          <div className="header-brand">
-            <div className="brand-icon" aria-hidden="true">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-                <line x1="3" y1="6" x2="21" y2="6"/>
-                <path d="M16 10a4 4 0 0 1-8 0"/>
-              </svg>
-            </div>
-            <h1>{household.name}</h1>
-          </div>
+      <AuthenticatedHeader
+        showBackLink
+        trailingAction={
           <button onClick={handleSignOut} className="btn btn-ghost">
             <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -76,8 +64,8 @@ export default function HomePage() {
             </svg>
             Déconnexion
           </button>
-        </div>
-      </header>
+        }
+      />
 
       <main className="app-main">
         <div className="dashboard-grid">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolvePrivateRoute } from '@/lib/private-route';
@@ -12,6 +12,7 @@ export function PrivateRoute({ children }: { children: ReactNode }) {
   const decision = resolvePrivateRoute(access);
   const redirectHref = decision.outcome === 'redirect' ? decision.href : null;
   const retriedMembership = useRef(false);
+  const [hasRenderedChildren, setHasRenderedChildren] = useState(false);
 
   useEffect(() => {
     if (access.status === 'no-household' && !retriedMembership.current) {
@@ -25,7 +26,17 @@ export function PrivateRoute({ children }: { children: ReactNode }) {
     }
   }, [access.status, redirectHref, retryHousehold, router]);
 
-  if (decision.outcome === 'render') return children;
+  if (decision.outcome === 'render') {
+    if (!hasRenderedChildren) {
+      setHasRenderedChildren(true);
+    }
+    return children;
+  }
+
+  // If we previously rendered children (background re-resolution), keep them mounted
+  if (hasRenderedChildren && decision.outcome === 'loading') {
+    return children;
+  }
 
   const retry = () => {
     retriedMembership.current = false;

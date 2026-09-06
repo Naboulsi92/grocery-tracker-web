@@ -265,26 +265,6 @@ begin
   exception when unique_violation then null;
   end;
   begin
-    perform public.consume_household_invitation(current_setting('test.invite_token'));
-    raise exception 'retired invitation unexpectedly consumed';
-  exception when sqlstate '22023' then null;
-  end;
-  begin
-    perform public.consume_household_invitation(current_setting('test.revoked_token'));
-    raise exception 'revoked invitation unexpectedly consumed';
-  exception when sqlstate '22023' then null;
-  end;
-  begin
-    perform public.consume_household_invitation(current_setting('test.expired_token'));
-    raise exception 'expired invitation unexpectedly consumed';
-  exception when sqlstate '22023' then null;
-  end;
-  begin
-    perform public.consume_household_invitation('unknown-token');
-    raise exception 'unknown invitation unexpectedly consumed';
-  exception when sqlstate '22023' then null;
-  end;
-  begin
     perform public.create_household_invitation(current_setting('test.household_id')::uuid, interval '1 day');
     raise exception 'member unexpectedly issued an invitation';
   exception when insufficient_privilege then null;
@@ -307,11 +287,44 @@ begin
   end if;
   if exists (
     select 1 from public.household_invitations
-    where token_hash = sha256(convert_to(current_setting('test.occupied_token'), 'UTF8'))
+    where token_hash = sha256(convert_to(current_setting('test.expired_token'), 'UTF8'))
       and consumed_at is not null
   ) then raise exception 'failed invitation consumption consumed its token'; end if;
 end;
 $$;
+
+-- Token validation probes as a non-member (single@example.test)
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000004', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+
+do $$
+begin
+  begin
+    perform public.consume_household_invitation(current_setting('test.invite_token'));
+    raise exception 'retired invitation unexpectedly consumed';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.consume_household_invitation(current_setting('test.revoked_token'));
+    raise exception 'revoked invitation unexpectedly consumed';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.consume_household_invitation(current_setting('test.expired_token'));
+    raise exception 'expired invitation unexpectedly consumed';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.consume_household_invitation('unknown-token');
+    raise exception 'unknown invitation unexpectedly consumed';
+  exception when sqlstate '22023' then null;
+  end;
+end;
+$$;
+
+reset role;
 
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000001', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);

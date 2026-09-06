@@ -1,6 +1,8 @@
 -- Fix household functions to match canonical definitions
 -- This migration replaces the broken functions deployed by 20260901084457
 
+create extension if not exists pgcrypto;
+
 -- 0. Fix create_household: creates categories, doesn't duplicate profiles (trigger handles that)
 drop function if exists public.create_household(text);
 

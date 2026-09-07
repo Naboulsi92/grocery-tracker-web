@@ -222,7 +222,6 @@ test.describe('Empty States', () => {
         await memberPage.waitForURL('/home', { timeout: 20000 });
 
         await page.reload();
-        await page.getByRole('link', { name: /Membres/ }).click();
         await expect(page.getByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
 
         const memberItems = page.locator('.member-item, .members-list .member');

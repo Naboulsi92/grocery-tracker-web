@@ -270,6 +270,7 @@ test.describe('Real-time Collaboration', () => {
         await expect(page.getByText(name)).toBeVisible({ timeout: 10000 });
       }
 
+      await page.goto('/home');
       await page.getByRole('link', { name: /Membres/ }).click();
       await page.getByRole('button', { name: 'Créer une invitation' }).click();
       const token = page.locator('.invite-code-text');

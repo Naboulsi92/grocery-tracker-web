@@ -51,25 +51,31 @@ async function createItemWithLowStock(
   return item;
 }
 
-async function getHouseholdId(page: Page): Promise<string> {
+async function getHouseholdId(account: Account): Promise<string> {
   const supabaseURL = process.env.E2E_SUPABASE_URL;
   const serviceRoleKey = process.env.E2E_SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseURL || !serviceRoleKey) {
     throw new Error('Database reads require E2E_SUPABASE_URL and E2E_SUPABASE_SERVICE_ROLE_KEY');
   }
-  
+
   const supabase = await createClient(supabaseURL, serviceRoleKey);
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('No authenticated user');
-  
+
+  const { data: { users }, error: listError } = await supabase.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  });
+  if (listError) throw listError;
+
+  const user = users.find((u) => u.email === account.email);
+  if (!user) throw new Error(`No user found with email ${account.email}`);
+
   const { data: membership } = await supabase
     .from('household_members')
     .select('household_id')
     .eq('user_id', user.id)
     .single();
-  
-  if (!membership) throw new Error('No household found');
+
+  if (!membership) throw new Error(`No household membership found for user ${user.id}`);
   return membership.household_id;
 }
 
@@ -149,7 +155,7 @@ test.describe('To-Buy Page', () => {
       test.skip(true, fixtureRequiredReason);
     }
     await createHousehold(page, account);
-    householdId = await getHouseholdId(page);
+    householdId = await getHouseholdId(account);
   });
   
   test.afterEach(async () => {

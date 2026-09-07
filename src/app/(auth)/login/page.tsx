@@ -2,12 +2,13 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import ThemeToggle from '@/components/ThemeToggle';
 import { AuthHeader } from '@/components/AuthHeader';
+import { SessionErrorBanner } from '@/components/SessionErrorBanner';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,8 +17,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { signIn, user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const sessionError = searchParams.get('error');
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -75,16 +74,9 @@ export default function LoginPage() {
           </div>
         )}
 
-        {sessionError === 'session_refresh_failed' && (
-          <div className="auth-error" role="alert">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            Votre session a expiré. Veuillez vous reconnecter.
-          </div>
-        )}
+        <Suspense fallback={null}>
+          <SessionErrorBanner />
+        </Suspense>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">

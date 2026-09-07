@@ -167,6 +167,8 @@ return (
       <AuthenticatedHeader showBackLink />
 
       <main className="app-main">
+        <h1>Catégories</h1>
+
         {combinedError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -177,6 +179,18 @@ return (
             {combinedError}
             <button type="button" className="btn btn-secondary" onClick={() => void fetchCategories(true)}>Réessayer</button>
           </div>
+        )}
+
+        {categories.length > 0 && !showForm && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ marginBottom: '1.5rem' }}
+            onClick={() => setShowForm(true)}
+            data-testid="btn-new-category"
+          >
+            Nouvelle catégorie
+          </button>
         )}
 
         {showForm && (
@@ -272,11 +286,20 @@ return (
 
         {categories.length === 0 && !showForm && !error && (
           <div className="empty-state">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="empty-state-icon">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
             <p>Aucune catégorie</p>
             <span>Créez-en une pour commencer</span>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ marginTop: '1rem' }}
+              onClick={() => setShowForm(true)}
+              data-testid="btn-new-category"
+            >
+              Nouvelle catégorie
+            </button>
           </div>
         )}
       </main>

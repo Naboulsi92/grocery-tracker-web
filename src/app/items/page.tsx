@@ -195,6 +195,8 @@ return (
       <AuthenticatedHeader showBackLink />
 
       <main className="app-main">
+        <h1>Articles</h1>
+
         {combinedError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -205,6 +207,18 @@ return (
             {combinedError}
             <button type="button" className="btn btn-secondary" onClick={() => void fetchData(true)}>Réessayer</button>
           </div>
+        )}
+
+        {items.length > 0 && !showForm && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ marginBottom: '1.5rem' }}
+            onClick={() => setShowForm(true)}
+            data-testid="btn-new-item"
+          >
+            Nouvel article
+          </button>
         )}
 
         {showForm && (
@@ -265,13 +279,22 @@ return (
 
         {items.length === 0 && !showForm && !error && (
           <div className="empty-state">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="empty-state-icon">
               <circle cx="9" cy="21" r="1"/>
               <circle cx="20" cy="21" r="1"/>
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
             </svg>
             <p>Aucun article</p>
             <span>Ajoutez votre premier article</span>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ marginTop: '1rem' }}
+              onClick={() => setShowForm(true)}
+              data-testid="btn-new-item"
+            >
+              Nouvel article
+            </button>
           </div>
         )}
       </main>

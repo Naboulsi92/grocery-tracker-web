@@ -25,39 +25,48 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session - this updates the auth cookie if needed
-  // Wrap in try/catch to handle cases where Supabase is not configured (e.g., test environment)
-  let session = null;
+  const pathname = request.nextUrl.pathname;
+
+  // Check if the route is protected
+  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'));
+
+  let session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] = null;
+
+  // Refresh the session once for all routes. On public routes the cookie-refresh
+  // side effect is the point; on protected routes we use the session value.
   try {
     const { data } = await supabase.auth.getSession();
     session = data.session;
   } catch (error) {
-    // Supabase not configured or unreachable - continue without session
-    // This allows the middleware to work in test environments without a real Supabase backend
-    // Log error for debugging (but not secrets)
+    const errorMessage = error instanceof Error ? error.message : 'unknown';
+    if (isProtectedRoute && process.env.NODE_ENV !== 'test') {
+      // On protected routes (outside tests), fail closed - redirect to login with error
+      console.error('middleware_session_refresh_failed_protected', {
+        error: errorMessage,
+        pathname,
+      });
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('error', 'session_refresh_failed');
+      return NextResponse.redirect(loginUrl);
+    }
+    // Public route, or test environment where Supabase may be unconfigured -
+    // continue without session
     console.error('middleware_session_refresh_failed', {
-      error: error instanceof Error ? error.message : 'unknown',
+      error: errorMessage,
+      pathname,
     });
   }
-
-  const pathname = request.nextUrl.pathname;
 
   // Allow public routes without authentication
   if (PUBLIC_ROUTES.includes(pathname)) {
     return response;
   }
 
-  // Check if the route is protected
-  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'));
-
-  if (isProtectedRoute) {
-    // Redirect to login if no session
-    if (!session) {
-      const loginUrl = new URL('/login', request.url);
-      // Don't add redirectTo parameter to keep existing tests passing
-      // Client-side redirects handle post-auth navigation
-      return NextResponse.redirect(loginUrl);
-    }
+  if (isProtectedRoute && !session) {
+    const loginUrl = new URL('/login', request.url);
+    // Don't add redirectTo parameter to keep existing tests passing
+    // Client-side redirects handle post-auth navigation
+    return NextResponse.redirect(loginUrl);
   }
 
   return response;

@@ -17,12 +17,25 @@ const textExtensions = new Set([
   '.cjs', '.env', '.example', '.js', '.json', '.jsx', '.md', '.mjs', '.ts', '.tsx', '.yaml', '.yml',
 ]);
 const secretPatterns = [
-  ['private key', /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/],
-  ['generic secret assignment', /(?:api[_-]?key|client[_-]?secret|password|token)\s*[:=]\s*["'][^"'\s]{12,}["']/i],
+  { name: 'private key', pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
+  { name: 'generic secret assignment', pattern: /(?:api[_-]?key|client[_-]?secret|password|token)\s*[:=]\s*["'][^"'\s]{12,}["']/i },
 ];
+// Values that are obviously fake and safe for tests/E2E specs (no '123', keep the scanner strict).
+const e2eTestValuePattern = /(?:password|test|wrong|example|invalid|valid|fake|dummy)/i;
 const e2eLiteralPatterns = [
-  ['email literal in E2E', /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i],
-  ['password literal in E2E fill', /(?:password|mot de passe)[^\n]*\.fill\(\s*["'][^"']+["']/i],
+  {
+    name: 'email literal in E2E',
+    pattern: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i,
+    // RFC 2606 reserves .example.{com,org,net,edu} for documentation/testing — never real credentials.
+    // The $ anchor on the full match still flags foo@example.com.evil.com.
+    skip: (match) => /@example\.(?:com|org|net|edu)$/i.test(match[0]),
+  },
+  {
+    name: 'password literal in E2E fill',
+    pattern: /(?:password|mot de passe)[^\n]*\.fill\(\s*["']([^"']+)["']/i,
+    // Obviously-fake test values are allowed; real-looking secrets are still flagged.
+    skip: (match) => e2eTestValuePattern.test(match[1] ?? ''),
+  },
 ];
 
 async function collectFiles(directory) {
@@ -54,28 +67,34 @@ export function containsServiceRoleJwt(content) {
   return -1;
 }
 
+export function findFindings(content, relativePath) {
+  const findings = [];
+  const patterns = relativePath.startsWith('src/e2e/')
+    ? [...secretPatterns, ...e2eLiteralPatterns]
+    : secretPatterns;
+
+  for (const { name, pattern, skip } of patterns) {
+    const match = pattern.exec(content);
+    if (!match || skip?.(match)) continue;
+    const line = content.slice(0, match.index).split('\n').length;
+    findings.push(`${relativePath}:${line}: ${name}`);
+  }
+
+  const serviceRoleJwtIndex = containsServiceRoleJwt(content);
+  if (serviceRoleJwtIndex >= 0) {
+    const line = content.slice(0, serviceRoleJwtIndex).split('\n').length;
+    findings.push(`${relativePath}:${line}: Supabase service-role JWT`);
+  }
+
+  return findings;
+}
+
 async function scan() {
   const findings = [];
   for (const file of await collectFiles(root)) {
     const content = await readFile(file, 'utf8');
     const relativePath = path.relative(root, file).replaceAll('\\', '/');
-    const patterns = relativePath.startsWith('src/e2e/')
-      ? [...secretPatterns, ...e2eLiteralPatterns]
-      : secretPatterns;
-
-    for (const [name, pattern] of patterns) {
-      const match = pattern.exec(content);
-      if (match) {
-        const line = content.slice(0, match.index).split('\n').length;
-        findings.push(`${relativePath}:${line}: ${name}`);
-      }
-    }
-
-    const serviceRoleJwtIndex = containsServiceRoleJwt(content);
-    if (serviceRoleJwtIndex >= 0) {
-      const line = content.slice(0, serviceRoleJwtIndex).split('\n').length;
-      findings.push(`${relativePath}:${line}: Supabase service-role JWT`);
-    }
+    findings.push(...findFindings(content, relativePath));
   }
 
   if (findings.length) {

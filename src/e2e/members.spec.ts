@@ -52,6 +52,7 @@ test.describe('Members Page', () => {
 
     await expect(page.getByRole('button', { name: 'Copié !' })).toBeVisible();
 
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
     const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
     expect(clipboardText).toBe(invitationToken);
   });
@@ -139,16 +140,16 @@ test.describe('Members Page', () => {
       await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await memberPage.waitForURL('/home', { timeout: 20000 });
 
-      await page.getByRole('link', { name: /Membres/ }).click();
-      const ownerLabel = page.getByText('Propriétaire');
+      await page.reload();
+      const ownerLabel = page.locator('.member-joined').filter({ hasText: 'Propriétaire' });
       await expect(ownerLabel).toBeVisible();
 
-      const memberLabel = page.getByText('Membre');
+      const memberLabel = page.locator('.member-joined').filter({ hasText: 'Membre' });
       await expect(memberLabel).toBeVisible();
 
-      await memberPage.getByRole('link', { name: /Membres/ }).click();
-      await expect(memberPage.getByText('Propriétaire')).toBeVisible();
-      await expect(memberPage.getByText('Membre')).toBeVisible();
+      await memberPage.goto('/members');
+      await expect(memberPage.locator('.member-joined').filter({ hasText: 'Propriétaire' })).toBeVisible();
+      await expect(memberPage.locator('.member-joined').filter({ hasText: 'Membre' })).toBeVisible();
     } finally {
       await memberContext.close();
     }
@@ -174,7 +175,7 @@ test.describe('Members Page', () => {
       await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await memberPage.waitForURL('/home', { timeout: 20000 });
 
-      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.reload();
       await expect(page.getByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
 
       const memberItems = page.locator('.member-item');
@@ -205,7 +206,6 @@ test.describe('Members Page', () => {
       await memberPage.waitForURL('/home', { timeout: 20000 });
 
       await page.reload();
-      await page.getByRole('link', { name: /Membres/ }).click();
       await expect(page.getByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
     } finally {
       await memberContext.close();

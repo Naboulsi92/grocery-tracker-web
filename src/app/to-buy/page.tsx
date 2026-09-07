@@ -111,6 +111,7 @@ return (
       <AuthenticatedHeader showBackLink />
 
       <main className="app-main">
+        <h1>À acheter</h1>
         {combinedError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>
             {combinedError}

@@ -117,9 +117,8 @@ test.describe('Tab return behavior', () => {
     const account = createAccount('signout');
     await createHousehold(page, account);
 
-    // Sign out
-    await page.getByRole('button', { name: /Menu utilisateur/ }).click();
-    await page.getByRole('menuitem', { name: 'Déconnexion' }).click();
+    // Sign out via the header's Déconnexion button
+    await page.getByRole('button', { name: 'Déconnexion' }).click();
 
     // Should redirect to login
     await page.waitForURL('/login', { timeout: 10000 });

@@ -350,13 +350,16 @@ test.describe('Real-time Collaboration', () => {
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
-      await expect(page.getByText('Articles')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Articles', level: 1 })).toBeVisible();
 
+      // Dashboard cards only exist on the home page, so return there between pages
+      await page.getByTestId('back-link').click();
       await page.getByTestId('dashboard-card-categories').click();
-      await expect(page.getByText('Catégories')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Catégories', level: 1 })).toBeVisible();
 
+      await page.getByTestId('back-link').click();
       await page.getByTestId('dashboard-card-items').click();
-      await expect(page.getByText('Articles')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Articles', level: 1 })).toBeVisible();
 
       const itemName = `Article nav ${randomUUID()}`;
       await page.getByTestId('btn-new-item').click();

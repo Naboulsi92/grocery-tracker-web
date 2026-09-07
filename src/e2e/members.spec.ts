@@ -52,6 +52,7 @@ test.describe('Members Page', () => {
 
     await expect(page.getByRole('button', { name: 'Copié !' })).toBeVisible();
 
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
     const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
     expect(clipboardText).toBe(invitationToken);
   });

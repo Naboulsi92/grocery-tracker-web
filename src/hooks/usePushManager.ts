@@ -85,10 +85,6 @@ export function usePushManager() {
       throw new Error('Ce navigateur ne prend pas en charge les notifications push.');
     }
 
-    if (permission !== 'granted') {
-      throw new Error('Autorisez d\'abord les notifications.');
-    }
-
     setIsLoading(true);
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
@@ -113,7 +109,7 @@ export function usePushManager() {
     } finally {
       setIsLoading(false);
     }
-  }, [support, permission]);
+  }, [support]);
 
   const unsubscribe = useCallback(async (): Promise<void> => {
     if (support !== 'supported') {

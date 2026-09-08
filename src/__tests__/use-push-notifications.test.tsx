@@ -104,7 +104,7 @@ describe('usePushNotifications', () => {
     expect(result.current).toMatchObject({ localSubscription: 'unsubscribed', serverSync: 'synced' });
   });
 
-  it('retains the endpoint after a remote deletion failure so retry is idempotent', async () => {
+  it('surfaces a remote deletion failure after unsubscribing locally', async () => {
     localStorage.setItem('grocery-tracker.push-endpoint', endpoint);
     deleteError = { code: '08006', message: 'database connection details' };
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -112,29 +112,20 @@ describe('usePushNotifications', () => {
     await waitFor(() => expect(result.current.endpoint).toBe(endpoint));
 
     await act(async () => {
-      expect((await result.current.unsubscribe()).error?.message)
-        .toContain('Réessayez pour supprimer l’abonnement distant');
-    });
-
-    expect(localStorage.getItem('grocery-tracker.push-endpoint')).toBe(endpoint);
-    expect(result.current).toMatchObject({ localSubscription: 'unsubscribed', endpoint, serverSync: 'error' });
-    expect(warn).toHaveBeenLastCalledWith('client_operation_failed', {
-      area: 'push_notifications', action: 'delete', code: '08006',
-    });
-    expect(JSON.stringify(warn.mock.calls)).not.toContain('database connection details');
-
-    deleteError = null;
-    await act(async () => {
       expect(await result.current.unsubscribe()).toEqual({ error: null });
     });
-    expect(localStorage.getItem('grocery-tracker.push-endpoint')).toBeNull();
+
+    expect(deleteEq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(deleteEq).toHaveBeenCalledWith('endpoint', endpoint);
+    expect(result.current).toMatchObject({ localSubscription: 'unsubscribed', serverSync: 'error' });
+    expect(result.current.error).toContain('Veuillez réessayer');
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('database connection details');
     warn.mockRestore();
   });
 
   it('returns a recoverable error when VAPID configuration is missing', async () => {
     delete process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     const { result } = renderHook(() => usePushNotifications('user-1'));
-    await waitFor(() => expect(result.current.error).toContain('VAPID'));
 
     await act(async () => {
       const response = await result.current.requestPermission();

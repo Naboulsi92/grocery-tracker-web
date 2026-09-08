@@ -10,7 +10,7 @@ import {
   type InvitationState,
 } from '@/lib/household';
 
-interface Household {
+export interface Household {
   id: string;
   name: string;
 }

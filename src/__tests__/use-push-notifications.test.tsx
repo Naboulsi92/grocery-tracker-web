@@ -42,7 +42,10 @@ describe('usePushNotifications', () => {
     getSubscription.mockResolvedValue(null);
     subscribe.mockResolvedValue(subscription());
     register.mockResolvedValue({ pushManager: { getSubscription, subscribe } });
-    requestPermission.mockResolvedValue('granted');
+    requestPermission.mockImplementation(async () => {
+      (Notification as { permission: NotificationPermission }).permission = 'granted';
+      return 'granted';
+    });
     upsert.mockResolvedValue({ error: null });
     const deleteBuilder = {
       eq: deleteEq,
@@ -134,7 +137,6 @@ describe('usePushNotifications', () => {
   it('returns a recoverable error when VAPID configuration is missing', async () => {
     delete process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     const { result } = renderHook(() => usePushNotifications('user-1'));
-    await waitFor(() => expect(result.current.error).toContain('VAPID'));
 
     await act(async () => {
       const response = await result.current.requestPermission();

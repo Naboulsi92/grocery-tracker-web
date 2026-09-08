@@ -43,7 +43,8 @@ export function usePushNotifications(userId: string | null) {
         endpoint: subscription.endpoint,
         subscription: subscriptionToJson(subscription),
       };
-      await sync.actions.upsert(subscriptionData);
+      const { error } = await sync.actions.upsert(subscriptionData);
+      if (error) return { error };
       return { error: null };
     } catch (error) {
       const normalized = error instanceof Error ? error : new Error('Impossible d\'activer les notifications.');
@@ -116,13 +117,18 @@ export function usePushNotifications(userId: string | null) {
 
     setOperation('disabling');
     try {
+      const endpoint = pushManager.endpoint;
       await pushManager.unsubscribe();
 
-      const endpoint = pushManager.endpoint;
       if (endpoint) {
-        await sync.actions.remove(endpoint);
+        const { error } = await sync.actions.remove(endpoint);
+        if (error) {
+          setOperation('idle');
+          return { error };
+        }
       }
 
+      pushManager.clearEndpoint();
       setOperation('idle');
       return { error: null };
     } catch (error) {

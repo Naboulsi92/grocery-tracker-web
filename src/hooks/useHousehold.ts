@@ -34,7 +34,8 @@ interface UseHouseholdResult {
 }
 
 export function useHousehold(householdId: string, options: UseHouseholdOptions = {}): UseHouseholdResult {
-  const supabase = options.supabase ?? createClient();
+  const [defaultClient] = useState(createClient);
+  const supabase = options.supabase ?? defaultClient;
 
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);

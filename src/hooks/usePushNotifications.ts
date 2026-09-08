@@ -91,7 +91,7 @@ export function usePushNotifications(userId: string | null) {
     if (!isSupported) {
       return { error: new Error('Ce navigateur ne prend pas en charge les notifications push.') };
     }
-    if (pushManager.permission !== 'granted') {
+    if (Notification.permission !== 'granted') {
       return { error: new Error('Autorisez d\'abord les notifications.') };
     }
     if (!userId) {
@@ -105,7 +105,7 @@ export function usePushNotifications(userId: string | null) {
     const result = await subscribeCurrentDevice();
     setOperation('idle');
     return result;
-  }, [isSupported, pushManager.permission, userId, subscribeCurrentDevice]);
+  }, [isSupported, userId, subscribeCurrentDevice]);
 
   const unsubscribe = useCallback(async () => {
     if (!isSupported) {

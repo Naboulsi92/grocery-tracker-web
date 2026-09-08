@@ -92,6 +92,22 @@ describe('usePushNotifications', () => {
     expect(result.current).toMatchObject({ localSubscription: 'subscribed', serverSync: 'synced' });
   });
 
+  it('subscribes when the browser permission is granted even if the hook state is stale', async () => {
+    const { result } = renderHook(() => usePushNotifications('user-1'));
+    await waitFor(() => expect(result.current.localSubscription).toBe('unsubscribed'));
+
+    (Notification as { permission: NotificationPermission }).permission = 'granted';
+
+    await act(async () => {
+      expect(await result.current.subscribe()).toEqual({ error: null });
+    });
+
+    expect(subscribe).toHaveBeenCalledWith(expect.objectContaining({ userVisibleOnly: true }));
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ user_id: 'user-1', endpoint }), {
+      onConflict: 'user_id,endpoint',
+    });
+  });
+
   it('removes the known remote endpoint when no local subscription remains', async () => {
     localStorage.setItem('grocery-tracker.push-endpoint', endpoint);
     const { result } = renderHook(() => usePushNotifications('user-1'));

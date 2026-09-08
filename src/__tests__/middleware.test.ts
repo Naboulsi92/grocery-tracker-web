@@ -87,4 +87,11 @@ describe('middleware', () => {
     // duplicated across branches
     expect(content.match(/getSession\(\)/g)?.length).toBe(1);
   });
+
+  it('fails closed when getSession resolves with an error on protected routes', () => {
+    const content = fs.readFileSync(middlewarePath, 'utf-8');
+    // The resolved-error path must redirect to login with session_refresh_failed
+    expect(content).toMatch(/const \{ data, error.*\} = await supabase\.auth\.getSession\(\)/);
+    expect(content).toContain('session_refresh_failed');
+  });
 });

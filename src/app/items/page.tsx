@@ -192,7 +192,7 @@ async function handleSubmit(e: React.FormEvent) {
 
 return (
     <div className="page-container">
-      <AuthenticatedHeader showBackLink />
+      <AuthenticatedHeader showBackLink household={household} loading={householdLoading} error={householdError} />
 
       <main className="app-main">
         <h1>Articles</h1>

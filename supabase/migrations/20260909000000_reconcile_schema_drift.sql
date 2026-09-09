@@ -1,5 +1,11 @@
--- Reconcile residual schema drift
+-- Issue #55: Reconcile residual schema drift
+-- One-time migration to align production database with canonical definitions
+-- DO NOT REUSE as a template for future migrations
+
 -- This migration addresses pre-existing drift that was deliberately excluded from the invitation repair
+
+create extension if not exists pgcrypto;
+
 --
 -- Drift items reconciled:
 -- 1. Signup trigger function moved from public to private schema

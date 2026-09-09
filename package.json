@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "jest quality src/__tests__ --runInBand && node --test scripts/*.test.mjs",
+    "test": "jest --runInBand && node --test scripts/*.test.mjs",
     "test:unit": "jest quality src/__tests__ --runInBand && node --test scripts/*.test.mjs",
     "test:watch": "jest quality src/__tests__ --watch",
     "test:e2e": "playwright test",

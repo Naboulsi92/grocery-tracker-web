@@ -39,7 +39,7 @@ export function usePushSubscriptionSync(userId: string | null) {
   const upsert = useCallback(async (subscription: PushSubscriptionData) => {
     if (!userId) {
       dispatch({ type: 'error', error: ERROR_NOT_AUTHENTICATED });
-      return;
+      return { error: new Error(ERROR_NOT_AUTHENTICATED) };
     }
 
     dispatch({ type: 'syncing' });
@@ -54,18 +54,24 @@ export function usePushSubscriptionSync(userId: string | null) {
     );
 
     if (error) {
-      console.warn('push_subscription_upsert_failed', { code: error.code });
-      dispatch({ type: 'error', error: "Impossible de sauvegarder l'abonnement. Veuillez réessayer." });
-      return;
+      console.warn('client_operation_failed', {
+        area: 'push_notifications',
+        action: 'sync',
+        code: error.code ?? 'unknown',
+      });
+      const message = "Impossible de sauvegarder l'abonnement. Veuillez réessayer.";
+      dispatch({ type: 'error', error: message });
+      return { error: new Error(message) };
     }
 
     dispatch({ type: 'synced' });
+    return { error: null };
   }, [supabase, userId]);
 
   const remove = useCallback(async (endpoint: string) => {
     if (!userId) {
       dispatch({ type: 'error', error: ERROR_NOT_AUTHENTICATED });
-      return;
+      return { error: new Error(ERROR_NOT_AUTHENTICATED) };
     }
 
     dispatch({ type: 'syncing' });
@@ -77,12 +83,18 @@ export function usePushSubscriptionSync(userId: string | null) {
       .eq('endpoint', endpoint);
 
     if (error) {
-      console.warn('push_subscription_delete_failed', { code: error.code });
-      dispatch({ type: 'error', error: "Impossible de supprimer l'abonnement. Veuillez réessayer." });
-      return;
+      console.warn('client_operation_failed', {
+        area: 'push_notifications',
+        action: 'delete',
+        code: error.code ?? 'unknown',
+      });
+      const message = 'Impossible de finaliser la désactivation. Réessayez pour supprimer l’abonnement distant.';
+      dispatch({ type: 'error', error: message });
+      return { error: new Error(message) };
     }
 
     dispatch({ type: 'synced' });
+    return { error: null };
   }, [supabase, userId]);
 
   return {

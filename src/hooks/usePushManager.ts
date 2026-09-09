@@ -125,14 +125,16 @@ export function usePushManager() {
         await currentSubscription.unsubscribe();
       }
 
-      localStorage.removeItem(ENDPOINT_STORAGE_KEY);
-      
       setSubscription(null);
-      setEndpoint(null);
     } finally {
       setIsLoading(false);
     }
   }, [support]);
+
+  const clearEndpoint = useCallback((): void => {
+    localStorage.removeItem(ENDPOINT_STORAGE_KEY);
+    setEndpoint(null);
+  }, []);
 
   return {
     support,
@@ -142,6 +144,7 @@ export function usePushManager() {
     requestPermission,
     subscribe,
     unsubscribe,
+    clearEndpoint,
     isLoading,
   };
 }

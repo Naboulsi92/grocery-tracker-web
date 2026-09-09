@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import { containsServiceRoleJwt, findFindings } from './scan-secrets.mjs';
 
 function jwt(payload) {
@@ -7,7 +7,8 @@ function jwt(payload) {
   return `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode(payload)}.signature`;
 }
 
-test('detects service-role claims by decoding JWT candidates', () => {
+describe('scan-secrets', () => {
+  test('detects service-role claims by decoding JWT candidates', () => {
   assert.notEqual(containsServiceRoleJwt(`key=${jwt({ role: 'service_role', ref: 'local' })}`), -1);
   assert.equal(containsServiceRoleJwt(`key=${jwt({ role: 'anon', ref: 'local' })}`), -1);
   assert.equal(containsServiceRoleJwt('eyJ.invalid.signature'), -1);
@@ -35,10 +36,11 @@ test('E2E password fill with a real-looking value is flagged', () => {
   assert.match(findings[0], /password literal in E2E fill/);
 });
 
-test('non-E2E paths do not apply e2e literal patterns', () => {
-  const content = `
+  test('non-E2E paths do not apply e2e literal patterns', () => {
+    const content = `
     fill('nonexistent@example.com');
     fill('wrongpassword123');
   `;
-  assert.deepEqual(findFindings(content, 'src/lib/foo.ts'), []);
+    assert.deepEqual(findFindings(content, 'src/lib/foo.ts'), []);
+  });
 });

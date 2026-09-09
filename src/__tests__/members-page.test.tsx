@@ -10,10 +10,9 @@ jest.mock('@/contexts/AuthContext', () => ({
 }));
 jest.mock('@/utils/supabase/client', () => ({ createClient: jest.fn() }));
 jest.mock('@/components/ThemeToggle', () => () => null);
-jest.mock('@/components/AuthenticatedHeader', () => ({ AuthenticatedHeader: () => null }));
-jest.mock('next/link', () => function MockLink({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) {
-  return <a href={href as string} {...props}>{children}</a>;
-});
+jest.mock('@/components/AuthenticatedHeader', () => ({
+  AuthenticatedHeader: () => null,
+}));
 
 function query(result: unknown) {
   const builder = {
@@ -65,11 +64,10 @@ describe('MembersPage', () => {
     render(<MembersPage />);
 
     expect(await screen.findByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
     expect(screen.getByText('Alex')).toBeVisible();
     expect(screen.getByText('Sam')).toBeVisible();
     expect(screen.getByText(/Propriétaire/)).toBeVisible();
-    expect(screen.getByText('Membre')).toBeVisible();
+    expect(screen.getByText('Membre', { exact: true })).toBeVisible();
     expect(screen.getByText('Vous')).toBeVisible();
   });
 

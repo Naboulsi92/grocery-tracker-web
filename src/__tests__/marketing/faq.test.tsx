@@ -49,12 +49,11 @@ describe('FAQ', () => {
     expect(screen.getByText('Unlimited! Add all family members, roommates, or partners.')).toBeInTheDocument();
   });
 
-  it('has proper touch target size (min-h-44px)', () => {
+  it('has proper touch target size via mk-faq-q', () => {
     render(<FAQ />);
     const buttons = screen.getAllByRole('button');
     buttons.forEach(button => {
-      const className = button.className;
-      expect(className).toContain('mk-faq-q');
+      expect(button.className).toContain('mk-faq-q');
     });
   });
 });

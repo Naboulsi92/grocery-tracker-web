@@ -35,8 +35,17 @@ export async function middleware(request: NextRequest) {
   // Refresh the session once for all routes. On public routes the cookie-refresh
   // side effect is the point; on protected routes we use the session value.
   try {
-    const { data } = await supabase.auth.getSession();
+    const { data, error: sessionError } = await supabase.auth.getSession();
     session = data.session;
+    if (sessionError && isProtectedRoute && process.env.NODE_ENV !== 'test') {
+      console.error('middleware_session_refresh_failed_protected', {
+        error: sessionError.message,
+        pathname,
+      });
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('error', 'session_refresh_failed');
+      return NextResponse.redirect(loginUrl);
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'unknown';
     if (isProtectedRoute && process.env.NODE_ENV !== 'test') {

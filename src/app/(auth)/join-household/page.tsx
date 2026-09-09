@@ -9,6 +9,7 @@ import { householdActionError, normalizeInvitationToken } from '@/lib/household'
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { AuthHeader } from '@/components/AuthHeader';
+import { ErrorBanner } from '@/components/ErrorBanner';
 
 type PendingAction = 'create' | 'join' | null;
 
@@ -98,7 +99,7 @@ export default function JoinHouseholdPage() {
           </div>
         )}
 
-        {error && <div className="auth-error" role="alert">{error}</div>}
+        {error && <ErrorBanner message={error} />}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <section aria-labelledby="create-household-title">

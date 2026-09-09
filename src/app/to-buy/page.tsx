@@ -108,7 +108,7 @@ export default function ToBuyPage() {
 
 return (
     <div className="page-container">
-      <AuthenticatedHeader showBackLink />
+      <AuthenticatedHeader showBackLink household={household} loading={householdLoading} error={householdError} />
 
       <main className="app-main">
         <h1>À acheter</h1>

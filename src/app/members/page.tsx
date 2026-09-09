@@ -38,6 +38,9 @@ return (
     <div className="page-container">
       <AuthenticatedHeader
         showBackLink
+        household={household}
+        loading={loading}
+        error={error}
         trailingAction={
           <button onClick={() => actions.refresh()} className="btn btn-secondary">
             Réessayer

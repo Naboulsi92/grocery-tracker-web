@@ -164,7 +164,7 @@ export default function CategoriesPage() {
 
 return (
     <div className="page-container">
-      <AuthenticatedHeader showBackLink />
+      <AuthenticatedHeader showBackLink household={household} loading={householdLoading} error={householdError} />
 
       <main className="app-main">
         <h1>Catégories</h1>

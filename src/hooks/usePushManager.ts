@@ -85,7 +85,7 @@ export function usePushManager() {
       throw new Error('Ce navigateur ne prend pas en charge les notifications push.');
     }
 
-    if (permission !== 'granted') {
+    if (Notification.permission !== 'granted') {
       throw new Error('Autorisez d\'abord les notifications.');
     }
 
@@ -113,7 +113,7 @@ export function usePushManager() {
     } finally {
       setIsLoading(false);
     }
-  }, [support, permission]);
+  }, [support]);
 
   const unsubscribe = useCallback(async (): Promise<void> => {
     if (support !== 'supported') {
@@ -129,14 +129,16 @@ export function usePushManager() {
         await currentSubscription.unsubscribe();
       }
 
-      localStorage.removeItem(ENDPOINT_STORAGE_KEY);
-      
       setSubscription(null);
-      setEndpoint(null);
     } finally {
       setIsLoading(false);
     }
   }, [support]);
+
+  const clearEndpoint = useCallback((): void => {
+    localStorage.removeItem(ENDPOINT_STORAGE_KEY);
+    setEndpoint(null);
+  }, []);
 
   return {
     support,
@@ -146,6 +148,7 @@ export function usePushManager() {
     requestPermission,
     subscribe,
     unsubscribe,
+    clearEndpoint,
     isLoading,
   };
 }

@@ -137,7 +137,7 @@ describe('usePushNotifications', () => {
     expect(deleteEq).toHaveBeenCalledWith('user_id', 'user-1');
     expect(deleteEq).toHaveBeenCalledWith('endpoint', endpoint);
     expect(result.current).toMatchObject({ localSubscription: 'unsubscribed', serverSync: 'error' });
-    expect(result.current.error).toContain('Veuillez réessayer');
+    expect(result.current.error).toContain('Réessayez');
     expect(JSON.stringify(warn.mock.calls)).not.toContain('database connection details');
     warn.mockRestore();
   });

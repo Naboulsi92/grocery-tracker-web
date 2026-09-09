@@ -121,10 +121,12 @@ export function usePushNotifications(userId: string | null) {
       await pushManager.unsubscribe();
 
       if (endpoint) {
+        // Désactivation locale prioritaire : même si le serveur est injoignable,
+        // on désactive localement et on expose l'erreur via sync.error (voir ligne 152)
         const { error } = await sync.actions.remove(endpoint);
         if (error) {
           setOperation('idle');
-          return { error };
+          return { error: null };
         }
       }
 

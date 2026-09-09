@@ -49,6 +49,37 @@ This document summarizes the schema drift reconciliation performed to align the 
 
 **Impact:** Security posture improved to match canonical definition
 
+#### 6a. Permission Drift Details (Original State Before Reconciliation)
+**Function Permission Drift:**
+- `public.create_household_invitation(uuid, interval)` was incorrectly granted to `PUBLIC` (allowing `anon` access)
+- This violated the security contract requiring household invitation creation to be authenticated-only
+
+**Direct Table Grant Violations:**
+The `authenticated` role had direct table grants (violating RLS-first security model):
+- `public.household_invitations` - all privileges
+- `public.household_members` - all privileges  
+- `public.households` - all privileges
+
+**Overly Permissive Column Grants:**
+
+| Table | Incorrect Writable Columns | Correct Writable Columns |
+|-------|---------------------------|-------------------------|
+| `items` | All columns (including `id`, `last_modified_at`, `last_modified_by`) | `household_id`, `category_id`, `name`, `quantity`, `unit_id`, `low_stock_threshold` (INSERT); `name`, `category_id`, `unit_id`, `low_stock_threshold` (UPDATE) |
+| `categories` | `id`, `created_at` | `name`, `icon`, `order` (INSERT/UPDATE) |
+| `push_subscriptions` | `id`, `created_at`, `updated_at` | `user_id`, `endpoint`, `subscription` (INSERT); `endpoint`, `subscription` (UPDATE) |
+| `profiles` | `id`, `created_at`, `updated_at` | `display_name` (UPDATE only) |
+| `households` | `id`, `created_at` | `name` (UPDATE only) |
+
+**Corrective Actions Applied:**
+1. Revoked `EXECUTE` on `public.create_household_invitation(uuid, interval)` from `PUBLIC`, `anon`, and re-granted only to `authenticated`
+2. Revoked all direct table grants from `authenticated` role on `household_invitations`, `household_members`, and `households`
+3. Replaced blanket table grants with precise column-level grants matching the security contract:
+   - Generated columns (`id`, timestamps) are read-only
+   - Only business-relevant columns are writable
+   - INSERT and UPDATE permissions are scoped appropriately per table
+
+**Impact:** Security contract now fully enforced at the database level, preventing both direct SQL attacks and RLS bypass attempts via column manipulation.
+
 ### Migration Applied
 File: `supabase/migrations/20260909000000_reconcile_schema_drift.sql`
 

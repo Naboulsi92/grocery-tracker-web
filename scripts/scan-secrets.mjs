@@ -105,4 +105,9 @@ async function scan() {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) await scan();
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  scan().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

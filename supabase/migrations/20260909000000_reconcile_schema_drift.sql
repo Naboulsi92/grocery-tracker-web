@@ -38,7 +38,7 @@ create trigger on_auth_user_created after insert on auth.users
 for each row execute function private.handle_new_user();
 
 -- 2. Create missing profile visibility helper (private.can_view_profile)
-create function private.can_view_profile(target_user_id uuid)
+create or replace function private.can_view_profile(target_user_id uuid)
 returns boolean language sql stable security definer set search_path = ''
 as $$
   select exists (
@@ -56,7 +56,7 @@ grant execute on function private.can_view_profile(uuid) to authenticated;
 
 -- 3. Add missing triggers
 -- 3a. Profile normalize display name trigger
-create function private.normalize_profile_display_name() returns trigger
+create or replace function private.normalize_profile_display_name() returns trigger
 language plpgsql set search_path = ''
 as $$
 begin
@@ -70,7 +70,7 @@ create trigger profiles_normalize_display_name before insert or update on public
 for each row execute function private.normalize_profile_display_name();
 
 -- 3b. Profile set updated_at trigger
-create function private.set_updated_at() returns trigger
+create or replace function private.set_updated_at() returns trigger
 language plpgsql set search_path = ''
 as $$
 begin

@@ -20,7 +20,7 @@ create extension if not exists pgcrypto;
 drop trigger if exists on_auth_user_created on auth.users;
 drop function if exists public.handle_new_user();
 
-create function private.handle_new_user() returns trigger
+create or replace function private.handle_new_user() returns trigger
 language plpgsql security definer set search_path = ''
 as $$
 begin
@@ -38,7 +38,7 @@ create trigger on_auth_user_created after insert on auth.users
 for each row execute function private.handle_new_user();
 
 -- 2. Create missing profile visibility helper (private.can_view_profile)
-create function private.can_view_profile(target_user_id uuid)
+create or replace function private.can_view_profile(target_user_id uuid)
 returns boolean language sql stable security definer set search_path = ''
 as $$
   select exists (
@@ -56,7 +56,7 @@ grant execute on function private.can_view_profile(uuid) to authenticated;
 
 -- 3. Add missing triggers
 -- 3a. Profile normalize display name trigger
-create function private.normalize_profile_display_name() returns trigger
+create or replace function private.normalize_profile_display_name() returns trigger
 language plpgsql set search_path = ''
 as $$
 begin
@@ -66,11 +66,12 @@ end;
 $$;
 revoke all on function private.normalize_profile_display_name() from public, anon, authenticated;
 
+drop trigger if exists profiles_normalize_display_name on public.profiles;
 create trigger profiles_normalize_display_name before insert or update on public.profiles
 for each row execute function private.normalize_profile_display_name();
 
 -- 3b. Profile set updated_at trigger
-create function private.set_updated_at() returns trigger
+create or replace function private.set_updated_at() returns trigger
 language plpgsql set search_path = ''
 as $$
 begin
@@ -80,10 +81,12 @@ end;
 $$;
 revoke all on function private.set_updated_at() from public, anon, authenticated;
 
+drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at before update on public.profiles
 for each row execute function private.set_updated_at();
 
 -- 3c. Push subscriptions set updated_at trigger
+drop trigger if exists push_subscriptions_set_updated_at on public.push_subscriptions;
 create trigger push_subscriptions_set_updated_at before update on public.push_subscriptions
 for each row execute function private.set_updated_at();
 
@@ -166,6 +169,9 @@ grant execute on function public.create_household_invitation(uuid, interval) to 
 revoke all on table public.household_invitations from authenticated;
 revoke all on table public.household_members from authenticated;
 revoke all on table public.households from authenticated;
+
+-- Grant SELECT on household_members to allow authenticated users to verify membership
+grant select on table public.household_members to authenticated;
 
 -- 7c. Fix items column grants (were too permissive)
 revoke all on table public.items from authenticated;

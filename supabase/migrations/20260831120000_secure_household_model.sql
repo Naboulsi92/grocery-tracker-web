@@ -182,9 +182,6 @@ $$;
 revoke all on function private.is_household_member(uuid) from public, anon, authenticated;
 revoke all on function private.is_household_owner(uuid) from public, anon, authenticated;
 revoke all on function private.can_view_profile(uuid) from public, anon, authenticated;
-grant execute on function private.is_household_member(uuid) to authenticated;
-grant execute on function private.is_household_owner(uuid) to authenticated;
-grant execute on function private.can_view_profile(uuid) to authenticated;
 
 create function private.set_updated_at() returns trigger
 language plpgsql set search_path = ''

@@ -38,7 +38,7 @@ grant execute on function public.create_household(text) to authenticated;
 -- 1. Fix create_household_invitation: returns TABLE with id/token/expires, uses sha256, retires previous live invitation
 drop function if exists public.create_household_invitation(uuid, interval);
 
-create function public.create_household_invitation(
+create or replace function public.create_household_invitation(
   p_household_id uuid,
   p_expires_in interval default interval '7 days'
 ) returns table (invitation_id uuid, token text, expires_at timestamptz)

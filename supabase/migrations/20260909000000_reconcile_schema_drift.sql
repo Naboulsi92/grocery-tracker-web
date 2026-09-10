@@ -66,6 +66,7 @@ end;
 $$;
 revoke all on function private.normalize_profile_display_name() from public, anon, authenticated;
 
+drop trigger if exists profiles_normalize_display_name on public.profiles;
 create trigger profiles_normalize_display_name before insert or update on public.profiles
 for each row execute function private.normalize_profile_display_name();
 
@@ -80,10 +81,12 @@ end;
 $$;
 revoke all on function private.set_updated_at() from public, anon, authenticated;
 
+drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at before update on public.profiles
 for each row execute function private.set_updated_at();
 
 -- 3c. Push subscriptions set updated_at trigger
+drop trigger if exists push_subscriptions_set_updated_at on public.push_subscriptions;
 create trigger push_subscriptions_set_updated_at before update on public.push_subscriptions
 for each row execute function private.set_updated_at();
 

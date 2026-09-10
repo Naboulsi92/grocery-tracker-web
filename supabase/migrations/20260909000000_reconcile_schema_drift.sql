@@ -170,6 +170,9 @@ revoke all on table public.household_invitations from authenticated;
 revoke all on table public.household_members from authenticated;
 revoke all on table public.households from authenticated;
 
+-- Grant SELECT on household_members to allow authenticated users to verify membership
+grant select on table public.household_members to authenticated;
+
 -- 7c. Fix items column grants (were too permissive)
 revoke all on table public.items from authenticated;
 grant select on table public.items to authenticated;

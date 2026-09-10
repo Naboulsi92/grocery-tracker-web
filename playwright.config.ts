@@ -10,7 +10,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   outputDir: 'test-results',
-  reporter: process.env.CI ? [['blob'], ['github']] : 'html',
+  reporter: process.env.CI ? [['blob', {}], ['github', {}]] : 'html',
   use: {
     baseURL: e2eEnvironment.baseURL,
     trace: 'on-first-retry',

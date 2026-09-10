@@ -20,7 +20,7 @@ create extension if not exists pgcrypto;
 drop trigger if exists on_auth_user_created on auth.users;
 drop function if exists public.handle_new_user();
 
-create function private.handle_new_user() returns trigger
+create or replace function private.handle_new_user() returns trigger
 language plpgsql security definer set search_path = ''
 as $$
 begin

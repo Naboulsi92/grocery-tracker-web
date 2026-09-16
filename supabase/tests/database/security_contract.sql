@@ -24,7 +24,7 @@ begin
     where pubname = 'supabase_realtime' and schemaname = 'public'
       and tablename in (
         'households', 'household_members', 'profiles', 'household_invitations',
-        'push_subscriptions', 'units'
+        'push_subscriptions'
       )
   ) then
     raise exception 'non-inventory application tables must not be published to Realtime';
@@ -106,7 +106,9 @@ begin
     or has_column_privilege('authenticated', 'public.items', 'created_at', 'INSERT')
     or has_column_privilege('authenticated', 'public.items', 'id', 'INSERT')
     or not has_column_privilege('authenticated', 'public.items', 'name', 'UPDATE')
-    or not has_column_privilege('authenticated', 'public.items', 'quantity', 'INSERT') then
+    or not has_column_privilege('authenticated', 'public.items', 'quantity', 'INSERT')
+    or not has_column_privilege('authenticated', 'public.items', 'default_item_id', 'INSERT')
+    or not has_column_privilege('authenticated', 'public.items', 'low_stock_threshold', 'UPDATE') then
     raise exception 'authenticated item column grants violate the write contract';
   end if;
   if has_column_privilege('authenticated', 'public.categories', 'id', 'INSERT')
@@ -146,7 +148,7 @@ begin
       and user_id = '00000000-0000-4000-8000-000000000001'
       and role = 'owner'
   ) then raise exception 'household creator must be owner'; end if;
-  if (select count(*) from public.categories where household_id = current_setting('test.household_id')::uuid) <> 6 then
+  if (select count(*) from public.categories where household_id = current_setting('test.household_id')::uuid) <> 10 then
     raise exception 'household defaults must be complete';
   end if;
 end;
@@ -264,11 +266,11 @@ begin
     raise exception 'member consumed an invitation while already in a household';
   exception when unique_violation then null;
   end;
-  begin
-    perform public.create_household_invitation(current_setting('test.household_id')::uuid, interval '1 day');
-    raise exception 'member unexpectedly issued an invitation';
-  exception when insufficient_privilege then null;
-  end;
+  -- Equal-rights invites: a member (not only the owner) may create an invitation
+  if not exists (
+    select 1
+    from public.create_household_invitation(current_setting('test.household_id')::uuid, interval '1 day')
+  ) then raise exception 'member could not create an invitation'; end if;
   update public.households set name = 'Member rename' where id = current_setting('test.household_id')::uuid;
   if found then raise exception 'member unexpectedly renamed household'; end if;
   begin
@@ -334,10 +336,16 @@ reset role;
 select set_config('test.renamed_name', :'renamed_name', true);
 
 reset role;
-select id as unit_id from public.units limit 1 \gset
-select set_config('test.unit_id', :'unit_id', true);
-insert into public.items (household_id, name, quantity, unit_id)
-values (:'household_id', 'Milk', 1, :'unit_id') returning id as item_id \gset
+select c.id as item_category_id
+from public.categories c
+join public.category_positions cp
+  on cp.category_id = c.id and cp.household_id = c.household_id
+where c.household_id = :'household_id'::uuid
+order by cp."position"
+limit 1 \gset
+select set_config('test.item_category_id', :'item_category_id', true);
+insert into public.items (household_id, category_id, name, quantity, unit)
+values (:'household_id', :'item_category_id', 'Milk', 1, 'l') returning id as item_id \gset
 select set_config('test.item_id', :'item_id', true);
 
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000002', true);
@@ -349,8 +357,8 @@ select set_config('test.adjusted_quantity', :'adjusted_quantity', true);
 select set_config('test.adjusted_user', :'adjusted_last_modified_by', true);
 set local role authenticated;
 
-insert into public.items (household_id, name, quantity, unit_id)
-values (:'household_id', 'Bread', 2, :'unit_id') returning id as inserted_item_id \gset
+insert into public.items (household_id, category_id, name, quantity, unit)
+values (:'household_id', :'item_category_id', 'Bread', 2, 'unite') returning id as inserted_item_id \gset
 select set_config('test.inserted_item_id', :'inserted_item_id', true);
 
 update public.profiles
@@ -449,10 +457,12 @@ end;
 $$;
 
 select public.create_household('Outsider household') as outsider_household_id \gset
-select id as outsider_category_id
-from public.categories
-where household_id = :'outsider_household_id'::uuid
-order by "order"
+select c.id as outsider_category_id
+from public.categories c
+join public.category_positions cp
+  on cp.category_id = c.id and cp.household_id = c.household_id
+where c.household_id = :'outsider_household_id'::uuid
+order by cp."position"
 limit 1 \gset
 select set_config('test.outsider_household_id', :'outsider_household_id', true);
 select set_config('test.outsider_category_id', :'outsider_category_id', true);
@@ -461,13 +471,13 @@ reset role;
 do $$
 begin
   begin
-    insert into public.items (household_id, category_id, name, quantity, unit_id)
+    insert into public.items (household_id, category_id, name, quantity, unit)
     values (
       current_setting('test.household_id')::uuid,
       current_setting('test.outsider_category_id')::uuid,
       'Invalid category',
       1,
-      current_setting('test.unit_id')::uuid
+      'unite'
     );
     raise exception 'cross-household item category unexpectedly succeeded';
   exception when foreign_key_violation then null;

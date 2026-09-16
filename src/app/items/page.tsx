@@ -4,29 +4,38 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback, useEffectEvent, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
-import { getErrorMessage, groupItems, joinInventory, type Category, type InventoryItem, type Unit } from '@/lib/inventory';
-import { createItem, updateItem, updateItemQuantity, deleteItem } from '@/lib/itemOperations';
+import { OfflineBanner } from '@/components/OfflineBanner';
+import { SyncingIndicator } from '@/components/SyncingIndicator';
+import { getErrorMessage, groupItems, joinInventory, type Category, type InventoryItem } from '@/lib/inventory';
+import { createItem, updateItem, updateItemQuantity, deleteItem, isItemPristine, type DefaultItem } from '@/lib/itemOperations';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
+import { validateName, validateQuantity, validateThreshold } from '@/lib/validation';
+import { translateMessage } from '@/lib/i18n';
 
 export default function ItemsPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
+  const [defaultItems, setDefaultItems] = useState<DefaultItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
   const [formQuantity, setFormQuantity] = useState('1');
-  const [formUnitId, setFormUnitId] = useState('');
+  const [formUnit, setFormUnit] = useState('unite');
   const [formCategoryId, setFormCategoryId] = useState('');
   const [formThreshold, setFormThreshold] = useState('1');
   const [error, setError] = useState('');
+  const [fieldNameError, setFieldNameError] = useState('');
+  const [fieldQuantityError, setFieldQuantityError] = useState('');
+  const [fieldThresholdError, setFieldThresholdError] = useState('');
   const [mutating, setMutating] = useState<string | null>(null);
   const { householdId } = useAuth();
-  const { household, members, loading: householdLoading, error: householdError } = useHousehold(householdId ?? '');
+  const { t, language } = useI18n();
+  const { household, loading: householdLoading, error: householdError } = useHousehold(householdId ?? '');
   const isLoading = loading || householdLoading;
   const combinedError = householdError || error;
   const [supabase] = useState(createClient);
@@ -39,24 +48,20 @@ export default function ItemsPage() {
     setError('');
 
     try {
-      const [categoriesRes, unitsRes, itemsRes] = await Promise.all([
-        supabase.from('categories').select('*').eq('household_id', householdId).order('order'),
-        supabase.from('units').select('*').order('name'),
+      const [categoriesRes, itemsRes] = await Promise.all([
+        supabase.from('categories').select('*').eq('household_id', householdId).order('name'),
         supabase.from('items').select('*').eq('household_id', householdId).order('name'),
       ]);
-      const queryError = categoriesRes.error ?? unitsRes.error ?? itemsRes.error;
+      const queryError = categoriesRes.error ?? itemsRes.error;
       if (queryError) throw queryError;
       if (currentRequest !== requestId.current) return;
 
       const nextCategories = categoriesRes.data ?? [];
-      const nextUnits = unitsRes.data ?? [];
       setCategories(nextCategories);
-      setUnits(nextUnits);
-      setItems(joinInventory(itemsRes.data ?? [], nextCategories, nextUnits));
-      setFormUnitId((current) => current || nextUnits[0]?.id || '');
+      setItems(joinInventory(itemsRes.data ?? [], nextCategories));
     } catch (loadError) {
       if (currentRequest === requestId.current) {
-        setError(getErrorMessage(loadError, 'Impossible de charger les articles.'));
+        setError(getErrorMessage(loadError, 'error.load_items'));
       }
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
@@ -89,18 +94,49 @@ export default function ItemsPage() {
     };
   }, [householdId, supabase]);
 
+  useEffect(() => {
+    if (!householdId) return;
+    supabase
+      .from('default_items')
+      .select('id, name_fr, unit, threshold')
+      .then(({ data }) => {
+        if (data) setDefaultItems(data as DefaultItem[]);
+      });
+  }, [householdId, supabase]);
+
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault();
   setError('');
+  setFieldNameError('');
+  setFieldQuantityError('');
+  setFieldThresholdError('');
 
-  if (!householdId || !formName.trim() || !formUnitId || mutating) return;
+  if (!householdId || !formName.trim() || !formUnit || mutating) return;
+
+  const nameErr = validateName(formName);
+  if (nameErr) { setFieldNameError(nameErr); return; }
+
+  const duplicateItem = items.some(
+    (item) => item.id !== editingId && item.name.trim().toLowerCase() === formName.trim().toLowerCase(),
+  );
+  if (duplicateItem) { setFieldNameError('items.duplicate'); return; }
+
+  if (!editingId) {
+    const qtyErr = validateQuantity(formQuantity);
+    if (qtyErr) { setFieldQuantityError(qtyErr); return; }
+  }
+
+  const thresholdVal = parseInt(formThreshold, 10);
+  const thresholdErr = validateThreshold(thresholdVal);
+  if (thresholdErr) { setFieldThresholdError(thresholdErr); return; }
+
   setMutating('form');
 
   const editableItemData = {
     name: formName.trim(),
-    unit_id: formUnitId,
+    unit: formUnit,
     category_id: formCategoryId || null,
-    low_stock_threshold: parseFloat(formThreshold) || 1,
+    low_stock_threshold: thresholdVal,
   };
 
     try {
@@ -111,21 +147,21 @@ async function handleSubmit(e: React.FormEvent) {
       } else {
         const { error } = await createItem(householdId, {
           ...editableItemData,
-          quantity: parseFloat(formQuantity) || 1,
+          quantity: parseInt(formQuantity, 10) || 1,
         });
         if (error) throw error;
         await fetchData();
       }
       resetForm();
     } catch (mutationError) {
-      setError(getErrorMessage(mutationError, 'Impossible d\'enregistrer l\'article.'));
+      setError(getErrorMessage(mutationError, 'error.save_item'));
     } finally {
       setMutating(null);
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Supprimer cet article ?')) return;
+    if (!confirm(t('items.delete_confirm'))) return;
 
     if (!householdId || mutating) return;
     setMutating(id);
@@ -135,7 +171,7 @@ async function handleSubmit(e: React.FormEvent) {
       if (error) throw error;
       setItems((current) => current.filter((item) => item.id !== id));
     } catch (mutationError) {
-      setError(getErrorMessage(mutationError, 'Impossible de supprimer l\'article.'));
+      setError(getErrorMessage(mutationError, 'error.delete_item'));
     } finally {
       setMutating(null);
     }
@@ -150,7 +186,7 @@ async function handleSubmit(e: React.FormEvent) {
       if (error) throw error;
       await fetchData();
     } catch (mutationError) {
-      setError(getErrorMessage(mutationError, 'Impossible de modifier la quantité.'));
+      setError(getErrorMessage(mutationError, 'error.save_quantity'));
     } finally {
       setMutating(null);
     }
@@ -159,17 +195,21 @@ async function handleSubmit(e: React.FormEvent) {
   function resetForm() {
     setFormName('');
     setFormQuantity('1');
+    setFormUnit('unite');
     setFormCategoryId('');
     setFormThreshold('1');
     setShowForm(false);
     setEditingId(null);
     setError('');
+    setFieldNameError('');
+    setFieldQuantityError('');
+    setFieldThresholdError('');
   }
 
   function startEdit(item: InventoryItem) {
     setFormName(item.name);
     setFormQuantity(item.quantity.toString());
-    setFormUnitId(item.unit_id);
+    setFormUnit(item.unit);
     setFormCategoryId(item.category_id || '');
     setFormThreshold(item.low_stock_threshold.toString());
     setEditingId(item.id);
@@ -179,23 +219,27 @@ async function handleSubmit(e: React.FormEvent) {
   if (isLoading) {
     return (
       <div className="page-container">
+        <OfflineBanner />
         <ThemeToggle />
-        <div className="loading-container" role="status">
-          <div className="loading-spinner" aria-hidden="true"></div>
-          <p>Chargement...</p>
-        </div>
+<div className="loading-container" role="status">
+            <div className="loading-spinner" aria-hidden="true"></div>
+            <p>{t('common.loading')}</p>
+          </div>
       </div>
     );
   }
 
   const itemGroups = groupItems(items, categories);
+  const defaultItemsMap = new Map(defaultItems.map((d) => [d.id, d]));
 
 return (
     <div className="page-container">
+      <OfflineBanner />
       <AuthenticatedHeader showBackLink household={household} loading={householdLoading} error={householdError} />
+      <SyncingIndicator />
 
       <main className="app-main">
-        <h1>Articles</h1>
+        <h1>{t('items.title')}</h1>
 
         {combinedError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>
@@ -204,8 +248,8 @@ return (
               <line x1="12" y1="8" x2="12" y2="12"/>
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            {combinedError}
-            <button type="button" className="btn btn-secondary" onClick={() => void fetchData(true)}>Réessayer</button>
+            {translateMessage(language, combinedError)}
+            <button type="button" className="btn btn-secondary" onClick={() => void fetchData(true)}>{t('common.retry')}</button>
           </div>
         )}
 
@@ -217,48 +261,61 @@ return (
             onClick={() => setShowForm(true)}
             data-testid="btn-new-item"
           >
-            Nouvel article
+            {t('items.new')}
           </button>
         )}
 
         {showForm && (
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <h2 style={{ marginBottom: '1.25rem', fontSize: '1.125rem' }}>
-              {editingId ? 'Modifier l\'article' : 'Nouvel article'}
+              {editingId ? t('items.edit_title') : t('items.new')}
             </h2>
             <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
               <div className="form-group">
-                <label htmlFor="item-name">Nom</label>
-                 <input id="item-name" type="text" data-testid="input-item-name" value={formName} onChange={(e) => setFormName(e.target.value)} required placeholder="Ex: Pommes" />
+                <label htmlFor="item-name">{t('items.name')}</label>
+                 <input id="item-name" type="text" data-testid="input-item-name" value={formName} onChange={(e) => { setFormName(e.target.value); setFieldNameError(''); }} required placeholder={t('items.name_placeholder')} aria-invalid={!!fieldNameError} aria-describedby="item-name-error" />
+                {fieldNameError && <p className="field-error" role="alert" id="item-name-error" data-testid={fieldNameError === 'items.duplicate' ? 'error-name-duplicate' : fieldNameError === 'validation.name.too_long' ? 'error-name-too-long' : 'error-name-required-letter'}>{translateMessage(language, fieldNameError)}</p>}
               </div>
               <div className="form-group">
-                <label htmlFor="item-category">Catégorie</label>
+                <label htmlFor="item-category">{t('items.category')}</label>
                 <select id="item-category" value={formCategoryId} onChange={(e) => setFormCategoryId(e.target.value)}>
-                  <option value="">Aucune</option>
+                  <option value="">{t('items.category_none')}</option>
                   {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
               </div>
               <div className="form-group">
-                <label htmlFor="item-quantity">Quantité</label>
-                <input id="item-quantity" type="number" value={formQuantity} onChange={(e) => setFormQuantity(e.target.value)} min="0" step="1" />
+                <label htmlFor="item-quantity">{t('items.quantity')}</label>
+                <input id="item-quantity" type="number" value={formQuantity} onChange={(e) => { setFormQuantity(e.target.value); setFieldQuantityError(''); }} min="0" step="1" aria-invalid={!!fieldQuantityError} aria-describedby="item-quantity-error" />
+                {fieldQuantityError && <p className="field-error" role="alert" id="item-quantity-error" data-testid="error-quantity-negative">{translateMessage(language, fieldQuantityError)}</p>}
               </div>
               <div className="form-group">
-                <label htmlFor="item-unit">Unité</label>
-                <select id="item-unit" value={formUnitId} onChange={(e) => setFormUnitId(e.target.value)} required>
-                  {units.map(unit => (
-                    <option key={unit.id} value={unit.id}>{unit.name}</option>
-                  ))}
+                <label htmlFor="item-unit">{t('items.unit')}</label>
+                <select id="item-unit" value={formUnit} onChange={(e) => {
+                  if (e.target.value !== formUnit) {
+                    setFormQuantity('');
+                    setFormThreshold('');
+                    setFieldQuantityError('');
+                    setFieldThresholdError('');
+                  }
+                  setFormUnit(e.target.value);
+                }} required>
+                  <option value="unite">{t('items.unit_unite')}</option>
+                  <option value="kg">{t('items.unit_kg')}</option>
+                  <option value="g">{t('items.unit_g')}</option>
+                  <option value="l">{t('items.unit_l')}</option>
+                  <option value="ml">{t('items.unit_ml')}</option>
                 </select>
               </div>
               <div className="form-group">
-                <label htmlFor="item-threshold">Seuil stock bas</label>
-                <input id="item-threshold" type="number" value={formThreshold} onChange={(e) => setFormThreshold(e.target.value)} min="0" step="1" />
+                <label htmlFor="item-threshold">{t('items.threshold')}</label>
+                <input id="item-threshold" type="number" value={formThreshold} onChange={(e) => { setFormThreshold(e.target.value); setFieldThresholdError(''); }} min="1" step="1" aria-invalid={!!fieldThresholdError} aria-describedby="item-threshold-error" />
+                {fieldThresholdError && <p className="field-error" role="alert" id="item-threshold-error" data-testid="error-threshold-required">{translateMessage(language, fieldThresholdError)}</p>}
               </div>
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-                <button type="submit" className="btn btn-primary" disabled={mutating === 'form'} data-testid="btn-create-item">{editingId ? 'Enregistrer' : 'Créer'}</button>
-                <button type="button" onClick={resetForm} className="btn btn-secondary" disabled={mutating === 'form'}>Annuler</button>
+                <button type="submit" className="btn btn-primary" disabled={mutating === 'form'} data-testid="btn-create-item">{editingId ? t('common.save') : t('common.create')}</button>
+                <button type="button" onClick={resetForm} className="btn btn-secondary" disabled={mutating === 'form'}>{t('common.cancel')}</button>
               </div>
             </form>
           </div>
@@ -267,11 +324,11 @@ return (
         {itemGroups.map(({ category, items: groupedItems }) => (
             <div key={category?.id ?? 'uncategorized'} style={{ marginBottom: '2rem' }}>
               <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {category ? <><span style={{ fontSize: '1.25rem' }}>{category.icon ?? '📦'}</span>{category.name}</> : 'Sans catégorie'}
+                {category ? <><span style={{ fontSize: '1.25rem' }}>📦</span>{category.name}</> : t('items.uncategorized')}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {groupedItems.map((item, index) => (
-                  <ItemRow key={item.id} item={item} index={index} disabled={mutating !== null} onUpdate={updateQuantity} onEdit={startEdit} onDelete={handleDelete} />
+                  <ItemRow key={item.id} item={item} index={index} disabled={mutating !== null} onUpdate={updateQuantity} onEdit={startEdit} onDelete={handleDelete} defaultItemsMap={defaultItemsMap} t={t} />
                 ))}
               </div>
             </div>
@@ -284,8 +341,8 @@ return (
               <circle cx="20" cy="21" r="1"/>
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
             </svg>
-            <p>Aucun article</p>
-            <span>Ajoutez votre premier article</span>
+            <p>{t('items.empty_title')}</p>
+            <span>{t('items.empty_sub')}</span>
             <button
               type="button"
               className="btn btn-primary"
@@ -293,7 +350,7 @@ return (
               onClick={() => setShowForm(true)}
               data-testid="btn-new-item"
             >
-              Nouvel article
+              {t('items.new')}
             </button>
           </div>
         )}
@@ -302,28 +359,31 @@ return (
   );
 }
 
-function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete }: { item: InventoryItem; index: number; disabled: boolean; onUpdate: (id: string, delta: number) => void; onEdit: (item: InventoryItem) => void; onDelete: (id: string) => void }) {
+function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, defaultItemsMap, t }: { item: InventoryItem; index: number; disabled: boolean; onUpdate: (id: string, delta: number) => void; onEdit: (item: InventoryItem) => void; onDelete: (id: string) => void; defaultItemsMap: Map<string, DefaultItem>; t: (key: string, vars?: Record<string, string | number>) => string }) {
   const isLowStock = item.quantity <= item.low_stock_threshold;
-  
+  const defaultItem = item.default_item_id ? defaultItemsMap.get(item.default_item_id) : undefined;
+  const isForked = !!defaultItem && !isItemPristine(item, defaultItem);
+
   return (
     <div className={`item-row animate-fade-in ${isLowStock ? 'low-stock' : ''}`} style={{ animationDelay: `${index * 20}ms` }}>
       <div className="item-info">
         <span className="item-name">{item.name}</span>
-        {isLowStock && <span className="badge badge-danger">À acheter</span>}
+        {isForked && <span className="badge badge-item-forked" data-testid="item-forked-badge">{t('items.forked')}</span>}
+        {isLowStock && <span className="badge badge-danger">{t('items.low_stock')}</span>}
       </div>
       <div className="item-controls">
         <div className="quantity-control">
-          <button onClick={() => onUpdate(item.id, -1)} className="qty-btn" disabled={disabled || item.quantity <= 0} aria-label={`Réduire la quantité de ${item.name}`}>−</button>
-          <span className="qty-value" aria-live="polite">{item.quantity} {item.unit?.abbrev || ''}</span>
-          <button onClick={() => onUpdate(item.id, 1)} className="qty-btn" disabled={disabled} aria-label={`Augmenter la quantité de ${item.name}`}>+</button>
+          <button onClick={() => onUpdate(item.id, -1)} className="qty-btn" disabled={disabled || item.quantity <= 0} aria-label={t('items.decrease_aria', { name: item.name })}>−</button>
+          <span className="qty-value" aria-live="polite">{item.quantity} {item.unit}</span>
+          <button onClick={() => onUpdate(item.id, 1)} className="qty-btn" disabled={disabled} aria-label={t('items.increase_aria', { name: item.name })}>+</button>
         </div>
-        <button onClick={() => onEdit(item)} className="action-btn" disabled={disabled} aria-label={`Modifier l’article ${item.name}`}>
+        <button onClick={() => onEdit(item)} className="action-btn" disabled={disabled} aria-label={t('items.edit_aria', { name: item.name })}>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </button>
-        <button onClick={() => onDelete(item.id)} className="action-btn danger" disabled={disabled} aria-label={`Supprimer l’article ${item.name}`} data-testid={`btn-delete-item-${item.id}`}>
+        <button onClick={() => onDelete(item.id)} className="action-btn danger" disabled={disabled} aria-label={t('items.delete_aria', { name: item.name })} data-testid={`btn-delete-item-${item.id}`}>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="3 6 5 6 21 6"/>
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>

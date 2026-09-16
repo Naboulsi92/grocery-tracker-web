@@ -6,9 +6,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import ThemeToggle from '@/components/ThemeToggle';
+import LanguageToggle from '@/components/LanguageToggle';
 import { AuthHeader } from '@/components/AuthHeader';
 import { ErrorBanner } from '@/components/ErrorBanner';
+import { OfflineBlockedScreen } from '@/components/OfflineBlockedScreen';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -17,6 +21,8 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp, access, loading: authLoading } = useAuth();
+  const { t } = useI18n();
+  const { isOnline } = useOnlineStatus();
   const router = useRouter();
 
   useEffect(() => {
@@ -27,14 +33,25 @@ export default function SignupPage() {
     }
   }, [access.status, authLoading, router]);
 
+  if (!isOnline) {
+    return (
+      <div className="auth-container">
+        <ThemeToggle />
+        <LanguageToggle />
+        <OfflineBlockedScreen />
+      </div>
+    );
+  }
+
   if (authLoading) {
     return (
       <div className="auth-container">
         <ThemeToggle />
+        <LanguageToggle />
         <div className="auth-card">
           <div className="loading-container" role="status">
             <div className="loading-spinner" aria-hidden="true"></div>
-            <p>Chargement...</p>
+            <p>{t('common.loading')}</p>
           </div>
         </div>
       </div>
@@ -46,12 +63,12 @@ export default function SignupPage() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Les mots de passe ne correspondent pas');
+      setError(t('signup.password_mismatch'));
       return;
     }
 
     if (password.length < 8) {
-      setError('Le mot de passe doit contenir au moins 8 caractères');
+      setError(t('signup.password_too_short'));
       return;
     }
 
@@ -70,31 +87,32 @@ export default function SignupPage() {
   return (
     <div className="auth-container">
       <ThemeToggle />
+      <LanguageToggle />
       <div className="auth-card animate-fade-in">
         <AuthHeader
           showBackHome
-          title="Inscription"
-          subtitle="Créez votre compte"
+          title={t('signup.title')}
+          subtitle={t('signup.subtitle')}
         />
         
         {error && <ErrorBanner message={error} />}
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">{t('auth.email')}</label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="vous@exemple.com"
+              placeholder={t('auth.email_placeholder')}
               autoComplete="email"
               required
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Mot de passe</label>
+            <label htmlFor="password">{t('auth.password')}</label>
             <input
               id="password"
               type="password"
@@ -108,7 +126,7 @@ export default function SignupPage() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="confirmPassword">Confirmer le mot de passe</label>
+            <label htmlFor="confirmPassword">{t('signup.confirm_password')}</label>
             <input
               id="confirmPassword"
               type="password"
@@ -129,17 +147,17 @@ export default function SignupPage() {
             {loading ? (
               <>
                 <span className="spinner" aria-hidden="true"></span>
-                Inscription...
+                {t('signup.submitting')}
               </>
             ) : (
-              "S'inscrire"
+              t('signup.submit')
             )}
           </button>
         </form>
 
         <p className="auth-footer">
-          Déjà un compte ?{' '}
-          <Link href="/login">Se connecter</Link>
+          {t('signup.footer_prompt')}{' '}
+          <Link href="/login">{t('signup.login_link')}</Link>
         </p>
       </div>
     </div>

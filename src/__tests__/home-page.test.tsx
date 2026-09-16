@@ -1,10 +1,18 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import HomePage from '@/app/home/page';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 
 const signOutMock = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'user-1' }, householdId: 'household-1', signOut: signOutMock }),
+}));
+jest.mock('@/utils/supabase/client', () => ({
+  createClient: () => ({ from: () => ({ select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) }) }) as never,
+}));
+jest.mock('@/lib/account', () => ({
+  fetchProfile: jest.fn().mockResolvedValue({ profile: null, error: null }),
+  updateProfileLanguage: jest.fn().mockResolvedValue({ error: null }),
 }));
 jest.mock('@/hooks/useHousehold', () => ({
   useHousehold: () => ({
@@ -53,7 +61,11 @@ describe('HomePage', () => {
   });
 
   it('signs out when the user clicks Déconnexion', async () => {
-    render(<HomePage />);
+    render(
+      <LanguageProvider>
+        <HomePage />
+      </LanguageProvider>,
+    );
 
     fireEvent.click(await screen.findByRole('button', { name: 'Déconnexion' }));
 

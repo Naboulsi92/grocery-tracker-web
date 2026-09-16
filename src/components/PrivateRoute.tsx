@@ -3,7 +3,9 @@
 import { useEffect, useReducer, useRef, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import { resolvePrivateRoute } from '@/lib/private-route';
+import { translateMessage } from '@/lib/i18n';
 import ThemeToggle from '@/components/ThemeToggle';
 
 interface RouteState {
@@ -41,6 +43,7 @@ function routeReducer(state: RouteState, action: RouteAction): RouteState {
 
 export function PrivateRoute({ children }: { children: ReactNode }) {
   const { access, retryHousehold } = useAuth();
+  const { language, t } = useI18n();
   const router = useRouter();
   const decision = resolvePrivateRoute(access);
   const retriedRef = useRef(false);
@@ -101,13 +104,13 @@ export function PrivateRoute({ children }: { children: ReactNode }) {
       <div className="loading-container" role={decision.outcome === 'error' ? undefined : 'status'}>
         {decision.outcome === 'error' ? (
           <>
-            <p role="alert">{decision.message}</p>
-            <button className="btn btn-primary" onClick={retry}>Réessayer</button>
+            <p role="alert">{translateMessage(language, decision.message)}</p>
+            <button className="btn btn-primary" onClick={retry}>{t('offline.retry')}</button>
           </>
         ) : (
           <>
             <div className="loading-spinner" aria-hidden="true" />
-            <p>Chargement...</p>
+            <p>{t('header.loading')}</p>
           </>
         )}
       </div>

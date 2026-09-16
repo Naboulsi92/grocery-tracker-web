@@ -88,7 +88,7 @@ test.describe('Members Page', () => {
     expect(expirationDate).toMatch(/Expire le \d{1,2}\/\d{1,2}\/\d{4}/);
   });
 
-  test('non-owner cannot see create invitation button', async ({ page, account, browser }) => {
+  test('member can reach the invite section (equal rights, no owner-only gate)', async ({ page, account, browser }) => {
     test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
     const householdName = await createHousehold(page, account);
 
@@ -112,11 +112,13 @@ test.describe('Members Page', () => {
 
       await expect(memberPage.getByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
 
-      const createInvitationButton = memberPage.getByRole('button', { name: 'Créer une invitation' });
-      await expect(createInvitationButton).not.toBeVisible();
+      // Equal rights: every member reaches the invite section — the owner-only gate is gone.
+      const ownerOnlyMessage = memberPage.getByText('Seul le propriétaire du foyer peut inviter de nouveaux membres.');
+      await expect(ownerOnlyMessage).not.toBeVisible();
 
-      const nonOwnerMessage = memberPage.getByText('Seul le propriétaire du foyer peut inviter de nouveaux membres.');
-      await expect(nonOwnerMessage).toBeVisible();
+      // At 2/2 the invite section renders in its full state (no create button for anyone).
+      await expect(memberPage.getByRole('heading', { name: 'Invitation' })).toBeVisible();
+      await expect(memberPage.getByTestId('household-full-message')).toBeVisible();
     } finally {
       await memberContext.close();
     }

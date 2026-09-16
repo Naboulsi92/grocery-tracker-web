@@ -2,11 +2,9 @@ import type { Database } from '@/types/database';
 
 export type Category = Database['public']['Tables']['categories']['Row'];
 export type Item = Database['public']['Tables']['items']['Row'];
-export type Unit = Database['public']['Tables']['units']['Row'];
 
 export type InventoryItem = Item & {
   category?: Category;
-  unit?: Unit;
 };
 
 export type ItemGroup = {
@@ -14,14 +12,12 @@ export type ItemGroup = {
   items: InventoryItem[];
 };
 
-export function joinInventory(items: Item[], categories: Category[], units: Unit[]): InventoryItem[] {
+export function joinInventory(items: Item[], categories: Category[]): InventoryItem[] {
   const categoriesById = new Map(categories.map((category) => [category.id, category]));
-  const unitsById = new Map(units.map((unit) => [unit.id, unit]));
 
   return items.map((item) => ({
     ...item,
     category: item.category_id ? categoriesById.get(item.category_id) : undefined,
-    unit: unitsById.get(item.unit_id),
   }));
 }
 
@@ -38,8 +34,8 @@ export function getLowStockItems(items: InventoryItem[]): InventoryItem[] {
   return items.filter((item) => item.quantity <= item.low_stock_threshold);
 }
 
-export function getNextCategoryOrder(categories: Category[]): number {
-  return Math.max(0, ...categories.map((category) => category.order ?? 0)) + 1;
+export function getNextCategoryOrder(positions: number[]): number {
+  return Math.max(0, ...positions) + 1;
 }
 
 export function getErrorMessage(error: unknown, fallback: string): string {

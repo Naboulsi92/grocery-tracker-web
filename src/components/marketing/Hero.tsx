@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePlausibleAnalytics } from '@/hooks/usePlausibleAnalytics';
+import { useI18n } from '@/contexts/LanguageContext';
 
 const LIST_ITEMS = [
   { name: 'Lait', qty: '2 × 1 L' },
@@ -13,6 +14,7 @@ const LIST_ITEMS = [
 ];
 
 export function Hero() {
+  const { t } = useI18n();
   const { trackCtaClick } = usePlausibleAnalytics();
   // items check off one after another on load — the one orchestrated
   // motion moment on the page; skipped entirely under reduced motion
@@ -61,30 +63,29 @@ export function Hero() {
       <div className="mk-hero-grid">
         <div className="mk-hero-copy">
           <h1>
-            Collaborative grocery lists
+            {t('mk.hero_title_1')}
             <br />
-            <span data-testid="hero-households-text">for households</span>
+            <span data-testid="hero-households-text">{t('mk.hero_title_2')}</span>
           </h1>
           <p className="mk-hero-sub">
-            Share one list with everyone you live with. Track quantities, sort by
-            category, and see every change the moment it happens.
+            {t('mk.hero_sub')}
           </p>
           <div className="mk-hero-ctas">
             <Link href="/signup" data-cta-name="Hero_GetStarted" className="mk-btn-primary">
-              Get Started
+              {t('mk.hero_get_started')}
             </Link>
             <button onClick={scrollToFeatures} data-cta-name="Hero_LearnMore" className="mk-btn-secondary">
-              Learn More
+              {t('mk.hero_learn_more')}
             </button>
           </div>
-          <p className="mk-hero-note">Free for households of any size.</p>
+          <p className="mk-hero-note">{t('mk.hero_note')}</p>
         </div>
 
         {/* decorative artifact: the product's own shared list, styled as a
             sibling of the auth card */}
         <div className="mk-listcard" aria-hidden="true">
           <div className="mk-listcard-head">
-            <span className="mk-listcard-title">Liste de courses</span>
+            <span className="mk-listcard-title">{t('mk.hero_list_title')}</span>
             <span className="mk-avatars">
               <span className="mk-avatar">SR</span>
               <span className="mk-avatar">NA</span>
@@ -111,11 +112,11 @@ export function Hero() {
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Camille ajoute des pâtes…
+            {t('mk.hero_adding')}
           </div>
           <div className="mk-live">
             <span className="mk-live-dot" />
-            Mis à jour à l&apos;instant
+            {t('mk.hero_live')}
           </div>
         </div>
       </div>

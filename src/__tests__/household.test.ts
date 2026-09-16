@@ -4,6 +4,7 @@ import {
   normalizeInvitationToken,
   type InvitationState,
 } from '@/lib/household';
+import { translate } from '@/lib/i18n';
 
 describe('household contracts', () => {
   const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -29,12 +30,13 @@ describe('household contracts', () => {
 
   it('maps the intentionally indistinguishable invitation failures to a recoverable message', () => {
     expect(householdActionError('join', { message: 'invitation is invalid or unavailable' }))
-      .toContain('invalide, expirée, révoquée ou déjà utilisée');
+      .toBe('errors.join.invalid_or_expired');
+    expect(translate('fr', 'errors.join.invalid_or_expired')).toContain('Code invalide ou expiré');
   });
 
   it('never exposes a raw database message and logs only structured non-sensitive context', () => {
     expect(householdActionError('load', { message: 'relation secret_table does not exist', code: '42P01' }))
-      .toBe('Impossible de charger le foyer. Vous pouvez réessayer.');
+      .toBe('errors.household.load_failed');
     expect(warn).toHaveBeenLastCalledWith('client_operation_failed', {
       area: 'household',
       action: 'load',

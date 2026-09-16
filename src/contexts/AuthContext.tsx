@@ -3,6 +3,7 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { restoreAccountIfPending } from '@/lib/account';
 
 export type PrivateAccess =
   | { status: 'loading' }
@@ -47,6 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setAccess({ status: 'loading' });
+
+    // Self-healing restore: re-signing in within the 7-day grace period cancels
+    // a pending soft-deletion (clears profiles.deleted_at). Best-effort — a
+    // failure must not block app access; the next sign-in retries.
+    await restoreAccountIfPending(supabase, nextUser.id);
+
     const { data, error } = await supabase
       .from('household_members')
       .select('household_id')

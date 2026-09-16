@@ -1,12 +1,16 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import JoinHouseholdPage from '@/app/(auth)/join-household/page';
 import { createClient } from '@/utils/supabase/client';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 
 const replace = jest.fn();
 const retryHousehold = jest.fn();
 const rpc = jest.fn();
 
-jest.mock('next/navigation', () => ({ useRouter: () => ({ replace }) }));
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ replace }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ access: { status: 'no-household', user: { id: 'user-1' } }, retryHousehold }),
 }));
@@ -21,7 +25,7 @@ describe('JoinHouseholdPage', () => {
   });
 
   it('creates a named household and refreshes private access', async () => {
-    render(<JoinHouseholdPage />);
+    render(<LanguageProvider><JoinHouseholdPage /></LanguageProvider>);
     fireEvent.change(screen.getByLabelText('Nom du foyer'), { target: { value: '  Foyer démo  ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Créer mon foyer' }));
 
@@ -31,7 +35,7 @@ describe('JoinHouseholdPage', () => {
   });
 
   it('submits the complete normalized invitation token', async () => {
-    render(<JoinHouseholdPage />);
+    render(<LanguageProvider><JoinHouseholdPage /></LanguageProvider>);
     fireEvent.change(screen.getByLabelText(/Code d.invitation complet/), {
       target: { value: '  fixture-id  ' },
     });
@@ -45,11 +49,11 @@ describe('JoinHouseholdPage', () => {
 
   it('keeps an invalid invitation recoverable without redirecting', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'invitation is invalid or unavailable' } });
-    render(<JoinHouseholdPage />);
+    render(<LanguageProvider><JoinHouseholdPage /></LanguageProvider>);
     fireEvent.change(screen.getByLabelText(/Code d.invitation complet/), { target: { value: 'invalid-token' } });
     fireEvent.click(screen.getByRole('button', { name: 'Rejoindre le foyer' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('invalide, expirée, révoquée ou déjà utilisée');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Code invalide ou expiré');
     expect(screen.getByRole('button', { name: 'Rejoindre le foyer' })).toBeEnabled();
     expect(replace).not.toHaveBeenCalled();
   });

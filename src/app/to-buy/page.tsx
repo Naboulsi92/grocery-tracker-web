@@ -4,23 +4,39 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback, useEffectEvent, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
+import { OfflineBanner } from '@/components/OfflineBanner';
+import { SyncingIndicator } from '@/components/SyncingIndicator';
 import { getErrorMessage, getLowStockItems, joinInventory, type InventoryItem } from '@/lib/inventory';
+import { updateItemQuantity } from '@/lib/itemOperations';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
+import { translateMessage } from '@/lib/i18n';
 
 export default function ToBuyPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [mutatingId, setMutatingId] = useState<string | null>(null);
+  const [thresholdNoticeId, setThresholdNoticeId] = useState<string | null>(null);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({});
   const { householdId } = useAuth();
+  const { t, language } = useI18n();
   const { household, members, loading: householdLoading, error: householdError } = useHousehold(householdId ?? '');
   const isLoading = loading || householdLoading;
   const combinedError = householdError || error;
   const [supabase] = useState(createClient);
   const requestId = useRef(0);
+  const checkedIdsRef = useRef<Set<string>>(new Set());
+
+  function markChecked(id: string) {
+    const next = new Set(checkedIdsRef.current).add(id);
+    checkedIdsRef.current = next;
+    setCheckedIds(next);
+  }
 
   const fetchItems = useCallback(async (showLoading = false) => {
     if (!householdId) return;
@@ -29,18 +45,26 @@ export default function ToBuyPage() {
     setError('');
 
     try {
-      const [itemsRes, categoriesRes, unitsRes] = await Promise.all([
+      const [itemsRes, categoriesRes] = await Promise.all([
         supabase.from('items').select('*').eq('household_id', householdId).order('name'),
         supabase.from('categories').select('*').eq('household_id', householdId),
-        supabase.from('units').select('*'),
       ]);
-      const queryError = itemsRes.error ?? categoriesRes.error ?? unitsRes.error;
+      const queryError = itemsRes.error ?? categoriesRes.error;
       if (queryError) throw queryError;
       if (currentRequest !== requestId.current) return;
-      setItems(getLowStockItems(joinInventory(itemsRes.data ?? [], categoriesRes.data ?? [], unitsRes.data ?? [])));
+      const lowStockItems = getLowStockItems(joinInventory(itemsRes.data ?? [], categoriesRes.data ?? []));
+      setItems((current) => {
+        const keptChecked = current.filter((item) => checkedIdsRef.current.has(item.id));
+        if (keptChecked.length === 0) return lowStockItems;
+        const byId = new Map(lowStockItems.map((item) => [item.id, item]));
+        keptChecked.forEach((item) => {
+          if (!byId.has(item.id)) byId.set(item.id, item);
+        });
+        return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+      });
     } catch (loadError) {
       if (currentRequest === requestId.current) {
-        setError(getErrorMessage(loadError, 'Impossible de charger la liste d’achats.'));
+        setError(getErrorMessage(loadError, 'error.load_tobuy'));
       }
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
@@ -73,22 +97,32 @@ export default function ToBuyPage() {
     };
   }, [householdId, supabase]);
 
-  async function updateQuantity(id: string, delta: number) {
-    if (mutatingId) return;
+  async function handleConfirmQuantity(id: string) {
+    const raw = quantityInputs[id];
+    const delta = Number(raw);
+    if (!raw || !Number.isFinite(delta) || delta <= 0 || mutatingId) return;
+
+    const currentItem = items.find((item) => item.id === id);
+    if (!currentItem) return;
+
     setMutatingId(id);
     setError('');
+    setThresholdNoticeId(null);
+    setQuantityInputs((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     try {
-      const { data, error: quantityError } = await supabase.rpc('adjust_item_quantity', {
-        p_item_id: id,
-        p_delta: delta,
-      });
-      if (quantityError) throw quantityError;
-      if (data.household_id !== householdId) throw new Error('Article hors du foyer courant.');
-      setItems((current) => current
-        .map((item) => item.id === id ? { ...item, ...data } : item)
-        .filter((item) => item.quantity <= item.low_stock_threshold));
+      const { error } = await updateItemQuantity(id, delta);
+      if (error) throw error;
+      if (currentItem.quantity + delta > currentItem.low_stock_threshold) {
+        markChecked(id);
+      } else {
+        setThresholdNoticeId(id);
+      }
     } catch (mutationError) {
-      setError(getErrorMessage(mutationError, 'Impossible de modifier la quantité.'));
+      setError(getErrorMessage(mutationError, 'error.save_quantity'));
     } finally {
       setMutatingId(null);
     }
@@ -97,69 +131,116 @@ export default function ToBuyPage() {
   if (isLoading) {
     return (
       <div className="page-container">
+        <OfflineBanner />
         <ThemeToggle />
         <div className="loading-container" role="status">
           <div className="loading-spinner" aria-hidden="true"></div>
-          <p>Chargement...</p>
+          <p>{t('common.loading')}</p>
         </div>
       </div>
     );
   }
 
-return (
+  return (
     <div className="page-container">
+      <OfflineBanner />
       <AuthenticatedHeader showBackLink household={household} loading={householdLoading} error={householdError} />
+      <SyncingIndicator />
 
       <main className="app-main">
-        <h1>À acheter</h1>
+        <h1>{t('tobuy.title')}</h1>
         {combinedError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>
-            {combinedError}
-            <button type="button" className="btn btn-secondary" onClick={() => void fetchItems(true)}>Réessayer</button>
+            {translateMessage(language, combinedError)}
+            <button type="button" className="btn btn-secondary" onClick={() => void fetchItems(true)}>{t('common.retry')}</button>
           </div>
         )}
         {items.length === 0 && !error ? (
-          <div className="empty-state">
+          <div className="empty-state" data-testid="tobuy-empty-state">
             <div className="success-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                 <polyline points="22 4 12 14.01 9 11.01"/>
               </svg>
             </div>
-            <p>Tout est en stock !</p>
-            <span>Rien à acheter pour le moment</span>
+            <p>{t('tobuy.empty_title')}</p>
+            <span>{t('tobuy.empty_sub')}</span>
           </div>
         ) : items.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {items.map((item, index) => (
-              <div
-                key={item.id}
-                className="to-buy-item animate-fade-in"
-                style={{ animationDelay: `${index * 30}ms` }}
-              >
-                <div className="to-buy-info">
-                  <span className="to-buy-icon" aria-hidden="true">{item.category?.icon || '📦'}</span>
-                  <div>
-                    <span className="to-buy-name">{item.name}</span>
-                    <span className="to-buy-stock">
-                      {item.quantity}/{item.low_stock_threshold} {item.unit?.abbrev || ''}
-                    </span>
-                  </div>
-                </div>
-                 <button
-                   onClick={() => updateQuantity(item.id, 1)}
-                    className="btn btn-primary"
-                    disabled={mutatingId !== null}
-                   aria-label={`Ajouter une unité de ${item.name}`}
+            {items.map((item, index) => {
+              const isChecked = checkedIds.has(item.id);
+              return (
+                <div
+                  key={item.id}
+                  className={`to-buy-item animate-fade-in${isChecked ? ' checked' : ''}`}
+                  style={{ animationDelay: `${index * 30}ms` }}
+                  data-testid={`tobuy-item-row-${item.name.toLowerCase()}`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"/>
-                    <line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
-                  Ajouter
-                </button>
-              </div>
-            ))}
+                  <div className="to-buy-info">
+                    <span className="to-buy-icon" aria-hidden="true">📦</span>
+                    <div>
+                      <span className="to-buy-name">{item.name}</span>
+                      <span className="to-buy-stock">
+                        {item.quantity}/{item.low_stock_threshold} {item.unit}
+                      </span>
+                    </div>
+                  </div>
+                  {isChecked ? (
+                    <span className="badge badge-success" aria-label={t('tobuy.in_stock_aria', { name: item.name })}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      {t('tobuy.in_stock')}
+                    </span>
+                  ) : (
+                    <div className="to-buy-controls">
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        inputMode="numeric"
+                        className="to-buy-qty-input"
+                        placeholder={t('tobuy.qty_placeholder')}
+                        value={quantityInputs[item.id] ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setThresholdNoticeId(null);
+                          setQuantityInputs((prev) => ({ ...prev, [item.id]: val }));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') void handleConfirmQuantity(item.id);
+                        }}
+                        disabled={mutatingId !== null}
+                        aria-label={t('tobuy.qty_aria', { name: item.name })}
+                        data-testid="tobuy-quantity-input"
+                      />
+                      <button
+                        onClick={() => void handleConfirmQuantity(item.id)}
+                        className="btn btn-primary"
+                        disabled={mutatingId !== null || !quantityInputs[item.id]}
+                        aria-label={t('tobuy.confirm_aria', { name: item.name })}
+                        data-testid="tobuy-check-button"
+                      >
+                        {mutatingId === item.id ? (
+                          <span className="spinner" aria-hidden="true"></span>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        )}
+                        {t('tobuy.confirm')}
+                      </button>
+                    </div>
+                  )}
+                  {thresholdNoticeId === item.id && (
+                    <p className="field-error" role="status" style={{ marginTop: '0.75rem' }} data-testid="tobuy-threshold-notice">
+                      {t('tobuy.threshold_not_met')}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : null}
       </main>

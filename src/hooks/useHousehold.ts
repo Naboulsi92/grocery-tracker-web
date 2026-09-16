@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
+import type { Language } from '@/lib/i18n';
 import {
   householdActionError,
   mergeHouseholdMembers,
@@ -17,6 +18,7 @@ export interface Household {
 
 interface UseHouseholdOptions {
   supabase?: SupabaseClient;
+  language?: Language;
 }
 
 interface UseHouseholdResult {
@@ -36,6 +38,7 @@ interface UseHouseholdResult {
 export function useHousehold(householdId: string, options: UseHouseholdOptions = {}): UseHouseholdResult {
   const [defaultClient] = useState(createClient);
   const supabase = options.supabase ?? defaultClient;
+  const language: Language = options.language ?? 'fr';
 
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
@@ -86,13 +89,13 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
       }
 
       setHousehold(householdResult.data);
-      setMembers(mergeHouseholdMembers(memberships, profilesResult.data ?? []));
+      setMembers(mergeHouseholdMembers(memberships, profilesResult.data ?? [], language));
       setLoading(false);
     }
 
     void fetchData();
     return () => { active = false; };
-  }, [householdId, supabase, refreshTrigger]);
+  }, [householdId, supabase, refreshTrigger, language]);
 
   const createInvitation = useCallback(async () => {
     if (!householdId) return;

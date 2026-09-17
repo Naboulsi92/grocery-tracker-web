@@ -365,7 +365,7 @@ function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, defaultIte
   const isForked = !!defaultItem && !isItemPristine(item, defaultItem);
 
   return (
-    <div className={`item-row animate-fade-in ${isLowStock ? 'low-stock' : ''}`} style={{ animationDelay: `${index * 20}ms` }}>
+    <div className={`item-row animate-fade-in ${isLowStock ? 'low-stock' : ''}`} data-testid={`item-row-${item.name.toLowerCase()}`} style={{ animationDelay: `${index * 20}ms` }}>
       <div className="item-info">
         <span className="item-name">{item.name}</span>
         {isForked && <span className="badge badge-item-forked" data-testid="item-forked-badge">{t('items.forked')}</span>}

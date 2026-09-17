@@ -68,6 +68,19 @@ Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>
 x-cron-secret: <CRON_SECRET>   # if configured
 ```
 
+**GitHub Actions scheduler**: `.github/workflows/gdpr-automation.yml` invokes this function
+daily at 03:00 UTC (plus `workflow_dispatch` for manual runs). It needs the repo secrets
+`SUPABASE_SERVICE_ROLE_KEY` (the Bearer token above) and `SUPABASE_CRON_SECRET` (same value
+as the function's `CRON_SECRET` env var).
+
+**CRON_SECRET setup** (optional but recommended): set it once on the edge function, then it
+MUST also exist as the GitHub repo secret `SUPABASE_CRON_SECRET` or the scheduled call is
+rejected:
+```bash
+supabase secrets set CRON_SECRET=<your-secret> --project-ref <project-ref>
+# GitHub -> Settings -> Secrets and variables -> Actions -> New repository secret: SUPABASE_CRON_SECRET
+```
+
 ### Scheduling Daily Reminders
 
 Daily reminders can be triggered in two ways:

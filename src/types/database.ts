@@ -101,8 +101,8 @@ export type Database = {
         Relationships: [];
       };
       history: {
-        Row: { id: string; household_id: string; performed_by: string | null; action_type: 'modification' | 'suppression'; item_name: string; performed_at: string };
-        Insert: { id?: string; household_id: string; performed_by?: string | null; action_type: 'modification' | 'suppression'; item_name: string; performed_at?: string };
+        Row: { id: string; household_id: string; performed_by: string | null; action_type: Database['public']['Enums']['action_type_enum']; item_name: string; performed_at: string };
+        Insert: { id?: string; household_id: string; performed_by?: string | null; action_type: Database['public']['Enums']['action_type_enum']; item_name: string; performed_at?: string };
         Update: never;
         Relationships: [];
       };
@@ -115,7 +115,7 @@ export type Database = {
       create_household_invitation: { Args: { p_expires_in?: string; p_household_id: string }; Returns: { expires_at: string; invitation_id: string; token: string }[] };
       revoke_household_invitation: { Args: { p_invitation_id: string }; Returns: boolean };
     };
-    Enums: { household_role: 'owner' | 'member' };
+    Enums: { action_type_enum: 'modification' | 'suppression'; household_role: 'owner' | 'member' };
     CompositeTypes: Record<string, never>;
   };
 };

@@ -31,11 +31,14 @@ create table public.category_positions (
 
 create index category_positions_household_id_idx on public.category_positions (household_id);
 
+-- action_type per the PRD (§4.3) as a dedicated enum rather than text + CHECK.
+create type public.action_type_enum as enum ('modification', 'suppression');
+
 create table public.history (
   id uuid primary key default gen_random_uuid(),
   household_id uuid not null references public.households(id) on delete cascade,
   performed_by uuid references auth.users(id) on delete set null,
-  action_type text not null check (action_type in ('modification', 'suppression')),
+  action_type action_type_enum not null,
   item_name text not null,
   performed_at timestamptz not null default now()
 );

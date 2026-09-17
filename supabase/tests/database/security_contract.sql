@@ -55,6 +55,7 @@ begin
     'public.create_household_invitation(uuid,interval)',
     'public.revoke_household_invitation(uuid)',
     'public.consume_household_invitation(text)',
+    'public.get_household_invitation(uuid)',
     'public.adjust_item_quantity(uuid,numeric)'
   ] loop
     if has_function_privilege('anon', function_signature, 'EXECUTE') then
@@ -219,11 +220,13 @@ set local role authenticated;
 
 do $$
 begin
-  -- v1.1 invites use an 8-char alphanumeric token (62-symbol alphabet ≈ 48 bits of
-  -- entropy), sufficient for the short-lived one-time invite design.
-  if length(current_setting('test.invite_token')) > 8
+  -- v1.1 invites use an 8-char alphanumeric token (62-symbol alphabet ≈ 47.6 bits
+  -- entropy), sufficient because expiry (24h default), single-use, and a
+  -- 5-attempt/1-minute server-side lockout are enforced. The lockout only mitigates
+  -- known-but-invalid tokens; unknown-token enumeration is bounded by keyspace size.
+  if length(current_setting('test.invite_token')) <> 8
     or current_setting('test.invite_token') !~ '^[A-Za-z0-9]+$'
-  then raise exception 'invitation token must be at most 8 alphanumeric characters'; end if;
+  then raise exception 'invitation token must be exactly 8 alphanumeric characters'; end if;
   if not current_setting('test.revoked_ok')::boolean then raise exception 'owner could not revoke invitation'; end if;
   if not current_setting('test.invite_retired')::boolean then raise exception 'first invitation was not retired when second was created'; end if;
   if not current_setting('test.revoked_revoked')::boolean then raise exception 'second invitation was not revoked'; end if;

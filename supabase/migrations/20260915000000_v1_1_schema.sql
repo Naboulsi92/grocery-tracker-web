@@ -107,8 +107,8 @@ alter table public.items add constraint items_category_household_fkey
   references public.categories (id, household_id)
   on delete restrict;
 
-create index items_household_id_idx on public.items (household_id);
-create index items_category_id_idx on public.items (category_id);
+create index if not exists items_household_id_idx on public.items (household_id);
+create index if not exists items_category_id_idx on public.items (category_id);
 
 -- Case-insensitive unique item name within household
 create unique index items_household_name_unique_idx

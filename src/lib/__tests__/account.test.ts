@@ -98,8 +98,19 @@ describe('shouldRestoreAccount', () => {
     expect(shouldRestoreAccount('2999-01-01T00:00:00.000Z', Date.parse('2026-01-01T00:00:00.000Z'))).toBe(false);
   });
 
-  it('returns true when deleted_at is in the past (within the retention window)', () => {
-    expect(shouldRestoreAccount('2026-09-01T00:00:00.000Z', Date.parse('2026-09-10T00:00:00.000Z'))).toBe(true);
+  it('returns true when deleted_at is within the 7-day retention window', () => {
+    const now = Date.parse('2026-09-10T00:00:00.000Z');
+    expect(shouldRestoreAccount('2026-09-09T00:00:00.000Z', now)).toBe(true);
+  });
+
+  it('returns true exactly at the 7-day boundary (inclusive)', () => {
+    const now = Date.parse('2026-09-10T00:00:00.000Z');
+    expect(shouldRestoreAccount('2026-09-03T00:00:00.000Z', now)).toBe(true);
+  });
+
+  it('returns false beyond the 7-day retention window', () => {
+    const now = Date.parse('2026-09-10T00:00:00.000Z');
+    expect(shouldRestoreAccount('2026-09-01T00:00:00.000Z', now)).toBe(false);
   });
 
   it('returns true when deleted_at equals now', () => {

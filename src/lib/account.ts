@@ -11,6 +11,9 @@ export type ProfileLanguage = 'fr' | 'en';
 
 const MAX_DISPLAY_NAME_LENGTH = 50;
 const MIN_PASSWORD_LENGTH = 8;
+const VERIFY_PASSWORD_FAILED_KEY = 'errors.account.password_verify_failed';
+const PASSWORD_CHANGE_FAILED_KEY = 'errors.account.password_change_failed';
+const ACCOUNT_RESTORE_GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
 
 type AccountAction =
   | 'load'
@@ -46,12 +49,15 @@ export function isProfileLanguage(value: string): value is ProfileLanguage {
  * Account deletion is soft (profiles.deleted_at set). The user may cancel by
  * signing in again within the 7-day retention window. Permanent deletion is
  * performed by the member-gdpr-sweep edge function (RPC sweep_fully_deleted_members),
- * scheduled daily by an external cron — as long as the row still exists and
- * deleted_at is in the past, the account is restorable.
+ * scheduled daily by an external cron — as long as the row still exists,
+ * deleted_at is in the past, and the 7-day grace period has not elapsed, the
+ * account is restorable.
  */
 export function shouldRestoreAccount(deletedAt: string | null, now: number = Date.now()): boolean {
   if (deletedAt === null) return false;
-  return Date.parse(deletedAt) <= now;
+  const deletedAtMs = Date.parse(deletedAt);
+  if (deletedAtMs > now) return false;
+  return now - deletedAtMs <= ACCOUNT_RESTORE_GRACE_PERIOD_MS;
 }
 
 export async function fetchProfile(
@@ -199,8 +205,8 @@ function accountActionError(
     language: 'errors.account.language_save_failed',
     delete: 'errors.account.delete_failed',
     restore: 'errors.account.restore_failed',
-    verifyPassword: 'errors.account.password_verify_failed',
-    updatePassword: 'errors.account.password_change_failed',
+    verifyPassword: VERIFY_PASSWORD_FAILED_KEY,
+    updatePassword: PASSWORD_CHANGE_FAILED_KEY,
   };
   return fallback[action];
 }

@@ -221,10 +221,10 @@ async function handleSubmit(e: React.FormEvent) {
       <div className="page-container">
         <OfflineBanner />
         <ThemeToggle />
-<div className="loading-container" role="status">
-            <div className="loading-spinner" aria-hidden="true"></div>
-            <p>{t('common.loading')}</p>
-          </div>
+        <div className="loading-container" role="status">
+          <div className="loading-spinner" aria-hidden="true"></div>
+          <p>{t('common.loading')}</p>
+        </div>
       </div>
     );
   }

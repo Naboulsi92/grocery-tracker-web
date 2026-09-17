@@ -57,24 +57,42 @@ Completes the deferred account-deletion flow: any profile with `deleted_at` olde
 ### Security
 
 - The RPC is `SECURITY DEFINER`, revoked from `public`/`anon`/`authenticated`, and granted **only to `service_role`**.
-- If the `CRON_SECRET` env var is set, requests must include `x-cron-secret: <CRON_SECRET>` (rejected otherwise) so a stray caller cannot purge accounts.
+- The function is deployed with JWT verification **disabled**; access is gated solely by the cron-secret check: if the `CRON_SECRET` env var is set, requests must include `x-cron-secret: <CRON_SECRET>` (rejected with 401 otherwise) so a stray caller cannot purge accounts. No Supabase service-role key is stored as a GitHub Actions secret.
+
+### Deployment prerequisite (required for the scheduler to work)
+
+The function MUST be deployed without JWT verification and with `CRON_SECRET` set, otherwise
+the scheduled call fails with 401/403:
+
+```bash
+supabase functions deploy member-gdpr-sweep --no-verify-jwt --project-ref <project-ref>
+supabase secrets set CRON_SECRET=<your-secret> --project-ref <project-ref>
+```
+
+- `--no-verify-jwt`: without it the platform rejects requests lacking a valid `Authorization:
+  Bearer <supabase-jwt>` (403) before the function's own `x-cron-secret` check ever runs.
+- `CRON_SECRET`: without it `Deno.env.get("CRON_SECRET")` is empty, every caller is allowed, and
+  the scheduled call's secret is ignored — the purge endpoint is effectively wide open.
+
+**Fallback (not the default)**: the team may instead keep JWT verification enabled and pass the
+service-role key as `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>`. That alternative **adds
+exfiltration risk**: a leaked service-role key bypasses RLS across the whole project. We
+deliberately choose the no-service-role-key path by default.
 
 ### Scheduling (recommended: daily)
 
-Requires `SUPABASE_SERVICE_ROLE_KEY` (auto-injected):
 ```
 POST https://<project-ref>.supabase.co/functions/v1/member-gdpr-sweep
-Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>
-x-cron-secret: <CRON_SECRET>   # if configured
+x-cron-secret: <CRON_SECRET>
 ```
 
 **GitHub Actions scheduler**: `.github/workflows/gdpr-automation.yml` invokes this function
-daily at 03:00 UTC (plus `workflow_dispatch` for manual runs). It needs the repo secrets
-`SUPABASE_SERVICE_ROLE_KEY` (the Bearer token above) and `SUPABASE_CRON_SECRET` (same value
-as the function's `CRON_SECRET` env var).
+daily at 03:00 UTC (plus `workflow_dispatch` for manual runs). It needs the single repo secret
+`SUPABASE_CRON_SECRET` (same value as the function's `CRON_SECRET` env var). No service-role key
+is stored as a GitHub Actions secret.
 
-**CRON_SECRET setup** (optional but recommended): set it once on the edge function, then it
-MUST also exist as the GitHub repo secret `SUPABASE_CRON_SECRET` or the scheduled call is
+**CRON_SECRET setup**: set it once on the edge function (see deployment prerequisite above), then
+it MUST also exist as the GitHub repo secret `SUPABASE_CRON_SECRET` or the scheduled call is
 rejected:
 ```bash
 supabase secrets set CRON_SECRET=<your-secret> --project-ref <project-ref>

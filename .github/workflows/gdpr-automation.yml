@@ -25,7 +25,6 @@ jobs:
             curl --fail-with-body --silent --show-error \
               --request POST \
               --url "https://oizfmmnuoqkdqkguynfv.supabase.co/functions/v1/member-gdpr-sweep" \
-              --header "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
               --header "x-cron-secret: ${{ secrets.SUPABASE_CRON_SECRET }}" \
               --header "Content-Type: application/json" \
               --data '{}' \

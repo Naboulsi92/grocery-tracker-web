@@ -306,6 +306,7 @@ declare
   raw_token text;
   chars text := 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   i int;
+  v int;
 begin
   if actor is null then raise exception 'authentication required' using errcode = '42501'; end if;
   if not private.is_household_member(p_household_id) then raise exception 'household member required' using errcode = '42501'; end if;
@@ -321,10 +322,17 @@ begin
     and consumed_at is null
     and household_invitations.expires_at > now();
 
-  -- Generate 8-char alphanumeric token
+  -- Generate an 8-char alphanumeric token via the CSPRNG gen_random_bytes(),
+  -- with rejection sampling over the 62-symbol alphabet: draw one byte per
+  -- char, accept only values below 62*4 = 248, then reduce mod 62 for a
+  -- uniform, unbiased mapping (no modulo bias).
   raw_token := '';
   for i in 1..8 loop
-    raw_token := raw_token || substr(chars, floor(random() * length(chars) + 1)::int, 1);
+    loop
+      v := get_byte(gen_random_bytes(1), 0);
+      exit when v < length(chars) * 4;
+    end loop;
+    raw_token := raw_token || substr(chars, (v % length(chars)) + 1, 1);
   end loop;
 
   return query

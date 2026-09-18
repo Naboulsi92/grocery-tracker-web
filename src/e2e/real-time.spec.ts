@@ -12,11 +12,11 @@ test.describe('Real-time Collaboration', () => {
       test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
       await createHousehold(page, account);
 
-      const itemName = `Article realtime ${randomUUID()}`;
+      const itemName = `Article rt ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité').fill('1');
+      await page.getByLabel('Quantité', { exact: true }).fill('1');
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
@@ -55,7 +55,7 @@ test.describe('Real-time Collaboration', () => {
       test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
       await createHousehold(page, account);
 
-      const originalName = `Article original ${randomUUID()}`;
+      const originalName = `Article orig ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(originalName);
@@ -80,7 +80,7 @@ test.describe('Real-time Collaboration', () => {
         await secondPage.getByTestId('dashboard-card-items').click();
         await expect(secondPage.getByText(originalName)).toBeVisible({ timeout: 10000 });
 
-        const newName = `Article modifié ${randomUUID()}`;
+        const newName = `Article ren ${randomUUID()}`;
         const itemRow = page.locator('.item-row').filter({ hasText: originalName });
         await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
         await page.getByTestId('input-item-name').fill(newName);
@@ -102,14 +102,14 @@ test.describe('Real-time Collaboration', () => {
       test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
       await createHousehold(page, account);
 
-      const categoryName = `Catégorie realtime ${randomUUID()}`;
+      const categoryName = `Catégorie rt ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
       await page.getByTestId('input-category-name').fill(categoryName);
       await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
-      const itemName = `Article catégorie ${randomUUID()}`;
+      const itemName = `Article cat ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
@@ -139,8 +139,8 @@ test.describe('Real-time Collaboration', () => {
         await page.locator('#item-category').selectOption({ label: categoryName });
         await page.getByTestId('btn-create-item').click();
 
-        await expect(page.locator('.item-row').filter({ hasText: categoryName })).toBeVisible();
-        await expect(secondPage.locator('.item-row').filter({ hasText: categoryName })).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('h3').filter({ hasText: categoryName })).toBeVisible();
+        await expect(secondPage.locator('h3').filter({ hasText: categoryName })).toBeVisible({ timeout: 10000 });
       }
 
       await secondContext.close();
@@ -158,11 +158,11 @@ test.describe('Real-time Collaboration', () => {
       test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
       await createHousehold(page, account);
 
-      const itemName = `Article à acheter ${randomUUID()}`;
+      const itemName = `Article ach ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité').fill('1');
+      await page.getByLabel('Quantité', { exact: true }).fill('1');
       await page.getByLabel('Seuil stock bas').fill('2');
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
@@ -209,11 +209,11 @@ test.describe('Real-time Collaboration', () => {
       test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
       await createHousehold(page, account);
 
-      const itemName = `Article debounce ${randomUUID()}`;
+      const itemName = `Article deb ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité').fill('1');
+      await page.getByLabel('Quantité', { exact: true }).fill('1');
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
@@ -299,11 +299,11 @@ test.describe('Real-time Collaboration', () => {
       test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
       await createHousehold(page, account);
 
-      const itemName = `Article concurrent ${randomUUID()}`;
+      const itemName = `Article conc ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité').fill('0');
+      await page.getByLabel('Quantité', { exact: true }).fill('0');
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
@@ -376,7 +376,7 @@ test.describe('Real-time Collaboration', () => {
       test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
       await createHousehold(page, account);
 
-      const itemName = `Article channel ${randomUUID()}`;
+      const itemName = `Article ch ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
@@ -401,7 +401,7 @@ test.describe('Real-time Collaboration', () => {
         await secondPage.getByTestId('dashboard-card-items').click();
         await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-        const newItemName = `Article channel 2 ${randomUUID()}`;
+        const newItemName = `Article ch2 ${randomUUID()}`;
         await secondPage.getByTestId('btn-new-item').click();
         await secondPage.getByTestId('input-item-name').fill(newItemName);
         await secondPage.getByTestId('btn-create-item').click();
@@ -422,11 +422,11 @@ test.describe('Real-time Collaboration', () => {
       test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
       await createHousehold(page, account);
 
-      const itemName = `Article duplicate ${randomUUID()}`;
+      const itemName = `Article dup ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité').fill('1');
+      await page.getByLabel('Quantité', { exact: true }).fill('1');
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 

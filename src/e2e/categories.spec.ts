@@ -6,62 +6,94 @@ import {
   writesDisabledReason,
 } from './environment';
 
-const ICONS = ['📦', '🥦', '🥛', '🥖', '🍖', '🥫', '🧼', '🧊', '🍪', '🥩', '🐟', '🧀', '🍎', '🍌', '🥕', '🌽'];
-
 test.describe('Categories CRUD', () => {
   test.describe('Create Category', () => {
     test('shows error message on create failure', async ({ page, account }) => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await createHousehold(page, account);
 
-      await page.getByTestId('dashboard-card-categories').click();
-      await page.getByTestId('btn-new-category').click();
-      await page.getByTestId('input-category-name').fill('');
-      await page.getByTestId('btn-create-category').click();
-
-      await expect(page.getByRole('alert')).toBeVisible();
-    });
-
-    test('validates empty name submission', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
-      await createHousehold(page, account);
-
-      await page.getByTestId('dashboard-card-categories').click();
-      await page.getByTestId('btn-new-category').click();
-      await page.getByTestId('input-category-name').fill('');
-      await page.getByTestId('btn-create-category').click();
-
-      await expect(page.getByRole('alert')).toBeVisible();
-    });
-
-    test('validates whitespace-only name handling', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
-      await createHousehold(page, account);
-
-      await page.getByTestId('dashboard-card-categories').click();
-      await page.getByTestId('btn-new-category').click();
-      await page.getByTestId('input-category-name').fill('   ');
-      await page.getByTestId('btn-create-category').click();
-
-      await expect(page.getByRole('alert')).toBeVisible();
-    });
-
-    test('validates icon selection and display', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
-      await createHousehold(page, account);
-
-      const categoryName = `Catégorie icône ${randomUUID()}`;
+      const categoryName = `Catégorie E ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
       await page.getByTestId('input-category-name').fill(categoryName);
 
-      const iconToSelect = '🥦';
-      await page.getByRole('button', { name: `Choisir l'icône ${iconToSelect}` }).click();
+      await page.route('**/rest/v1/categories**', async (route) => {
+        if (route.request().method() === 'POST') {
+          await route.fulfill({
+            status: 403,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              code: '42501',
+              message: 'new row violates row-level security policy',
+              details: '',
+              hint: '',
+            }),
+          });
+        } else {
+          await route.continue();
+        }
+      });
       await page.getByTestId('btn-create-category').click();
 
+      await expect(page.getByRole('alert')).toBeVisible();
+    });
+
+    test('validates duplicate category name', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      const categoryName = `Catégorie D ${randomUUID()}`;
+      await page.getByTestId('dashboard-card-categories').click();
+      await page.getByTestId('btn-new-category').click();
+      await page.getByTestId('input-category-name').fill(categoryName);
+      await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
-      const categoryCard = page.locator('.category-card').filter({ hasText: categoryName });
-      await expect(categoryCard.locator('.category-icon')).toContainText(iconToSelect);
+
+      await page.getByTestId('btn-new-category').click();
+      await page.getByTestId('input-category-name').fill(categoryName);
+      await page.getByTestId('btn-create-category').click();
+
+      await expect(page.getByTestId('error-name-duplicate')).toBeVisible();
+
+      page.once('dialog', (dialog) => dialog.accept());
+      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+    });
+
+    test('validates maximum name length', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      const tooLongName = 'Catégorie avec un nom vraiment beaucoup trop long pour dépasser la limite de cinquante caractères';
+      await page.getByTestId('dashboard-card-categories').click();
+      await page.getByTestId('btn-new-category').click();
+      await page.getByTestId('input-category-name').fill(tooLongName);
+      await page.getByTestId('btn-create-category').click();
+
+      await expect(page.getByTestId('error-name-too-long')).toBeVisible();
+    });
+
+    test('displays default and custom category icons', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-categories').click();
+
+      const defaultSection = page.locator('[data-testid="category-section-default"]');
+      await expect(defaultSection).toBeVisible();
+      await expect(defaultSection.locator('.category-card').filter({ hasText: 'Légumes' }).locator('.category-icon')).toContainText('🥬');
+      await expect(defaultSection.locator('.category-card').filter({ hasText: 'Fruits' }).locator('.category-icon')).toContainText('🍎');
+
+      const customSection = page.locator('[data-testid="category-section-custom"]');
+      await expect(customSection).toBeVisible();
+
+      const categoryName = `Ma catégorie ${randomUUID()}`;
+      await page.getByTestId('btn-new-category').click();
+      await page.getByTestId('input-category-name').fill(categoryName);
+      await page.getByTestId('btn-create-category').click();
+      await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
+
+      const categoryCard = customSection.locator('.category-card').filter({ hasText: categoryName });
+      await expect(categoryCard.locator('.category-icon')).toContainText('📦');
 
       page.once('dialog', (dialog) => dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
@@ -74,7 +106,7 @@ test.describe('Categories CRUD', () => {
       await createHousehold(page, account);
 
       const originalName = `Catégorie ${randomUUID()}`;
-      const newName = `Catégorie modifiée ${randomUUID()}`;
+      const newName = `Catégorie v2 ${randomUUID()}`;
 
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
@@ -96,30 +128,16 @@ test.describe('Categories CRUD', () => {
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${newName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
     });
 
-    test('can edit category icon (US 34)', async ({ page, account }) => {
+    test('default categories cannot be edited or deleted', async ({ page, account }) => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await createHousehold(page, account);
 
-      const categoryName = `Catégorie ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
-      await page.getByTestId('btn-new-category').click();
-      await page.getByTestId('input-category-name').fill(categoryName);
-      await page.getByTestId('btn-create-category').click();
-      await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
-      const categoryCard = page.locator('.category-card').filter({ hasText: categoryName });
-      const originalIcon = await categoryCard.locator('.category-icon').textContent();
-      await categoryCard.getByRole('button', { name: /Modifier la catégorie/ }).click();
-
-      const newIcon = '🥦';
-      await page.getByRole('button', { name: `Choisir l'icône ${newIcon}` }).click();
-      await page.getByTestId('btn-create-category').click();
-
-      await expect(categoryCard.locator('.category-icon')).toContainText(newIcon);
-      expect(originalIcon).not.toBe(newIcon);
-
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+      const defaultCards = page.locator('[data-testid="category-section-default"] .category-card');
+      await expect(defaultCards).toHaveCount(10);
+      await expect(defaultCards.first().getByTestId('category-edit-button')).toHaveCount(0);
+      await expect(defaultCards.first().getByTestId('category-delete-button')).toHaveCount(0);
     });
 
     test('preserves category order after edit', async ({ page, account }) => {
@@ -129,6 +147,7 @@ test.describe('Categories CRUD', () => {
       const cat1 = `Catégorie A ${randomUUID()}`;
       const cat2 = `Catégorie B ${randomUUID()}`;
       const cat3 = `Catégorie C ${randomUUID()}`;
+      const cat2Edited = `Catégorie Q ${randomUUID()}`;
 
       await page.getByTestId('dashboard-card-categories').click();
 
@@ -147,28 +166,28 @@ test.describe('Categories CRUD', () => {
       await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(cat3)).toBeVisible({ timeout: 10000 });
 
-      const cards = page.locator('.category-card');
+      const customSection = page.locator('[data-testid="category-section-custom"]');
+      const cards = customSection.locator('.category-card');
       await expect(cards).toHaveCount(3);
-      const firstCard = cards.nth(0);
-      await expect(firstCard).toContainText(cat1);
+      await expect(cards.nth(0)).toContainText(cat1);
 
       const cat2Card = cards.filter({ hasText: cat2 });
       await cat2Card.getByRole('button', { name: /Modifier la catégorie/ }).click();
-      await page.getByTestId('input-category-name').fill(`${cat2} modifié`);
+      await page.getByTestId('input-category-name').fill(cat2Edited);
       await page.getByTestId('btn-create-category').click();
 
-      const cardsAfter = page.locator('.category-card');
+      const cardsAfter = customSection.locator('.category-card');
       await expect(cardsAfter).toHaveCount(3);
       await expect(cardsAfter.nth(0)).toContainText(cat1);
-      await expect(cardsAfter.nth(1)).toContainText(`${cat2} modifié`);
+      await expect(cardsAfter.nth(1)).toContainText(cat2Edited);
       await expect(cardsAfter.nth(2)).toContainText(cat3);
 
       page.once('dialog', (dialog) => dialog.accept());
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat1}`) }).click();
+      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat1.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
       page.once('dialog', (dialog) => dialog.accept());
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat2} modifié`) }).click();
+      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat2Edited.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
       page.once('dialog', (dialog) => dialog.accept());
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat3}`) }).click();
+      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat3.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
     });
   });
 
@@ -200,17 +219,31 @@ test.describe('Categories CRUD', () => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await createHousehold(page, account);
 
-      const categoryName = `Catégorie erreur ${randomUUID()}`;
+      const categoryName = `Catégorie E ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
       await page.getByTestId('input-category-name').fill(categoryName);
       await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
-      page.on('dialog', async (dialog) => {
-        await dialog.accept();
+      await page.route('**/rest/v1/categories**', async (route) => {
+        if (route.request().method() === 'DELETE') {
+          await route.fulfill({
+            status: 403,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              code: '42501',
+              message: 'new row violates row-level security policy',
+              details: '',
+              hint: '',
+            }),
+          });
+        } else {
+          await route.continue();
+        }
       });
 
+      page.once('dialog', (dialog) => dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
 
       await expect(page.getByRole('alert')).toBeVisible();
@@ -244,7 +277,8 @@ test.describe('Categories CRUD', () => {
       page.once('dialog', (dialog) => dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat2.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
 
-      const cardsAfter = page.locator('.category-card');
+      const customSection = page.locator('[data-testid="category-section-custom"]');
+      const cardsAfter = customSection.locator('.category-card');
       await expect(cardsAfter).toHaveCount(2);
       await expect(cardsAfter.nth(0)).toContainText(cat1);
       await expect(cardsAfter.nth(1)).toContainText(cat3);
@@ -257,16 +291,21 @@ test.describe('Categories CRUD', () => {
   });
 
   test.describe('Empty State', () => {
-    test('shows empty state with call-to-action when no categories exist (US 33, 80)', async ({ page, account }) => {
+    test('shows the default catalog for a new household (US 33, 80)', async ({ page, account }) => {
       test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
 
-      await expect(page.locator('.empty-state')).toBeVisible();
-      await expect(page.locator('.empty-state')).toContainText('Aucune catégorie');
-      await expect(page.locator('.empty-state')).toContainText('Créez-en une pour commencer');
-      await expect(page.getByTestId('btn-new-category')).toBeVisible();
+      const defaultSection = page.locator('[data-testid="category-section-default"]');
+      await expect(defaultSection).toBeVisible();
+      await expect(defaultSection.locator('.category-card')).toHaveCount(10);
+      await expect(defaultSection.getByText('Fruits')).toBeVisible();
+      await expect(defaultSection.getByText('Légumes')).toBeVisible();
+
+      const ctaButton = page.getByTestId('btn-new-category');
+      await expect(ctaButton).toBeVisible();
+      await expect(ctaButton).toBeEnabled();
     });
   });
 
@@ -275,7 +314,7 @@ test.describe('Categories CRUD', () => {
       test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
       await createHousehold(page, account);
 
-      const categoryName = `Catégorie realtime ${randomUUID()}`;
+      const categoryName = `Catégorie rt ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
       await page.getByTestId('input-category-name').fill(categoryName);
@@ -300,7 +339,7 @@ test.describe('Categories CRUD', () => {
         await secondPage.getByTestId('dashboard-card-categories').click();
         await expect(secondPage.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
-        const newCategoryName = `Catégorie realtime 2 ${randomUUID()}`;
+        const newCategoryName = `Catégorie rt2 ${randomUUID()}`;
         await secondPage.getByTestId('btn-new-category').click();
         await secondPage.getByTestId('input-category-name').fill(newCategoryName);
         await secondPage.getByTestId('btn-create-category').click();
@@ -342,7 +381,8 @@ test.describe('Categories CRUD', () => {
       await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(cat3)).toBeVisible({ timeout: 10000 });
 
-      const cards = page.locator('.category-card');
+      const customSection = page.locator('[data-testid="category-section-custom"]');
+      const cards = customSection.locator('.category-card');
       await expect(cards).toHaveCount(3);
       await expect(cards.nth(0)).toContainText(cat1);
       await expect(cards.nth(1)).toContainText(cat2);

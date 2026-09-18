@@ -26,7 +26,7 @@ The App-Router deviation from literal `next-i18next` is documented in §7.
 
 ## 3. What moved into the dictionary
 
-- **373 keys** per locale, mirrored by hand in `fr` and `en` (`src/i18n/locales/{fr,en}/common.json`, flat dotted keys like `common.loading`): marketing copy, auth screens, all dashboard routes, toasts, error states, ARIA labels, empty states, and document `<title>`s.
+- **372 keys** per locale (recounted by `node` on 2026-09-18), mirrored by hand in `fr` and `en` (`src/i18n/locales/{fr,en}/common.json`, flat dotted keys like `common.loading`): marketing copy, auth screens, all dashboard routes, toasts, error states, ARIA labels, empty states, and document `<title>`s.
 - **i18n module layout** (`src/i18n/*`):
   - `settings.ts` — `Language` type (`'fr' | 'en'`), `DEFAULT_LANGUAGE` (`fr`), `SUPPORTED_LANGUAGES`, `LANGUAGE_STORAGE_KEY` (`language`), `NAMESPACE` (`common`).
   - `resources.ts` — next-i18next-style `resources` object (`fr.common`, `en.common`) plus `FR_KEYS` (used by the `translateMessage` shim to distinguish keys from literal French messages).

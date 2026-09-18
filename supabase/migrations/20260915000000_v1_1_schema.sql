@@ -2,6 +2,8 @@
 -- Creates default catalog tables, category_positions, history,
 -- modifies existing tables, migrates data, updates functions/triggers/RLS/grants.
 
+create extension if not exists pgcrypto with schema extensions;
+
 -- ══════════════════════════════════════════════════════════════
 -- 1. Create new tables
 -- ══════════════════════════════════════════════════════════════
@@ -342,7 +344,7 @@ begin
   raw_token := '';
   for i in 1..8 loop
     loop
-      v := get_byte(gen_random_bytes(1), 0);
+      v := get_byte(extensions.gen_random_bytes(1), 0);
       exit when v < length(chars) * 4;
     end loop;
     raw_token := raw_token || substr(chars, (v % length(chars)) + 1, 1);

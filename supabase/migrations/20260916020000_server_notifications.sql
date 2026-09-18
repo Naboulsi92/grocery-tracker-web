@@ -113,7 +113,11 @@ revoke all on function public.notify_threshold_crossing_on_insert() from public,
 create table public.pending_notifications (
   id            uuid primary key default gen_random_uuid(),
   household_id  uuid not null references public.households(id) on delete cascade,
-  item_id       uuid references public.items(id) on delete set null,
+  -- Deferrable: the BEFORE INSERT trigger inserts a row here referencing NEW.id
+  -- before the parent items row exists. A non-deferrable FK would check at the
+  -- end of that nested INSERT statement and fail; deferring the check to commit
+  -- lets the parent row land first (the constraint is still enforced).
+  item_id       uuid references public.items(id) on delete set null deferrable initially deferred,
   item_name     text not null default 'Rappel',
   quantity      numeric,
   threshold     numeric,

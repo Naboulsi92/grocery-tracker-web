@@ -535,25 +535,6 @@ export default function CategoriesPage() {
           </SortableContext>
         </DndContext>
 
-        {categories.length === 0 && !showForm && !error && (
-          <div className="empty-state">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="empty-state-icon">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            </svg>
-            <p>{t('categories.empty_title')}</p>
-            <span>{t('categories.empty_sub')}</span>
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ marginTop: '1rem' }}
-              onClick={() => setShowForm(true)}
-              disabled={!isOnline}
-              data-testid="btn-new-category"
-            >
-              {t('categories.new')}
-            </button>
-          </div>
-        )}
       </main>
     </div>
   );

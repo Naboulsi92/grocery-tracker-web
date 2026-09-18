@@ -161,18 +161,24 @@ create unique index categories_household_name_unique_idx
 -- 11. Seed default catalog data
 -- ══════════════════════════════════════════════════════════════
 
+-- PRD §4.3 (order, bilingual, hard-coded): 10 default categories, shared
+-- across households, immutable in name/existence, reorderable only.
 insert into public.default_categories (name_fr, name_en, "position") values
-  ('Légumes', 'Vegetables', 1),
-  ('Fruits', 'Fruits', 2),
+  ('Fruits', 'Fruits', 1),
+  ('Légumes', 'Vegetables', 2),
   ('Produits laitiers', 'Dairy', 3),
-  ('Féculents', 'Grains', 4),
-  ('Viandes', 'Meat', 5),
-  ('Poissons', 'Fish', 6),
-  ('Épicerie', 'Grocery', 7),
-  ('Boissons', 'Beverages', 8),
+  ('Viandes et poissons', 'Meat and fish', 4),
+  ('Féculents', 'Grains', 5),
+  ('Épicerie', 'Grocery', 6),
+  ('Boissons', 'Beverages', 7),
+  ('Surgelés', 'Frozen', 8),
   ('Hygiène', 'Hygiene', 9),
   ('Entretien', 'Cleaning', 10);
 
+-- PRD §4.5 (order, bilingual): 10 default items, each pre-assigned to its
+-- default category. Copied per household at household creation (fork occurs
+-- at creation, quantity 0); Pâtes is gram-based per the PRD. Threshold uses
+-- default 1 until a household customizes its copy.
 insert into public.default_items (name_fr, name_en, default_category_id, unit, "threshold") values
   ('Lait', 'Milk',
     (select id from public.default_categories where name_fr = 'Produits laitiers'), 'l', 1),
@@ -180,20 +186,20 @@ insert into public.default_items (name_fr, name_en, default_category_id, unit, "
     (select id from public.default_categories where name_fr = 'Féculents'), 'unite', 1),
   ('Œufs', 'Eggs',
     (select id from public.default_categories where name_fr = 'Produits laitiers'), 'unite', 1),
-  ('Beurre', 'Butter',
-    (select id from public.default_categories where name_fr = 'Produits laitiers'), 'unite', 1),
-  ('Fromage', 'Cheese',
-    (select id from public.default_categories where name_fr = 'Produits laitiers'), 'unite', 1),
-  ('Yaourt', 'Yogurt',
-    (select id from public.default_categories where name_fr = 'Produits laitiers'), 'unite', 1),
+  ('Tomates', 'Tomatoes',
+    (select id from public.default_categories where name_fr = 'Légumes'), 'kg', 1),
+  ('Pommes', 'Apples',
+    (select id from public.default_categories where name_fr = 'Fruits'), 'kg', 1),
   ('Poulet', 'Chicken',
-    (select id from public.default_categories where name_fr = 'Viandes'), 'kg', 1),
-  ('Riz', 'Rice',
-    (select id from public.default_categories where name_fr = 'Féculents'), 'kg', 1),
+    (select id from public.default_categories where name_fr = 'Viandes et poissons'), 'kg', 1),
   ('Pâtes', 'Pasta',
-    (select id from public.default_categories where name_fr = 'Féculents'), 'kg', 1),
-  ('Huile', 'Oil',
-    (select id from public.default_categories where name_fr = 'Épicerie'), 'l', 1);
+    (select id from public.default_categories where name_fr = 'Féculents'), 'g', 1),
+  ('Café', 'Coffee',
+    (select id from public.default_categories where name_fr = 'Épicerie'), 'g', 1),
+  ('Eau', 'Water',
+    (select id from public.default_categories where name_fr = 'Boissons'), 'l', 1),
+  ('Papier toilette', 'Toilet paper',
+    (select id from public.default_categories where name_fr = 'Hygiène'), 'unite', 1);
 
 -- ══════════════════════════════════════════════════════════════
 -- 12. RLS for new tables

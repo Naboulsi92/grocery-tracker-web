@@ -427,7 +427,7 @@ export default function CategoriesPage() {
           </div>
         )}
 
-        {customCategories.length > 0 && !showForm && (
+        {categories.length > 0 && !showForm && (
           <button
             type="button"
             className="btn btn-primary"
@@ -462,7 +462,7 @@ export default function CategoriesPage() {
                 {fieldNameError && <p className="field-error" role="alert" id="category-name-error" data-testid={fieldNameError === 'categories.duplicate' ? 'error-name-duplicate' : fieldNameError === 'validation.name.too_long' ? 'error-name-too-long' : 'error-name-required-letter'}>{translateMessage(language, fieldNameError)}</p>}
               </div>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button type="submit" className="btn btn-primary" disabled={mutating === 'form' || !isOnline} data-testid="category-create-button">
+                <button type="submit" className="btn btn-primary" disabled={mutating === 'form' || !isOnline} data-testid="btn-create-category">
                   {editingId ? t('common.save') : t('common.create')}
                 </button>
                 <button

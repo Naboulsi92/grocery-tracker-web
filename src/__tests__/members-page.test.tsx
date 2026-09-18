@@ -52,8 +52,8 @@ describe('MembersPage', () => {
     });
     const profiles = query({
       data: [
-        { id: 'owner-1', display_name: 'Alex' },
-        { id: 'member-2', display_name: 'Sam' },
+        { id: 'owner-1', first_name: 'Alex', last_name: 'Dupont' },
+        { id: 'member-2', first_name: 'Sam', last_name: 'Smith' },
       ],
       error: null,
     });
@@ -69,8 +69,8 @@ describe('MembersPage', () => {
     renderWithLanguage(<MembersPage />);
 
     expect(await screen.findByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
-    expect(screen.getByText('Alex')).toBeVisible();
-    expect(screen.getByText('Sam')).toBeVisible();
+    expect(screen.getByText('Alex Dupont')).toBeVisible();
+    expect(screen.getByText('Sam Smith')).toBeVisible();
     expect(screen.getByText(/Propriétaire/)).toBeVisible();
     expect(screen.getByText('Membre', { exact: true })).toBeVisible();
     expect(screen.getByText('Vous')).toBeVisible();
@@ -92,7 +92,7 @@ describe('MembersPage', () => {
       error: null,
     });
     const profiles = query({
-      data: [{ id: 'owner-1', display_name: 'Alex' }],
+      data: [{ id: 'owner-1', first_name: 'Alex', last_name: 'Dupont' }],
       error: null,
     });
     const from = jest.fn((table: string) => {

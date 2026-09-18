@@ -6,9 +6,9 @@ import { translate, type Language } from '@/lib/i18n';
 export type HistoryActionType = 'modification' | 'suppression';
 
 type HistoryRow = Database['public']['Tables']['history']['Row'];
-type ProfileName = Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'display_name'>;
+type ProfileName = Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'first_name' | 'last_name'>;
 
-export type HistoryEntry = HistoryRow & { actorDisplayName: string };
+export type HistoryEntry = HistoryRow & { actorName: string };
 
 export function formatRelativeTime(
   performedAt: string | Date,
@@ -31,12 +31,15 @@ export function joinHistoryActors(
   profiles: ProfileName[],
   language: Language = 'fr',
 ): HistoryEntry[] {
-  const displayNames = new Map(profiles.map((profile) => [profile.id, profile.display_name?.trim()]));
+  const actorNames = new Map(profiles.map((profile) => [
+    profile.id,
+    [profile.first_name?.trim(), profile.last_name?.trim()].filter(Boolean).join(' '),
+  ]));
   const fallback = translate(language, 'history.fallback_actor');
   return entries.map((entry) => ({
     ...entry,
-    actorDisplayName: entry.performed_by
-      ? displayNames.get(entry.performed_by) || fallback
+    actorName: entry.performed_by
+      ? actorNames.get(entry.performed_by) || fallback
       : fallback,
   }));
 }
@@ -85,7 +88,7 @@ export async function fetchHouseholdHistory(
 
   let profiles: ProfileName[] = [];
   if (userIds.length > 0) {
-    const profilesResult = await client.from('profiles').select('id, display_name').in('id', userIds);
+    const profilesResult = await client.from('profiles').select('id, first_name, last_name').in('id', userIds);
     if (profilesResult.error) throw profilesResult.error;
     profiles = profilesResult.data ?? [];
   }

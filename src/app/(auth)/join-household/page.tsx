@@ -15,6 +15,7 @@ import { AuthHeader } from '@/components/AuthHeader';
 import { OfflineBlockedScreen } from '@/components/OfflineBlockedScreen';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { validateName } from '@/lib/validation';
+import { updateName, validateFirstName, validateLastName } from '@/lib/account';
 
 type PendingAction = 'create' | 'join' | null;
 
@@ -29,11 +30,15 @@ export default function JoinHouseholdPage() {
 function JoinHouseholdPageInner() {
   const [householdName, setHouseholdName] = useState('');
   const [householdNameError, setHouseholdNameError] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [firstNameError, setFirstNameError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
   const [error, setError] = useState('');
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const lockoutTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const { access, retryHousehold } = useAuth();
+  const { access, retryHousehold, user } = useAuth();
   const { t, language } = useI18n();
   const { isOnline } = useOnlineStatus();
   const router = useRouter();
@@ -81,6 +86,28 @@ function JoinHouseholdPageInner() {
     router.replace('/home');
   }, [retryHousehold, router]);
 
+  const persistNames = useCallback(async (): Promise<boolean> => {
+    const firstNameValidationError = validateFirstName(firstName);
+    const lastNameValidationError = validateLastName(lastName);
+    if (firstNameValidationError) {
+      setFirstNameError(firstNameValidationError);
+      return false;
+    }
+    if (lastNameValidationError) {
+      setLastNameError(lastNameValidationError);
+      return false;
+    }
+    if (!user) return false;
+    setFirstNameError('');
+    setLastNameError('');
+    const { error: nameError } = await updateName(supabase, user.id, firstName, lastName);
+    if (nameError) {
+      setError(nameError);
+      return false;
+    }
+    return true;
+  }, [firstName, lastName, supabase, user]);
+
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
@@ -92,6 +119,9 @@ function JoinHouseholdPageInner() {
       const nameErr = validateName(householdName);
       if (nameErr) { setHouseholdNameError(nameErr); setPendingAction(null); return; }
     }
+
+    const persisted = await persistNames();
+    if (!persisted) { setPendingAction(null); return; }
 
     const { error: createError } = await supabase.rpc('create_household', {
       p_name: nameToSubmit,
@@ -110,6 +140,9 @@ function JoinHouseholdPageInner() {
     event.preventDefault();
     setError('');
     setPendingAction('join');
+
+    const persisted = await persistNames();
+    if (!persisted) { setPendingAction(null); return; }
 
     const token = normalizeInvitationToken(invitationToken);
     const { error: joinError } = await supabase.rpc('consume_household_invitation', { p_token: token });
@@ -184,6 +217,48 @@ function JoinHouseholdPageInner() {
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <section aria-labelledby="profile-names-title">
+            <h2 id="profile-names-title" style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 500 }}>{t('join.names_title')}</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label className="sr-only" htmlFor="onboarding-first-name">{t('join.first_name_label')}</label>
+                <input
+                  id="onboarding-first-name"
+                  type="text"
+                  placeholder={t('join.first_name_label')}
+                  data-testid="onboarding-first-name-input"
+                  value={firstName}
+                  onChange={(event) => { setFirstName(event.target.value); setFirstNameError(''); }}
+                  maxLength={50}
+                  autoComplete="given-name"
+                  required
+                  disabled={pendingAction !== null}
+                  aria-invalid={!!firstNameError}
+                  aria-describedby="onboarding-first-name-error"
+                />
+                {firstNameError && <p className="field-error" role="alert" id="onboarding-first-name-error" data-testid={firstNameError === 'validation.first_name.too_long' ? 'error-onboarding-first-name-too-long' : 'error-onboarding-first-name-required-letter'}>{t(firstNameError)}</p>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label className="sr-only" htmlFor="onboarding-last-name">{t('join.last_name_label')}</label>
+                <input
+                  id="onboarding-last-name"
+                  type="text"
+                  placeholder={t('join.last_name_label')}
+                  data-testid="onboarding-last-name-input"
+                  value={lastName}
+                  onChange={(event) => { setLastName(event.target.value); setLastNameError(''); }}
+                  maxLength={50}
+                  autoComplete="family-name"
+                  required
+                  disabled={pendingAction !== null}
+                  aria-invalid={!!lastNameError}
+                  aria-describedby="onboarding-last-name-error"
+                />
+                {lastNameError && <p className="field-error" role="alert" id="onboarding-last-name-error" data-testid={lastNameError === 'validation.last_name.too_long' ? 'error-onboarding-last-name-too-long' : 'error-onboarding-last-name-required-letter'}>{t(lastNameError)}</p>}
+              </div>
+            </div>
+          </section>
+
           <section aria-labelledby="create-household-title">
             <h2 id="create-household-title" style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 500 }}>{t('join.create_title')}</h2>
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

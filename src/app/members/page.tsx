@@ -104,7 +104,7 @@ return (
                     </svg>
                   </div>
                   <div className="member-info">
-                    <span className="member-email">{member.displayName}</span>
+                    <span className="member-email">{member.fullName}</span>
                     <span className="member-joined">
                       {member.role === 'owner' ? t('members.role_owner') : t('members.role_member')}
                       {member.joined_at ? t('members.joined_since', { date: new Date(member.joined_at).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR') }) : ''}

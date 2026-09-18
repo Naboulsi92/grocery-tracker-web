@@ -16,9 +16,10 @@ import {
   fetchProfile,
   requestAccountDeletion,
   restoreAccountIfPending,
-  updateDisplayName,
+  updateName,
   updateProfileLanguage,
-  validateDisplayName,
+  validateFirstName,
+  validateLastName,
   validateNewPassword,
   type ProfileLanguage,
 } from '@/lib/account';
@@ -33,10 +34,13 @@ export default function AccountPage() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState('');
 
-  const [displayName, setDisplayName] = useState('');
-  const [displayNameError, setDisplayNameError] = useState('');
-  const [displayNameSaving, setDisplayNameSaving] = useState(false);
-  const [displayNameSaved, setDisplayNameSaved] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [firstNameError, setFirstNameError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
+  const [nameSaveError, setNameSaveError] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameSaved, setNameSaved] = useState(false);
 
   const [profileLanguage, setProfileLanguage] = useState<ProfileLanguage>('fr');
   const [languageSaving, setLanguageSaving] = useState(false);
@@ -74,7 +78,8 @@ export default function AccountPage() {
         return;
       }
       if (profile) {
-        setDisplayName(profile.display_name ?? '');
+        setFirstName(profile.first_name ?? '');
+        setLastName(profile.last_name ?? '');
         setProfileLanguage(profile.language === 'en' ? 'en' : 'fr');
 
         if (profile.deleted_at) {
@@ -98,21 +103,28 @@ export default function AccountPage() {
 
   const handleSaveName = async () => {
     if (!user || !supabase) return;
-    const validationError = validateDisplayName(displayName);
-    if (validationError) {
-      setDisplayNameError(validationError);
+    const firstNameValidationError = validateFirstName(firstName);
+    const lastNameValidationError = validateLastName(lastName);
+    if (firstNameValidationError) {
+      setFirstNameError(firstNameValidationError);
       return;
     }
-    setDisplayNameError('');
-    setDisplayNameSaved(false);
-    setDisplayNameSaving(true);
-    const { error } = await updateDisplayName(supabase, user.id, displayName);
-    setDisplayNameSaving(false);
+    if (lastNameValidationError) {
+      setLastNameError(lastNameValidationError);
+      return;
+    }
+    setFirstNameError('');
+    setLastNameError('');
+    setNameSaveError('');
+    setNameSaved(false);
+    setNameSaving(true);
+    const { error } = await updateName(supabase, user.id, firstName, lastName);
+    setNameSaving(false);
     if (error) {
-      setDisplayNameError(error);
+      setNameSaveError(error);
       return;
     }
-    setDisplayNameSaved(true);
+    setNameSaved(true);
   };
 
   const handleLanguageChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -211,27 +223,49 @@ export default function AccountPage() {
         )}
 
         <section className="card account-section">
-          <h2 className="account-section-title">{t('account.display_name_section')}</h2>
+          <h2 className="account-section-title">{t('account.name_section')}</h2>
           <div className="form-group">
-            <label htmlFor="account-display-name">{t('account.display_name_section')}</label>
+            <label htmlFor="account-first-name">{t('account.first_name_label')}</label>
             <input
-              id="account-display-name"
+              id="account-first-name"
               type="text"
-              data-testid="account-display-name-input"
-              value={displayName}
+              data-testid="account-first-name-input"
+              value={firstName}
               onChange={(event) => {
-                setDisplayName(event.target.value);
-                setDisplayNameError('');
-                setDisplayNameSaved(false);
+                setFirstName(event.target.value);
+                setFirstNameError('');
+                setNameSaveError('');
+                setNameSaved(false);
               }}
               maxLength={50}
-              autoComplete="name"
-              aria-invalid={!!displayNameError}
-              aria-describedby="account-name-error"
+              autoComplete="given-name"
+              aria-invalid={!!firstNameError}
+              aria-describedby="account-first-name-error"
             />
+            {firstNameError && <p className="notification-error field-error" role="alert" id="account-first-name-error" data-testid={firstNameError === 'validation.first_name.too_long' ? 'error-first-name-too-long' : 'error-first-name-required-letter'}>{translateMessage(language, firstNameError)}</p>}
           </div>
-          {displayNameError && <p className="notification-error field-error" role="alert" id="account-name-error" data-testid={displayNameError === 'validation.display_name.too_long' ? 'error-name-too-long' : 'error-name-required-letter'}>{translateMessage(language, displayNameError)}</p>}
-          {displayNameSaved && (
+          <div className="form-group">
+            <label htmlFor="account-last-name">{t('account.last_name_label')}</label>
+            <input
+              id="account-last-name"
+              type="text"
+              data-testid="account-last-name-input"
+              value={lastName}
+              onChange={(event) => {
+                setLastName(event.target.value);
+                setLastNameError('');
+                setNameSaveError('');
+                setNameSaved(false);
+              }}
+              maxLength={50}
+              autoComplete="family-name"
+              aria-invalid={!!lastNameError}
+              aria-describedby="account-last-name-error"
+            />
+            {lastNameError && <p className="notification-error field-error" role="alert" id="account-last-name-error" data-testid={lastNameError === 'validation.last_name.too_long' ? 'error-last-name-too-long' : 'error-last-name-required-letter'}>{translateMessage(language, lastNameError)}</p>}
+          </div>
+          {nameSaveError && <p className="notification-error field-error" role="alert">{translateMessage(language, nameSaveError)}</p>}
+          {nameSaved && (
             <p className="account-feedback-success" role="status">{t('account.name_saved')}</p>
           )}
           <button
@@ -239,9 +273,9 @@ export default function AccountPage() {
             data-testid="account-save-button"
             className="btn btn-primary account-section-action"
             onClick={() => void handleSaveName()}
-            disabled={displayNameSaving}
+            disabled={nameSaving}
           >
-            {displayNameSaving ? t('account.saving') : t('account.save')}
+            {nameSaving ? t('account.saving') : t('account.save')}
           </button>
         </section>
 

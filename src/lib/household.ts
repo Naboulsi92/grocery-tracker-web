@@ -2,9 +2,9 @@ import type { Database } from '@/types/database';
 import { translate, type Language } from '@/lib/i18n';
 
 type Membership = Pick<Database['public']['Tables']['household_members']['Row'], 'user_id' | 'role' | 'joined_at'>;
-type Profile = Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'display_name'>;
+type Profile = Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'first_name' | 'last_name'>;
 
-export type HouseholdMember = Membership & { displayName: string };
+export type HouseholdMember = Membership & { fullName: string };
 
 export type InvitationState =
   | { status: 'none' }
@@ -24,10 +24,14 @@ export function mergeHouseholdMembers(
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   const fallback = translate(language, 'household.fallback_member');
 
-  return memberships.map((membership) => ({
-    ...membership,
-    displayName: profilesById.get(membership.user_id)?.display_name?.trim() || fallback,
-  }));
+  return memberships.map((membership) => {
+    const profile = profilesById.get(membership.user_id);
+    const fullName = [profile?.first_name?.trim(), profile?.last_name?.trim()].filter(Boolean).join(' ');
+    return {
+      ...membership,
+      fullName: fullName || fallback,
+    };
+  });
 }
 
 export function householdActionError(

@@ -78,7 +78,7 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
       const memberships = membersResult.data ?? [];
       const userIds = memberships.map((membership) => membership.user_id);
       const profilesResult = userIds.length
-        ? await supabase.from('profiles').select('id, display_name').in('id', userIds)
+        ? await supabase.from('profiles').select('id, first_name, last_name').in('id', userIds)
         : { data: [], error: null };
 
       if (!active) return;

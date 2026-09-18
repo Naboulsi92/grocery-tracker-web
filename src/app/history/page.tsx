@@ -137,7 +137,7 @@ export default function HistoryPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                     <span className="item-name">{entry.item_name}</span>
                     <span className="text-xs text-muted" style={{ whiteSpace: 'nowrap' }}>
-                      {t('history.by', { name: entry.actorDisplayName })}
+                      {t('history.by', { name: entry.actorName })}
                     </span>
                   </div>
                 </div>

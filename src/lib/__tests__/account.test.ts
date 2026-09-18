@@ -6,9 +6,10 @@ import {
   requestAccountDeletion,
   restoreAccountIfPending,
   shouldRestoreAccount,
-  updateDisplayName,
+  updateName,
   updateProfileLanguage,
-  validateDisplayName,
+  validateFirstName,
+  validateLastName,
   validateNewPassword,
 } from '@/lib/account';
 
@@ -58,23 +59,42 @@ function createFakeSupabase(results: StubResult[] = [], auth?: {
   } as unknown as FakeSupabase;
 }
 
-describe('validateDisplayName', () => {
-  it('rejects an empty name', () => {
-    expect(validateDisplayName('')).toBe('validation.display_name.required');
-    expect(validateDisplayName('   ')).toBe('validation.display_name.required');
+describe('validateFirstName', () => {
+  it('rejects an empty first name', () => {
+    expect(validateFirstName('')).toBe('validation.first_name.required');
+    expect(validateFirstName('   ')).toBe('validation.first_name.required');
   });
 
-  it('rejects a name without any letter', () => {
-    expect(validateDisplayName('123')).toBe('validation.display_name.required_letter');
+  it('rejects a first name without any letter', () => {
+    expect(validateFirstName('123')).toBe('validation.first_name.required_letter');
   });
 
-  it('rejects a name longer than 50 characters', () => {
-    expect(validateDisplayName('a'.repeat(51))).toBe('validation.display_name.too_long');
+  it('rejects a first name longer than 50 characters', () => {
+    expect(validateFirstName('a'.repeat(51))).toBe('validation.first_name.too_long');
   });
 
-  it('accepts a valid accented name', () => {
-    expect(validateDisplayName('Émilie François')).toBeNull();
-    expect(validateDisplayName('Zoë de la Croix')).toBeNull();
+  it('accepts a valid accented first name', () => {
+    expect(validateFirstName('Émilie')).toBeNull();
+    expect(validateFirstName('Zoë')).toBeNull();
+  });
+});
+
+describe('validateLastName', () => {
+  it('rejects an empty last name', () => {
+    expect(validateLastName('')).toBe('validation.last_name.required');
+    expect(validateLastName('   ')).toBe('validation.last_name.required');
+  });
+
+  it('rejects a last name without any letter', () => {
+    expect(validateLastName('123')).toBe('validation.last_name.required_letter');
+  });
+
+  it('rejects a last name longer than 50 characters', () => {
+    expect(validateLastName('a'.repeat(51))).toBe('validation.last_name.too_long');
+  });
+
+  it('accepts a valid accented last name', () => {
+    expect(validateLastName('de la Croix')).toBeNull();
   });
 });
 
@@ -122,11 +142,12 @@ describe('shouldRestoreAccount', () => {
 describe('fetchProfile', () => {
   it('returns the profile on success', async () => {
     const supabase = createFakeSupabase([
-      { data: { id: 'user-1', display_name: 'Alex', language: 'fr', deleted_at: null } },
+      { data: { id: 'user-1', first_name: 'Alex', last_name: 'Dupont', language: 'fr', deleted_at: null } },
     ]);
     const result = await fetchProfile(supabase, 'user-1');
     expect(result.error).toBeNull();
-    expect(result.profile?.display_name).toBe('Alex');
+    expect(result.profile?.first_name).toBe('Alex');
+    expect(result.profile?.last_name).toBe('Dupont');
     expect(result.profile?.language).toBe('fr');
   });
 
@@ -140,22 +161,31 @@ describe('fetchProfile', () => {
   });
 });
 
-describe('updateDisplayName', () => {
-  it('trims and writes the display name on success', async () => {
+describe('updateName', () => {
+  it('trims and writes the first and last name on success', async () => {
     const supabase = createFakeSupabase([{ data: null, error: null }]);
-    const result = await updateDisplayName(supabase, 'user-1', '  Alex  ');
+    const result = await updateName(supabase, 'user-1', '  Alex  ', '  Dupont  ');
     expect(result.error).toBeNull();
+    expect(supabase.updateValues[0]).toEqual({ first_name: 'Alex', last_name: 'Dupont' });
   });
 
-  it('rejects an invalid name before hitting the database', async () => {
+  it('rejects an invalid first name before hitting the database', async () => {
     const supabase = createFakeSupabase([]);
-    const result = await updateDisplayName(supabase, 'user-1', '123');
+    const result = await updateName(supabase, 'user-1', '123', 'Dupont');
     expect(result.error).toContain('required_letter');
+    expect(supabase.updateValues).toHaveLength(0);
+  });
+
+  it('rejects an invalid last name before hitting the database', async () => {
+    const supabase = createFakeSupabase([]);
+    const result = await updateName(supabase, 'user-1', 'Alex', '');
+    expect(result.error).toContain('required');
+    expect(supabase.updateValues).toHaveLength(0);
   });
 
   it('surfaces a friendly error on failure', async () => {
     const supabase = createFakeSupabase([{ error: { message: 'boom', code: '500' } }]);
-    const result = await updateDisplayName(supabase, 'user-1', 'Alex');
+    const result = await updateName(supabase, 'user-1', 'Alex', 'Dupont');
     expect(result.error).toBe('errors.account.name_save_failed');
   });
 });

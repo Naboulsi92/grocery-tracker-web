@@ -21,10 +21,10 @@ describe('household contracts', () => {
         { user_id: 'user-1', role: 'owner', joined_at: '2026-08-31T10:00:00Z' },
         { user_id: 'user-2', role: 'member', joined_at: null },
       ],
-      [{ id: 'user-1', display_name: ' Camille ' }],
+      [{ id: 'user-1', first_name: ' Camille ', last_name: '' }],
     )).toEqual([
-      { user_id: 'user-1', role: 'owner', joined_at: '2026-08-31T10:00:00Z', displayName: 'Camille' },
-      { user_id: 'user-2', role: 'member', joined_at: null, displayName: 'Membre du foyer' },
+      { user_id: 'user-1', role: 'owner', joined_at: '2026-08-31T10:00:00Z', fullName: 'Camille' },
+      { user_id: 'user-2', role: 'member', joined_at: null, fullName: 'Membre du foyer' },
     ]);
   });
 

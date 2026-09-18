@@ -4,12 +4,12 @@ import { LETTER_PATTERN } from './validation';
 
 export type Profile = Pick<
   Database['public']['Tables']['profiles']['Row'],
-  'id' | 'display_name' | 'language' | 'deleted_at'
+  'id' | 'first_name' | 'last_name' | 'language' | 'deleted_at'
 >;
 
 export type ProfileLanguage = 'fr' | 'en';
 
-const MAX_DISPLAY_NAME_LENGTH = 50;
+const MAX_NAME_LENGTH = 50;
 const MIN_PASSWORD_LENGTH = 8;
 const VERIFY_PASSWORD_FAILED_KEY = 'errors.account.password_verify_failed';
 const PASSWORD_CHANGE_FAILED_KEY = 'errors.account.password_change_failed';
@@ -24,14 +24,20 @@ type AccountAction =
   | 'verifyPassword'
   | 'updatePassword';
 
-export function validateDisplayName(value: string): string | null {
+function validateNameField(value: string, field: 'first_name' | 'last_name'): string | null {
   const trimmed = value.trim();
-  if (!trimmed) return 'validation.display_name.required';
-  if (!LETTER_PATTERN.test(trimmed)) return 'validation.display_name.required_letter';
-  if (trimmed.length > MAX_DISPLAY_NAME_LENGTH) {
-    return 'validation.display_name.too_long';
-  }
+  if (!trimmed) return `validation.${field}.required`;
+  if (!LETTER_PATTERN.test(trimmed)) return `validation.${field}.required_letter`;
+  if (trimmed.length > MAX_NAME_LENGTH) return `validation.${field}.too_long`;
   return null;
+}
+
+export function validateFirstName(value: string): string | null {
+  return validateNameField(value, 'first_name');
+}
+
+export function validateLastName(value: string): string | null {
+  return validateNameField(value, 'last_name');
 }
 
 export function validateNewPassword(value: string): string | null {
@@ -66,7 +72,7 @@ export async function fetchProfile(
 ): Promise<{ profile: Profile | null; error: string | null }> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, display_name, language, deleted_at')
+    .select('id, first_name, last_name, language, deleted_at')
     .eq('id', userId)
     .maybeSingle();
 
@@ -74,18 +80,22 @@ export async function fetchProfile(
   return { profile: data, error: null };
 }
 
-export async function updateDisplayName(
+export async function updateName(
   supabase: SupabaseClient<Database>,
   userId: string,
-  displayName: string,
+  firstName: string,
+  lastName: string,
 ): Promise<{ error: string | null }> {
-  const trimmed = displayName.trim();
-  const validationError = validateDisplayName(trimmed);
-  if (validationError) return { error: validationError };
+  const trimmedFirstName = firstName.trim();
+  const trimmedLastName = lastName.trim();
+  const firstNameError = validateFirstName(trimmedFirstName);
+  if (firstNameError) return { error: firstNameError };
+  const lastNameError = validateLastName(trimmedLastName);
+  if (lastNameError) return { error: lastNameError };
 
   const { error } = await supabase
     .from('profiles')
-    .update({ display_name: trimmed })
+    .update({ first_name: trimmedFirstName, last_name: trimmedLastName })
     .eq('id', userId);
 
   if (error) return { error: accountActionError('updateName', error) };

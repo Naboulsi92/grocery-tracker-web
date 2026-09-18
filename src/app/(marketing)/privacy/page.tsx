@@ -25,7 +25,7 @@ export default function PrivacyPage() {
         <p>We collect the following personal data when you use the Service:</p>
         <ul>
           <li>
-            <strong>Account information:</strong> email address and display name,
+            <strong>Account information:</strong> email address, first name, and last name,
             provided when you sign up via email/password or a third-party
             authentication provider (Google, Apple).
           </li>

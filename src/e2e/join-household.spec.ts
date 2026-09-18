@@ -256,10 +256,12 @@ test.describe('Join Household Flow', () => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await signUp(page, account);
       
-      // Tab through the header controls and the create form to reach the invitation field
+      // Tab through the header controls and the forms to reach the invitation field
       await page.keyboard.press('Tab'); // theme toggle
       await page.keyboard.press('Tab'); // back-home link
       await page.keyboard.press('Tab'); // sign out
+      await page.keyboard.press('Tab'); // first name input
+      await page.keyboard.press('Tab'); // last name input
       await page.keyboard.press('Tab'); // household name input
       await page.keyboard.press('Tab'); // create household button
       await page.keyboard.press('Tab'); // invitation token input

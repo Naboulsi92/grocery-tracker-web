@@ -2,7 +2,7 @@ import { formatRelativeTime, joinHistoryActors } from '@/lib/history';
 import type { Database } from '@/types/database';
 
 type HistoryRow = Database['public']['Tables']['history']['Row'];
-type ProfileName = Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'display_name'>;
+type ProfileName = Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'first_name' | 'last_name'>;
 
 const baseHistoryRow: HistoryRow = {
   id: 'history-1',
@@ -42,21 +42,21 @@ describe('formatRelativeTime', () => {
 });
 
 describe('joinHistoryActors', () => {
-  it('resolves display names from matching profiles', () => {
+  it('resolves actor names from matching profiles', () => {
     const entries: HistoryRow[] = [{ ...baseHistoryRow, id: 'entry-1', performed_by: 'user-1' }];
-    const profiles: ProfileName[] = [{ id: 'user-1', display_name: 'Camille' }];
+    const profiles: ProfileName[] = [{ id: 'user-1', first_name: 'Camille', last_name: '' }];
 
     expect(joinHistoryActors(entries, profiles)).toEqual([
-      { ...entries[0], actorDisplayName: 'Camille' },
+      { ...entries[0], actorName: 'Camille' },
     ]);
   });
 
-  it('trims display names', () => {
+  it('combines and trims first and last name', () => {
     const entries: HistoryRow[] = [{ ...baseHistoryRow, id: 'entry-1', performed_by: 'user-1' }];
-    const profiles: ProfileName[] = [{ id: 'user-1', display_name: ' Camille ' }];
+    const profiles: ProfileName[] = [{ id: 'user-1', first_name: ' Camille ', last_name: ' Lemaire ' }];
 
     expect(joinHistoryActors(entries, profiles)).toEqual([
-      { ...entries[0], actorDisplayName: 'Camille' },
+      { ...entries[0], actorName: 'Camille Lemaire' },
     ]);
   });
 
@@ -64,7 +64,7 @@ describe('joinHistoryActors', () => {
     const entries: HistoryRow[] = [{ ...baseHistoryRow, id: 'entry-1', performed_by: null }];
 
     expect(joinHistoryActors(entries, [])).toEqual([
-      { ...entries[0], actorDisplayName: 'Un membre' },
+      { ...entries[0], actorName: 'Un membre' },
     ]);
   });
 
@@ -72,7 +72,7 @@ describe('joinHistoryActors', () => {
     const entries: HistoryRow[] = [{ ...baseHistoryRow, id: 'entry-1', performed_by: 'user-missing' }];
 
     expect(joinHistoryActors(entries, [])).toEqual([
-      { ...entries[0], actorDisplayName: 'Un membre' },
+      { ...entries[0], actorName: 'Un membre' },
     ]);
   });
 });

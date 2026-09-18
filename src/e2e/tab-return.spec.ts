@@ -98,6 +98,8 @@ test.describe('Tab return behavior', () => {
     await page.getByRole('button', { name: "S'inscrire" }).click();
     await page.waitForURL('/join-household', { timeout: 20000 });
 
+    await page.getByTestId('onboarding-first-name-input').fill('Camille');
+    await page.getByTestId('onboarding-last-name-input').fill('E2E');
     const householdName = `Foyer e2e ${Date.now()}`;
     await page.getByLabel('Nom du foyer').fill(householdName);
     await page.getByRole('button', { name: 'Créer mon foyer' }).click();
@@ -139,6 +141,8 @@ test.describe('Tab return behavior', () => {
     await page.getByRole('button', { name: "S'inscrire" }).click();
     await page.waitForURL('/join-household', { timeout: 20000 });
 
+    await page.getByTestId('onboarding-first-name-input').fill('Camille');
+    await page.getByTestId('onboarding-last-name-input').fill('E2E');
     // Create household
     const householdName = `Foyer e2e ${Date.now()}`;
     await page.getByLabel('Nom du foyer').fill(householdName);

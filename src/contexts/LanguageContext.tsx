@@ -1,17 +1,33 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import { I18nextProvider, useTranslation } from 'react-i18next';
 import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfile, updateProfileLanguage } from '@/lib/account';
-import { DEFAULT_LANGUAGE, isLanguage, translate, type Language } from '@/lib/i18n';
+import { i18n } from '@/i18n/client';
+import {
+  DEFAULT_LANGUAGE,
+  isLanguage,
+  LANGUAGE_STORAGE_KEY,
+  NAMESPACE,
+  type Language,
+} from '@/i18n/settings';
 
-const LANGUAGE_STORAGE_KEY = 'language';
+type InterpolationVars = Record<string, string | number>;
 
 type LanguageContextType = {
   language: Language;
   setLanguage: (language: Language, options?: { persist?: boolean }) => void;
-  t: (key: string, vars?: Record<string, string | number>) => string;
+  t: (key: string, vars?: InterpolationVars) => string;
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -19,14 +35,11 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [supabase] = useState(createClient);
+  const { t: translateFn } = useTranslation(NAMESPACE);
   const [language, setLanguageState] = useState<Language>(() => {
     if (typeof window === 'undefined') return DEFAULT_LANGUAGE;
-    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (isLanguage(stored)) {
-      document.documentElement.lang = stored;
-      return stored;
-    }
-    return DEFAULT_LANGUAGE;
+    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return isLanguage(stored) ? stored : DEFAULT_LANGUAGE;
   });
 
   useEffect(() => {
@@ -37,7 +50,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       if (isLanguage(profile.language)) {
         setLanguageState(profile.language);
         document.documentElement.lang = profile.language;
-        localStorage.setItem(LANGUAGE_STORAGE_KEY, profile.language);
+        window.localStorage.setItem(LANGUAGE_STORAGE_KEY, profile.language);
+        void i18n.changeLanguage(profile.language);
       }
     });
     return () => {
@@ -45,26 +59,35 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     };
   }, [supabase, user]);
 
-  const value = useMemo<LanguageContextType>(() => {
-    const setLanguage = (next: Language, options?: { persist?: boolean }) => {
+  const setLanguage = useCallback(
+    (next: Language, options?: { persist?: boolean }) => {
       setLanguageState(next);
       document.documentElement.lang = next;
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
+      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
+      void i18n.changeLanguage(next);
       if (user && options?.persist !== false) {
         void updateProfileLanguage(supabase, user.id, next).then(({ error }) => {
           if (error) console.warn('language_persist_failed', { area: 'language', error });
         });
       }
-    };
+    },
+    [supabase, user],
+  );
 
-    const t = (key: string, vars?: Record<string, string | number>) =>
-      translate(language, key, vars);
+  const t = useCallback(
+    (key: string, vars?: InterpolationVars) => translateFn(key, vars),
+    [translateFn],
+  );
 
-    return { language, setLanguage, t };
-  }, [language, supabase, user]);
+  const value = useMemo<LanguageContextType>(
+    () => ({ language, setLanguage, t }),
+    [language, setLanguage, t],
+  );
 
   return (
-    <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
+    <LanguageContext.Provider value={value}>
+      <I18nextProvider i18n={i18n}>{children}</I18nextProvider>
+    </LanguageContext.Provider>
   );
 }
 

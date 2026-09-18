@@ -250,7 +250,7 @@ select set_config('test.joined_household_id', :'joined_household_id', true);
 set local role authenticated;
 
 do $$
-declare default_cat_id uuid; custom_cat_id uuid;
+declare default_cat_id uuid; custom_cat_id uuid; forged_insert_denied boolean := false;
 begin
   if current_setting('test.household_id')::uuid <> current_setting('test.joined_household_id')::uuid then
     raise exception 'wrong joined household';
@@ -310,6 +310,19 @@ begin
   if not found then raise exception 'member could not rename a custom category'; end if;
   delete from public.categories where id = custom_cat_id;
   if not found then raise exception 'member could not delete a custom category'; end if;
+  -- Debate C1: the INSERT policy must not let members forge is_default = true
+  -- rows (default categories are reserved for the create_household definer).
+  begin
+    insert into public.categories (household_id, name, is_default)
+    values (current_setting('test.household_id')::uuid, 'Forged default', true);
+  exception when insufficient_privilege then forged_insert_denied := true;
+  end;
+  if not forged_insert_denied then raise exception 'member was allowed to forge a default category'; end if;
+  if (select count(*) from public.categories
+      where household_id = current_setting('test.household_id')::uuid
+        and is_default = true) <> 10 then
+    raise exception 'denied default-category forge altered the default set';
+  end if;
 end;
 $$;
 
@@ -524,6 +537,21 @@ begin
     raise exception 'second household membership unexpectedly succeeded';
   exception when unique_violation then null;
   end;
+end;
+$$;
+
+-- Debate C1: anonymous users cannot insert categories (nor anything else)
+reset role;
+set local role anon;
+do $$
+declare denied boolean := false;
+begin
+  begin
+    insert into public.categories (household_id, name, is_default)
+    values (current_setting('test.household_id')::uuid, 'Anon category', false);
+  exception when sqlstate '42501' then denied := true;
+  end;
+  if not denied then raise exception 'anon inserted a category'; end if;
 end;
 $$;
 

@@ -239,12 +239,20 @@ create policy category_positions_delete_member on public.category_positions for 
 -- 12b. Lock default categories (RLS)
 -- ══════════════════════════════════════════════════════════════
 -- Default categories are shared and immutable (PRD §4.3: "ni modifiables ni
--- supprimables"). The member UPDATE/DELETE policies re-created here exclude
--- is_default = true rows: members keep full control of custom categories while
--- default categories refuse modification/removal at the RLS level. The
--- create_household security-definer insert (is_default = true) is unaffected.
+-- supprimables"). The member INSERT/UPDATE/DELETE policies re-created here
+-- exclude is_default = true rows: members keep full control of custom
+-- categories while default categories refuse insertion/forging and any
+-- modification/removal at the RLS level. The create_household
+-- security-definer insert (is_default = true) is unaffected (definer bypasses
+-- RLS). Previously the INSERT policy (from
+-- 20260831120000_secure_household_model.sql) only checked household membership,
+-- so a member could forge their own is_default = true rows.
+drop policy if exists categories_insert_member on public.categories;
 drop policy if exists categories_update_member on public.categories;
 drop policy if exists categories_delete_member on public.categories;
+
+create policy categories_insert_member on public.categories for insert to authenticated
+  with check (private.is_household_member(household_id) and is_default = false);
 
 create policy categories_update_member on public.categories for update to authenticated
   using (private.is_household_member(household_id) and is_default = false)

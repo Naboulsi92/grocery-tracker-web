@@ -1,0 +1,101 @@
+import { randomUUID } from 'node:crypto';
+import { createHousehold, expect, test } from './fixtures';
+import { e2eEnvironment, writesDisabledReason } from './environment';
+
+function pendingQueueCount(page: import('@playwright/test').Page) {
+  // Read the IndexedDB store the queue persists to (offlineQueue.ts). The app
+  // does not open the DB unless an action is enqueued, so an absent store means
+  // zero pending writes.
+  return page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        const request = indexedDB.open('grocery-offline-queue');
+        request.onsuccess = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains('actions')) {
+            db.close();
+            resolve(0);
+            return;
+          }
+          const countRequest = db.transaction('actions', 'readonly').objectStore('actions').count();
+          countRequest.onsuccess = () => {
+            db.close();
+            resolve(countRequest.result);
+          };
+          countRequest.onerror = () => {
+            db.close();
+            resolve(-1);
+          };
+        };
+        request.onerror = () => resolve(-1);
+      }),
+  );
+}
+
+test.describe('Offline read-only mode (PRD §8 #11)', () => {
+  test('items page: consultation kept, every action blocked, nothing queued', async ({ page, account }) => {
+    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    await createHousehold(page, account);
+
+    const itemName = `Article hors-ligne ${randomUUID()}`;
+    await page.getByTestId('dashboard-card-items').click();
+    await page.getByTestId('btn-new-item').click();
+    await page.getByTestId('input-item-name').fill(itemName);
+    await page.getByTestId('btn-create-item').click();
+    await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+
+    // Cut the simulated network after the inventory is loaded.
+    await page.context().setOffline(true);
+
+    // Read-only banner shows the "Hors connexion — lecture seule" state.
+    await expect(page.getByTestId('offline-banner')).toBeVisible();
+
+    // Consultation stays possible: the already-loaded inventory is still rendered.
+    const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+    await expect(itemRow).toBeVisible();
+    await expect(page.getByTestId('btn-new-item')).toBeDisabled();
+
+    // Every action is blocked: +/− quantity, edit, delete.
+    await expect(itemRow.getByRole('button', { name: /Augmenter la quantité/ })).toBeDisabled();
+    await expect(itemRow.getByRole('button', { name: /Réduire la quantité/ })).toBeDisabled();
+    await expect(itemRow.getByRole('button', { name: /Modifier l'article/ })).toBeDisabled();
+    await expect(itemRow.getByTestId(/^btn-delete-item-/)).toBeDisabled();
+
+    // No write was queued: queue UI hidden and the pending store is empty.
+    await expect(page.getByTestId('syncing-indicator')).toHaveCount(0);
+    await expect(page.getByTestId('queue-pending-count')).toHaveCount(0);
+    await expect(await pendingQueueCount(page)).toBe(0);
+  });
+
+  test('to-buy page: list still consultable, quantity confirmation blocked', async ({ page, account }) => {
+    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    await createHousehold(page, account);
+
+    const itemName = `Article à acheter ${randomUUID()}`;
+    await page.getByTestId('dashboard-card-items').click();
+    await page.getByTestId('btn-new-item').click();
+    await page.getByTestId('input-item-name').fill(itemName);
+    await page.getByLabel('Quantité').fill('1');
+    await page.getByLabel('Seuil stock bas').fill('5');
+    await page.getByTestId('btn-create-item').click();
+    await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+
+    await page.getByTestId('dashboard-card-to-buy').click();
+    const itemRow = page.getByTestId(`tobuy-item-row-${itemName.toLowerCase()}`);
+    await expect(itemRow).toBeVisible();
+    const qtyInput = itemRow.getByTestId('tobuy-quantity-input');
+    await qtyInput.fill('3');
+    await expect(itemRow.getByTestId('tobuy-check-button')).toBeEnabled();
+
+    await page.context().setOffline(true);
+
+    await expect(page.getByTestId('offline-banner')).toBeVisible();
+    // Consultation stays possible: the loaded to-buy item is still rendered.
+    await expect(itemRow).toBeVisible();
+    await expect(qtyInput).toBeDisabled();
+    await expect(itemRow.getByTestId('tobuy-check-button')).toBeDisabled();
+
+    await expect(page.getByTestId('syncing-indicator')).toHaveCount(0);
+    await expect(await pendingQueueCount(page)).toBe(0);
+  });
+});

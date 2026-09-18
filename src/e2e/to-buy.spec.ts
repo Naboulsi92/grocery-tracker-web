@@ -107,6 +107,13 @@ async function clearCatalog(householdId: string) {
   await supabase.from('categories').delete().eq('household_id', householdId);
 }
 
+// The app registers a service worker (root layout -> /sw.js) that serves
+// GET /rest/v1/items** with staleWhileRevalidate. Playwright's page.route
+// does NOT intercept requests handled by a service worker, which silently
+// defeats every delay/abort route registered in this file. Blocking service
+// workers lets the routes below actually intercept the inventory fetches.
+test.use({ serviceWorkers: 'block' });
+
 test.describe('To-Buy Page', () => {
   let householdId: string;
 

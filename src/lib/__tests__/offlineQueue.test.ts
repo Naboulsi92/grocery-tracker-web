@@ -1,4 +1,4 @@
-import { BACKOFF_SCHEDULE, getBackoffDelay } from '@/lib/offlineQueue';
+import { BACKOFF_SCHEDULE, getBackoffDelay, MAX_PENDING } from '@/lib/offlineQueue';
 
 // Note: jsdom does not ship a real IndexedDB, so the IDB-backed array methods
 // (enqueueAction, getPendingActions, processQueue, ...) are exercised in the
@@ -20,5 +20,9 @@ describe('offline queue backoff schedule', () => {
   it('clamps at 30s max once the schedule is exhausted', () => {
     expect(getBackoffDelay(5)).toBe(30000);
     expect(getBackoffDelay(100)).toBe(30000);
+  });
+
+  it('caps the pending queue to avoid unbounded accumulation', () => {
+    expect(MAX_PENDING).toBe(3);
   });
 });

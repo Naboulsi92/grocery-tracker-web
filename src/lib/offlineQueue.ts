@@ -16,6 +16,11 @@ export type QueueSnapshot = {
 
 export const BACKOFF_SCHEDULE = [1000, 2000, 4000, 8000, 16000, 30000] as const;
 
+// With the corrected trigger only genuine in-flight failures (micro-coupure,
+// PRD §4.12) land in the queue. A small cap prevents unbounded accumulation if
+// connectivity fails repeatedly while the user keeps acting.
+export const MAX_PENDING = 3;
+
 const DB_NAME = 'grocery-offline-queue';
 const STORE_PENDING = 'actions';
 const STORE_FAILED = 'failed';
@@ -78,6 +83,11 @@ function dbRequest<T>(request: IDBRequest<T>): Promise<T> {
 
 export async function enqueueAction(action: OfflineAction): Promise<IDBValidKey> {
   const store = await dbTransaction(STORE_PENDING, 'readwrite');
+  const count = await dbRequest<number>(store.count());
+  if (count >= MAX_PENDING) {
+    // Reject instead of silently dropping: the caller surfaces a visible error.
+    throw new Error(`offline queue is full (max ${MAX_PENDING} pending actions)`);
+  }
   const payload = { ...action };
   delete payload.id;
   const key = await dbRequest<IDBValidKey>(store.add(payload));

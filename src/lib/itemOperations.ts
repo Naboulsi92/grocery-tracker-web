@@ -2,7 +2,7 @@ import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { logItemHistory } from './history';
-import { enqueueAction } from './offlineQueue';
+import { enqueueAction, type OfflineAction } from './offlineQueue';
 
 type Item = Database['public']['Tables']['items']['Row'];
 type ItemInsert = Database['public']['Tables']['items']['Insert'];
@@ -17,6 +17,25 @@ export function isItemPristine(item: Item, defaultItem?: DefaultItem | null): bo
     item.name.trim().toLowerCase() === defaultItem.name_fr.trim().toLowerCase() &&
     item.unit === defaultItem.unit &&
     item.low_stock_threshold === defaultItem.threshold
+  );
+}
+
+// Per PRD §4.12 the queue is reserved for micro-coupures: a write that was
+// already IN FLIGHT when the connection dropped. Only connectivity-grade
+// failures may be queued; business errors (validation 4xx, server 5xx that
+// returned a response) must surface to the user, never be silently queued.
+//
+// supabase-js wraps a failed fetch into { status: 0, statusText: '' } — no
+// HTTP response ever arrived. Business errors always carry a real status. The
+// message/details probes cover fetch-level rejections reported by other paths.
+export function isConnectivityError(
+  error: { message?: string; code?: string; status?: number; details?: string } | null | undefined,
+): boolean {
+  if (!error) return false;
+  if (error.status === 0) return true;
+  const message = `${error.message ?? ''} ${error.details ?? ''}`.toLowerCase();
+  return /failed to fetch|fetch failed|load failed|networkerror|network request failed|getaddrinfo|enotfound|econnreset|err_network/i.test(
+    message,
   );
 }
 
@@ -36,6 +55,29 @@ function logItemOperationError(
   });
 }
 
+// Attempted while already fully offline: never queued (PRD §9 — offline
+// writing is out of scope; controls are disabled anyway once the page gates on
+// useOnlineStatus). Surface a plain failure instead.
+function offlineError(action: 'create' | 'update' | 'updateQuantity' | 'delete'): ItemOperationError {
+  return { error: new Error(itemActionError(action, { message: 'offline' })) };
+}
+
+// A connectivity failure hit an in-flight write: park it in the pending queue
+// (PRD §4.12 micro-coupure). If the queue itself is unavailable or full (cap in
+// offlineQueue.ts), fall back to a visible error instead of dropping the write.
+async function enqueueOrFail(
+  action: OfflineAction,
+  actionKind: 'create' | 'update' | 'updateQuantity' | 'delete',
+): Promise<ItemOperationError> {
+  try {
+    await enqueueAction(action);
+    return { error: null, queued: true };
+  } catch {
+    logItemOperationError(actionKind, { code: 'enqueue_failed' });
+    return { error: new Error(itemActionError(actionKind, { message: 'queue unavailable' })) };
+  }
+}
+
 export async function createItem(
   householdId: string,
   data: {
@@ -47,22 +89,7 @@ export async function createItem(
   },
   supabase?: SupabaseClient
 ): Promise<ItemOperationError> {
-  if (!navigator.onLine) {
-    await enqueueAction({
-      type: 'create',
-      payload: {
-        householdId,
-        name: data.name,
-        quantity: data.quantity ?? 1,
-        unit: data.unit,
-        category_id: data.category_id ?? null,
-        low_stock_threshold: data.low_stock_threshold ?? 1,
-      },
-      createdAt: Date.now(),
-      retryCount: 0,
-    });
-    return { error: null, queued: true };
-  }
+  if (!navigator.onLine) return offlineError('create');
 
   const client = supabase ?? createClient();
 
@@ -79,6 +106,24 @@ export async function createItem(
 
   if (error) {
     logItemOperationError('create', error);
+    if (isConnectivityError(error)) {
+      return enqueueOrFail(
+        {
+          type: 'create',
+          payload: {
+            householdId,
+            name: data.name,
+            quantity: data.quantity ?? 1,
+            unit: data.unit,
+            category_id: data.category_id ?? null,
+            low_stock_threshold: data.low_stock_threshold ?? 1,
+          },
+          createdAt: Date.now(),
+          retryCount: 0,
+        },
+        'create',
+      );
+    }
     return { error: new Error(itemActionError('create', error)) };
   }
 
@@ -96,24 +141,33 @@ export async function updateItem(
   },
   supabase?: SupabaseClient
 ): Promise<ItemOperationError> {
-  if (!navigator.onLine) {
-    await enqueueAction({
-      type: 'update',
-      payload: { itemId, householdId, ...data },
-      createdAt: Date.now(),
-      retryCount: 0,
-    });
-    return { error: null, queued: true };
-  }
+  if (!navigator.onLine) return offlineError('update');
 
   const client = supabase ?? createClient();
 
-  const { data: current } = await client
+  const enqueueUpdate = () =>
+    enqueueOrFail(
+      {
+        type: 'update',
+        payload: { itemId, householdId, ...data },
+        createdAt: Date.now(),
+        retryCount: 0,
+      },
+      'update',
+    );
+
+  const { data: current, error: currentError } = await client
     .from('items')
     .select('id, name, unit, quantity, low_stock_threshold, default_item_id')
     .eq('id', itemId)
     .eq('household_id', householdId)
     .maybeSingle();
+
+  if (currentError) {
+    logItemOperationError('update', currentError);
+    if (isConnectivityError(currentError)) return enqueueUpdate();
+    return { error: new Error(itemActionError('update', currentError)) };
+  }
 
   if (!current) {
     return { error: new Error(itemActionError('update', { message: 'item not found' })) };
@@ -143,6 +197,7 @@ export async function updateItem(
 
   if (error) {
     logItemOperationError('update', error);
+    if (isConnectivityError(error)) return enqueueUpdate();
     return { error: new Error(itemActionError('update', error)) };
   }
 
@@ -155,6 +210,7 @@ export async function updateItem(
     });
     if (quantityError) {
       logItemOperationError('update', quantityError);
+      if (isConnectivityError(quantityError)) return enqueueUpdate();
       return { error: new Error(itemActionError('update', quantityError)) };
     }
   }
@@ -173,15 +229,7 @@ export async function updateItemQuantity(
   quantity: number,
   supabase?: SupabaseClient
 ): Promise<ItemOperationError> {
-  if (!navigator.onLine) {
-    await enqueueAction({
-      type: 'updateQuantity',
-      payload: { itemId, delta: quantity },
-      createdAt: Date.now(),
-      retryCount: 0,
-    });
-    return { error: null, queued: true };
-  }
+  if (!navigator.onLine) return offlineError('updateQuantity');
 
   const client = supabase ?? createClient();
 
@@ -192,6 +240,17 @@ export async function updateItemQuantity(
 
   if (error) {
     logItemOperationError('updateQuantity', error);
+    if (isConnectivityError(error)) {
+      return enqueueOrFail(
+        {
+          type: 'updateQuantity',
+          payload: { itemId, delta: quantity },
+          createdAt: Date.now(),
+          retryCount: 0,
+        },
+        'updateQuantity',
+      );
+    }
     return { error: new Error(itemActionError('updateQuantity', error)) };
   }
 
@@ -203,19 +262,32 @@ export async function deleteItem(
   householdId: string,
   supabase?: SupabaseClient
 ): Promise<ItemOperationError> {
-  if (!navigator.onLine) {
-    await enqueueAction({
-      type: 'delete',
-      payload: { itemId, householdId },
-      createdAt: Date.now(),
-      retryCount: 0,
-    });
-    return { error: null, queued: true };
-  }
+  if (!navigator.onLine) return offlineError('delete');
 
   const client = supabase ?? createClient();
 
-  const { data: itemToDelete } = await client.from('items').select('name').eq('id', itemId).eq('household_id', householdId).maybeSingle();
+  const enqueueDelete = () =>
+    enqueueOrFail(
+      {
+        type: 'delete',
+        payload: { itemId, householdId },
+        createdAt: Date.now(),
+        retryCount: 0,
+      },
+      'delete',
+    );
+
+  const { data: itemToDelete, error: selectError } = await client
+    .from('items')
+    .select('name')
+    .eq('id', itemId)
+    .eq('household_id', householdId)
+    .maybeSingle();
+  if (selectError) {
+    logItemOperationError('delete', selectError);
+    if (isConnectivityError(selectError)) return enqueueDelete();
+    return { error: new Error(itemActionError('delete', selectError)) };
+  }
   const itemName = itemToDelete?.name;
 
   const { error } = await client
@@ -226,6 +298,7 @@ export async function deleteItem(
 
   if (error) {
     logItemOperationError('delete', error);
+    if (isConnectivityError(error)) return enqueueDelete();
     return { error: new Error(itemActionError('delete', error)) };
   }
 

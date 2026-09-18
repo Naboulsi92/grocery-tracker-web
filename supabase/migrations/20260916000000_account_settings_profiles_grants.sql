@@ -7,3 +7,5 @@ grant update (last_name) on table public.profiles to authenticated;
 grant update (language) on table public.profiles to authenticated;
 grant update (deleted_at) on table public.profiles to authenticated;
 grant update (display_name) on table public.profiles to authenticated;
+grant update (notification_type) on table public.profiles to authenticated;
+grant update (reminder_time) on table public.profiles to authenticated;

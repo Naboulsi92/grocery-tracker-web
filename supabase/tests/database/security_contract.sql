@@ -131,7 +131,9 @@ begin
     or not has_column_privilege('authenticated', 'public.push_subscriptions', 'subscription', 'UPDATE')
     or not has_column_privilege('authenticated', 'public.profiles', 'display_name', 'UPDATE')
     or not has_column_privilege('authenticated', 'public.profiles', 'first_name', 'UPDATE')
-    or not has_column_privilege('authenticated', 'public.profiles', 'last_name', 'UPDATE') then
+    or not has_column_privilege('authenticated', 'public.profiles', 'last_name', 'UPDATE')
+    or not has_column_privilege('authenticated', 'public.profiles', 'notification_type', 'UPDATE')
+    or not has_column_privilege('authenticated', 'public.profiles', 'reminder_time', 'UPDATE') then
     raise exception 'authenticated can write generated identifiers or timestamps';
   end if;
 end;

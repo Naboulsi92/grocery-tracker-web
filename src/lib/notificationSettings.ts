@@ -1,10 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
-export type NotificationType = 'push' | 'badge' | 'both';
+export type NotificationType = 'push' | 'badge' | 'both' | 'none';
 
 export interface NotificationSettings {
-  notificationType: NotificationType | null;
+  notificationType: NotificationType;
   reminderTime: string | null;
 }
 
@@ -12,7 +12,7 @@ const LOAD_ERROR = 'errors.notifications.load_failed';
 const SAVE_ERROR = 'errors.notifications.save_failed';
 
 function isNotificationType(value: string | null): value is NotificationType {
-  return value === 'push' || value === 'badge' || value === 'both';
+  return value === 'push' || value === 'badge' || value === 'both' || value === 'none';
 }
 
 export async function loadNotificationSettings(
@@ -31,7 +31,7 @@ export async function loadNotificationSettings(
 
   return {
     settings: {
-      notificationType: isNotificationType(data.notification_type) ? data.notification_type : null,
+      notificationType: isNotificationType(data.notification_type) ? data.notification_type : 'none',
       reminderTime: data.reminder_time,
     },
     error: null,

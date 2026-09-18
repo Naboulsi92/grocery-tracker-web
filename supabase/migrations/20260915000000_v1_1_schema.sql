@@ -133,7 +133,7 @@ drop table public.units;
 -- ══════════════════════════════════════════════════════════════
 
 alter table public.profiles
-  add column notification_type text check (notification_type in ('push', 'badge', 'both')),
+  add column notification_type text check (notification_type in ('push', 'badge', 'both', 'none')),
   add column reminder_time time,
   add column language text not null default 'fr' check (language in ('fr', 'en')),
   add column deleted_at timestamptz;

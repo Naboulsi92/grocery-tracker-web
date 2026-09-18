@@ -19,20 +19,20 @@ import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { translateMessage } from '@/lib/i18n';
 
 interface NotificationDraft {
-  notificationType: NotificationType | null;
+  notificationType: NotificationType;
   reminderEnabled: boolean;
   reminderTime: string;
 }
 
 const DEFAULT_DRAFT: NotificationDraft = {
-  notificationType: null,
+  notificationType: 'none',
   reminderEnabled: false,
   reminderTime: '08:00',
 };
 
-function buildTypeOptions(t: (key: string) => string): { value: NotificationType | null; label: string; description: string; testId?: string }[] {
+function buildTypeOptions(t: (key: string) => string): { value: NotificationType; label: string; description: string; testId?: string }[] {
   return [
-    { value: null, label: t('notif.off'), description: t('notif.off_desc') },
+    { value: 'none', label: t('notif.off'), description: t('notif.off_desc') },
     { value: 'push', label: t('notif.push'), description: t('notif.push_desc'), testId: 'notification-push-toggle' },
     { value: 'badge', label: t('notif.badge'), description: t('notif.badge_desc'), testId: 'notification-badge-toggle' },
     { value: 'both', label: t('notif.both'), description: t('notif.both_desc') },
@@ -119,7 +119,7 @@ export default function NotificationSettingsPage() {
     };
   }, [supabase, user?.id, loadRequest]);
 
-  const handleTypeSelect = (value: NotificationType | null) => {
+  const handleTypeSelect = (value: NotificationType) => {
     setDraft((current) => ({ ...current, notificationType: value }));
     setStatus('idle');
     setSaveError('');
@@ -234,11 +234,11 @@ export default function NotificationSettingsPage() {
               {typeOptions.map((option) => {
                 const checked = draft.notificationType === option.value;
                 return (
-                  <label key={option.value ?? 'none'} className={`notif-option${checked ? ' checked' : ''}`}>
+                  <label key={option.value} className={`notif-option${checked ? ' checked' : ''}`}>
                     <input
                       type="radio"
                       name="notification-type"
-                      value={option.value ?? 'none'}
+                      value={option.value}
                       checked={checked}
                       onChange={() => handleTypeSelect(option.value)}
                       data-testid={option.testId}

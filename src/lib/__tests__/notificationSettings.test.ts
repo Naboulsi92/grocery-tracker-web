@@ -53,12 +53,28 @@ describe('notificationSettings', () => {
       });
     });
 
-    it('normalizes an unknown notification type to null', async () => {
+    it('normalizes an unknown notification type to none', async () => {
       storedProfile = { notification_type: 'email', reminder_time: null };
 
       const result = await loadNotificationSettings(supabase, 'user-1');
 
-      expect(result.settings).toEqual({ notificationType: null, reminderTime: null });
+      expect(result.settings).toEqual({ notificationType: 'none', reminderTime: null });
+    });
+
+    it('normalizes a legacy NULL notification type to none', async () => {
+      storedProfile = { notification_type: null, reminder_time: null };
+
+      const result = await loadNotificationSettings(supabase, 'user-1');
+
+      expect(result.settings).toEqual({ notificationType: 'none', reminderTime: null });
+    });
+
+    it('persists the explicit none type', async () => {
+      storedProfile = { notification_type: 'none', reminder_time: null };
+
+      const result = await loadNotificationSettings(supabase, 'user-1');
+
+      expect(result.settings).toEqual({ notificationType: 'none', reminderTime: null });
     });
 
     it('returns a readable error when the profile cannot be loaded', async () => {

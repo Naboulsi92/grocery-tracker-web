@@ -49,20 +49,35 @@ function createServiceClient() {
 serve(async (req) => {
   const url = new URL(req.url);
 
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ error: "Method not allowed" }),
+      { status: 405, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  // Optionally require a shared cron secret so random callers can't trigger
+  // sends or reminders. Mirrors member-gdpr-sweep: if CRON_SECRET is set,
+  // require a matching x-cron-secret header; otherwise requests are gated only
+  // by the deployment-time verify_jwt setting (documented in README.md).
+  const expected = Deno.env.get("CRON_SECRET");
+  if (expected) {
+    const provided = req.headers.get("x-cron-secret");
+    if (provided !== expected) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json" } },
+      );
+    }
+  }
+
   // POST /daily-reminders — enqueue daily reminder notifications
-  if (url.pathname.endsWith("/daily-reminders") && req.method === "POST") {
+  if (url.pathname.endsWith("/daily-reminders")) {
     return handleDailyReminders();
   }
 
   // POST (default) — process pending threshold notifications
-  if (req.method === "POST") {
-    return handleProcessNotifications();
-  }
-
-  return new Response(
-    JSON.stringify({ error: "Method not allowed" }),
-    { status: 405, headers: { "Content-Type": "application/json" } },
-  );
+  return handleProcessNotifications();
 });
 
 // ─── Process pending notifications ───

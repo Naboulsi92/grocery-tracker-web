@@ -20,6 +20,7 @@ Server-side notification delivery for the grocery list app. Processes pending no
 | `VAPID_PUBLIC_KEY` | Yes (project secret) | VAPID public key for Web Push |
 | `VAPID_PRIVATE_KEY` | Yes (project secret) | VAPID private key for Web Push |
 | `VAPID_SUBJECT` | Yes (project secret) | VAPID subject (mailto: URL or origin) |
+| `CRON_SECRET` | No | Optional shared secret; if set, every request must send `x-cron-secret: <CRON_SECRET>` (401 otherwise) |
 
 ### How It Works
 
@@ -33,6 +34,17 @@ Server-side notification delivery for the grocery list app. Processes pending no
 3. **Daily reminders** (`POST /daily-reminders`): Computes the current **UTC** wall-clock time (`HH:MM`, from `toISOString()`) and calls `enqueue_daily_reminders(p_at_time)`. That RPC enqueues one row **per user** whose `profiles.reminder_time` equals the argument, sets `target_user_id` (so only that member is notified), and de-duplicates within 24h per (household, user). `reminder_time` is a plain `time` with **no per-user timezone — the stored value is interpreted as UTC**; adjust cron/schedule times accordingly.
 
 4. **Subscription cleanup**: If a push subscription returns 404/410 (expired/unsubscribed), the subscription row is deleted from `push_subscriptions`.
+
+### Security
+
+Both endpoints (`POST /` and `POST /daily-reminders`) use the same optional cron-secret guard as `member-gdpr-sweep`: **if the `CRON_SECRET` env var is set**, requests must include `x-cron-secret: <CRON_SECRET>` (rejected with 401 otherwise), so a stray caller cannot force sends or enqueue reminders. If `CRON_SECRET` is **not** set, access falls back to the deployment-time JWT verification setting.
+
+- The default deployment keeps JWT verification enabled: callers must present a valid `Authorization: Bearer <supabase-jwt>`.
+- To let a cron service call the function without a JWT, deploy with `--no-verify-jwt` **and** set `CRON_SECRET` — without the secret every caller would be allowed:
+  ```bash
+  supabase functions deploy notify-thresholds --no-verify-jwt --project-ref <project-ref>
+  supabase secrets set CRON_SECRET=<your-secret> --project-ref <project-ref>
+  ```
 
 ### Deployment
 
@@ -117,7 +129,7 @@ Send a POST request to:
 ```
 https://<project-ref>.supabase.co/functions/v1/notify-thresholds/daily-reminders
 ```
-with header `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>`. The function computes the current UTC time itself.
+with header `x-cron-secret: <CRON_SECRET>` when `CRON_SECRET` is set (the common case for a cron job), or — if the function was deployed with JWT verification enabled and no `CRON_SECRET` — with header `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` as before. The function computes the current UTC time itself.
 
 > Because `reminder_time` is interpreted as UTC, an 08:00 reminder is sent at 08:00 UTC regardless of where the user is located.
 

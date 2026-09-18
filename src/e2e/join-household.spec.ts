@@ -255,7 +255,11 @@ test.describe('Join Household Flow', () => {
     test('US 17: keyboard navigation through join household flow', async ({ page, account }) => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await signUp(page, account);
-      
+
+      // signUp leaves focus on the last-name field (the last element it fills);
+      // reset focus to the page root so Tab walks the document in DOM order.
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.());
+
       // Tab through the header controls and the forms to reach the invitation field
       await page.keyboard.press('Tab'); // theme toggle
       await page.keyboard.press('Tab'); // language FR button

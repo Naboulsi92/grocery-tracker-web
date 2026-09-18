@@ -80,7 +80,7 @@ test.describe('Offline read-only mode (PRD §8 #11)', () => {
     await page.getByTestId('btn-create-item').click();
     await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-    await page.getByTestId('dashboard-card-to-buy').click();
+    await page.goto('/to-buy');
     const itemRow = page.getByTestId(`tobuy-item-row-${itemName.toLowerCase()}`);
     await expect(itemRow).toBeVisible();
     const qtyInput = itemRow.getByTestId('tobuy-quantity-input');

@@ -72,11 +72,11 @@ describe('JoinHouseholdPage', () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'invitation is invalid or unavailable' } });
     render(<LanguageProvider><JoinHouseholdPage /></LanguageProvider>);
     fillNames('Alex', 'Dupont');
-    fireEvent.change(screen.getByLabelText(/Code d.invitation complet/), { target: { value: 'invalid-token' } });
+    fireEvent.change(screen.getByLabelText(/Code d.invitation complet/), { target: { value: 'bad-token' } });
     fireEvent.click(screen.getByRole('button', { name: 'Rejoindre le foyer' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Code invalide ou expiré');
-    expect(rpc).toHaveBeenCalledWith('consume_household_invitation', { p_token: 'invalid-token' });
+    expect(rpc).toHaveBeenCalledWith('consume_household_invitation', { p_token: 'bad-token' });
     expect(profileUpdate).toHaveBeenCalledWith({ first_name: 'Alex', last_name: 'Dupont' });
     expect(screen.getByRole('button', { name: 'Rejoindre le foyer' })).toBeEnabled();
     expect(replace).not.toHaveBeenCalled();

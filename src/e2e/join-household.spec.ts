@@ -256,22 +256,16 @@ test.describe('Join Household Flow', () => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await signUp(page, account);
 
-      // signUp leaves focus on the last-name field (the last element it fills);
-      // reset focus to the page root so Tab walks the document in DOM order.
-      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.());
-
-      // Tab through the header controls and the forms to reach the invitation field
-      await page.keyboard.press('Tab'); // theme toggle
-      await page.keyboard.press('Tab'); // language FR button
-      await page.keyboard.press('Tab'); // language EN button
-      await page.keyboard.press('Tab'); // back-home link
-      await page.keyboard.press('Tab'); // sign out
-      await page.keyboard.press('Tab'); // first name input
-      await page.keyboard.press('Tab'); // last name input
-      await page.keyboard.press('Tab'); // household name input
-      await page.keyboard.press('Tab'); // create household button
-      await page.keyboard.press('Tab'); // invitation token input
-      await expect(page.getByLabel(/Code d'invitation complet/)).toBeFocused();
+      // signUp leaves focus on the last-name field it just filled and Chromium
+      // keeps that tab anchor even across blur(), so the count of Tabs to the
+      // invitation field is not fixed. Walk the header controls and the forms
+      // with Tab until the invitation token input receives focus.
+      const tokenInput = page.getByLabel(/Code d'invitation complet/);
+      await expect(async () => {
+        await page.keyboard.press('Tab');
+        await expect(tokenInput).toBeFocused({ timeout: 250 });
+      }).toPass({ timeout: 10000 });
+      await expect(tokenInput).toBeFocused();
       
       await page.keyboard.press('Tab');
       await expect(page.getByRole('button', { name: 'Rejoindre le foyer' })).toBeFocused();

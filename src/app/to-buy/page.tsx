@@ -13,6 +13,7 @@ import { SyncingIndicator } from '@/components/SyncingIndicator';
 import { getErrorMessage, getLowStockItems, joinInventory, type InventoryItem } from '@/lib/inventory';
 import { updateItemQuantity } from '@/lib/itemOperations';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { translateMessage } from '@/lib/i18n';
 
 export default function ToBuyPage() {
@@ -24,6 +25,7 @@ export default function ToBuyPage() {
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({});
   const { householdId } = useAuth();
+  const { isOnline } = useOnlineStatus();
   const { t, language } = useI18n();
   const { household, members, loading: householdLoading, error: householdError } = useHousehold(householdId ?? '');
   const isLoading = loading || householdLoading;
@@ -100,7 +102,7 @@ export default function ToBuyPage() {
   async function handleConfirmQuantity(id: string) {
     const raw = quantityInputs[id];
     const delta = Number(raw);
-    if (!raw || !Number.isFinite(delta) || delta <= 0 || mutatingId) return;
+    if (!raw || !Number.isFinite(delta) || delta <= 0 || mutatingId || !isOnline) return;
 
     const currentItem = items.find((item) => item.id === id);
     if (!currentItem) return;
@@ -211,14 +213,14 @@ export default function ToBuyPage() {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') void handleConfirmQuantity(item.id);
                         }}
-                        disabled={mutatingId !== null}
+                        disabled={mutatingId !== null || !isOnline}
                         aria-label={t('tobuy.qty_aria', { name: item.name })}
                         data-testid="tobuy-quantity-input"
                       />
                       <button
                         onClick={() => void handleConfirmQuantity(item.id)}
                         className="btn btn-primary"
-                        disabled={mutatingId !== null || !quantityInputs[item.id]}
+                        disabled={mutatingId !== null || !quantityInputs[item.id] || !isOnline}
                         aria-label={t('tobuy.confirm_aria', { name: item.name })}
                         data-testid="tobuy-check-button"
                       >

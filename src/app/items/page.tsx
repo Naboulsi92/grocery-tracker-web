@@ -13,6 +13,7 @@ import { SyncingIndicator } from '@/components/SyncingIndicator';
 import { getErrorMessage, groupItems, joinInventory, type Category, type InventoryItem } from '@/lib/inventory';
 import { createItem, updateItem, updateItemQuantity, deleteItem, isItemPristine, type DefaultItem } from '@/lib/itemOperations';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { validateName, validateQuantity, validateThreshold } from '@/lib/validation';
 import { translateMessage } from '@/lib/i18n';
 
@@ -34,6 +35,7 @@ export default function ItemsPage() {
   const [fieldThresholdError, setFieldThresholdError] = useState('');
   const [mutating, setMutating] = useState<string | null>(null);
   const { householdId } = useAuth();
+  const { isOnline } = useOnlineStatus();
   const { t, language } = useI18n();
   const { household, loading: householdLoading, error: householdError } = useHousehold(householdId ?? '');
   const isLoading = loading || householdLoading;
@@ -111,7 +113,7 @@ async function handleSubmit(e: React.FormEvent) {
   setFieldQuantityError('');
   setFieldThresholdError('');
 
-  if (!householdId || !formName.trim() || !formUnit || mutating) return;
+  if (!householdId || !formName.trim() || !formUnit || mutating || !isOnline) return;
 
   const nameErr = validateName(formName);
   if (nameErr) { setFieldNameError(nameErr); return; }
@@ -163,7 +165,7 @@ async function handleSubmit(e: React.FormEvent) {
   async function handleDelete(id: string) {
     if (!confirm(t('items.delete_confirm'))) return;
 
-    if (!householdId || mutating) return;
+    if (!householdId || mutating || !isOnline) return;
     setMutating(id);
     setError('');
     try {
@@ -178,7 +180,7 @@ async function handleSubmit(e: React.FormEvent) {
   }
 
   async function updateQuantity(id: string, delta: number) {
-    if (mutating) return;
+    if (mutating || !isOnline) return;
     setMutating(id);
     setError('');
     try {
@@ -259,6 +261,7 @@ return (
             className="btn btn-primary"
             style={{ marginBottom: '1.5rem' }}
             onClick={() => setShowForm(true)}
+            disabled={!isOnline}
             data-testid="btn-new-item"
           >
             {t('items.new')}
@@ -314,7 +317,7 @@ return (
                 {fieldThresholdError && <p className="field-error" role="alert" id="item-threshold-error" data-testid="error-threshold-required">{translateMessage(language, fieldThresholdError)}</p>}
               </div>
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-                <button type="submit" className="btn btn-primary" disabled={mutating === 'form'} data-testid="btn-create-item">{editingId ? t('common.save') : t('common.create')}</button>
+                <button type="submit" className="btn btn-primary" disabled={mutating === 'form' || !isOnline} data-testid="btn-create-item">{editingId ? t('common.save') : t('common.create')}</button>
                 <button type="button" onClick={resetForm} className="btn btn-secondary" disabled={mutating === 'form'}>{t('common.cancel')}</button>
               </div>
             </form>
@@ -328,7 +331,7 @@ return (
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {groupedItems.map((item, index) => (
-                  <ItemRow key={item.id} item={item} index={index} disabled={mutating !== null} onUpdate={updateQuantity} onEdit={startEdit} onDelete={handleDelete} defaultItemsMap={defaultItemsMap} t={t} />
+                  <ItemRow key={item.id} item={item} index={index} disabled={mutating !== null || !isOnline} onUpdate={updateQuantity} onEdit={startEdit} onDelete={handleDelete} defaultItemsMap={defaultItemsMap} t={t} />
                 ))}
               </div>
             </div>
@@ -348,6 +351,7 @@ return (
               className="btn btn-primary"
               style={{ marginTop: '1rem' }}
               onClick={() => setShowForm(true)}
+              disabled={!isOnline}
               data-testid="btn-new-item"
             >
               {t('items.new')}

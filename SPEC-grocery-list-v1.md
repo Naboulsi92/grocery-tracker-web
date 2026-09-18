@@ -15,9 +15,9 @@ A PWA for couples (strictly 2 members per household) to manage shared grocery in
 
 | Area | Decision | Rationale |
 |------|----------|-----------|
-| Default categories | 10 seeded (Légumes, Fruits, Produits laitiers, Féculents, Viandes, Poissons, Épicerie, Boissons, Hygiène, Entretien) | Bilingual SQL seed, immutable name/existence, reorderable |
-| Default items | 10 seeded (Lait, Pain, Œufs, Beurre, Fromage, Yaourt, Poulet, Riz, Pâtes, Huile) | Pre-assigned to matching default categories, forked on modification |
-| Fork scope | Items only | Default categories are fully immutable (ADR-0004) |
+| Default categories | 10 seeded (Fruits, Légumes, Produits laitiers, Viandes et poissons, Féculents, Épicerie, Boissons, Surgelés, Hygiène, Entretien) | Bilingual SQL seed, immutable name/existence, reorderable |
+| Default items | 10 seeded (Lait, Pain, Œufs, Tomates, Pommes, Poulet, Pâtes, Café, Eau, Papier toilette) | Pre-assigned to matching default categories; template_id is indicative only, no functional effect |
+| Fork scope | None (fork-on-modify removed) | Default categories are fully immutable (ADR-0004); items seed once at household creation and never "forks" (C9) |
 | Invite code | Random 8-char alphanumeric, SHA-256 hash in DB, 24h expiry, 5-attempt lockout | Token shown once, regeneration requires confirmation (ADR-0002) |
 | History | Actor + action type + item name + relative timestamp. 20-entry cap via DB trigger (ADR-0005) | No before/after values. No purchase logging |
 | Concurrent edits | Silent last-write-wins (ADR-0006) | No conflict UI in V1 |
@@ -75,7 +75,7 @@ Seed data (SQL migration):
 ## 5. Validation Rules (transverse)
 
 - All name fields: ≥1 letter, ≤50 chars
-- Item name: unique within household (case-insensitive), including un-forked defaults
+- Item name: unique within household (case-insensitive), seeded defaults included
 - Custom category name: unique within household (case-insensitive)
 - Quantity/threshold: non-negative integers, no decimals
 - Threshold: mandatory, strictly > 0

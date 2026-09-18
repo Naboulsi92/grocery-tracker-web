@@ -11,7 +11,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SyncingIndicator } from '@/components/SyncingIndicator';
 import { getErrorMessage, groupItems, joinInventory, type Category, type InventoryItem } from '@/lib/inventory';
-import { createItem, updateItem, updateItemQuantity, deleteItem, isItemPristine, type ItemTemplate } from '@/lib/itemOperations';
+import { createItem, updateItem, updateItemQuantity, deleteItem } from '@/lib/itemOperations';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { validateName, validateQuantity, validateThreshold } from '@/lib/validation';
@@ -20,7 +20,6 @@ import { translateMessage } from '@/lib/i18n';
 export default function ItemsPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [defaultItems, setDefaultItems] = useState<ItemTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -94,16 +93,6 @@ export default function ItemsPage() {
       clearTimeout(debounceTimer);
       void supabase.removeChannel(channel);
     };
-  }, [householdId, supabase]);
-
-  useEffect(() => {
-    if (!householdId) return;
-    supabase
-      .from('item_templates')
-      .select('id, name_fr, unit, suggested_threshold')
-      .then(({ data }) => {
-        if (data) setDefaultItems(data as ItemTemplate[]);
-      });
   }, [householdId, supabase]);
 
 async function handleSubmit(e: React.FormEvent) {
@@ -232,7 +221,6 @@ async function handleSubmit(e: React.FormEvent) {
   }
 
   const itemGroups = groupItems(items, categories);
-  const defaultItemsMap = new Map(defaultItems.map((d) => [d.id, d]));
 
 return (
     <div className="page-container">
@@ -331,7 +319,7 @@ return (
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {groupedItems.map((item, index) => (
-                  <ItemRow key={item.id} item={item} index={index} disabled={mutating !== null || !isOnline} onUpdate={updateQuantity} onEdit={startEdit} onDelete={handleDelete} defaultItemsMap={defaultItemsMap} t={t} />
+                  <ItemRow key={item.id} item={item} index={index} disabled={mutating !== null || !isOnline} onUpdate={updateQuantity} onEdit={startEdit} onDelete={handleDelete} t={t} />
                 ))}
               </div>
             </div>
@@ -363,16 +351,13 @@ return (
   );
 }
 
-function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, defaultItemsMap, t }: { item: InventoryItem; index: number; disabled: boolean; onUpdate: (id: string, delta: number) => void; onEdit: (item: InventoryItem) => void; onDelete: (id: string) => void; defaultItemsMap: Map<string, ItemTemplate>; t: (key: string, vars?: Record<string, string | number>) => string }) {
+function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, t }: { item: InventoryItem; index: number; disabled: boolean; onUpdate: (id: string, delta: number) => void; onEdit: (item: InventoryItem) => void; onDelete: (id: string) => void; t: (key: string, vars?: Record<string, string | number>) => string }) {
   const isLowStock = item.quantity <= item.low_stock_threshold;
-  const defaultItem = item.template_id ? defaultItemsMap.get(item.template_id) : undefined;
-  const isForked = !!defaultItem && !isItemPristine(item, defaultItem);
 
   return (
     <div className={`item-row animate-fade-in ${isLowStock ? 'low-stock' : ''}`} data-testid={`item-row-${item.name.toLowerCase()}`} style={{ animationDelay: `${index * 20}ms` }}>
       <div className="item-info">
         <span className="item-name">{item.name}</span>
-        {isForked && <span className="badge badge-item-forked" data-testid="item-forked-badge">{t('items.forked')}</span>}
         {isLowStock && <span className="badge badge-danger">{t('items.low_stock')}</span>}
       </div>
       <div className="item-controls">

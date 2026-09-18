@@ -7,18 +7,6 @@ import { enqueueAction, type OfflineAction } from './offlineQueue';
 type Item = Database['public']['Tables']['items']['Row'];
 type ItemInsert = Database['public']['Tables']['items']['Insert'];
 type ItemUpdate = Database['public']['Tables']['items']['Update'];
-type ItemTemplate = Database['public']['Tables']['item_templates']['Row'];
-
-export type { ItemTemplate };
-
-export function isItemPristine(item: Item, template?: ItemTemplate | null): boolean {
-  if (!item.template_id || !template || item.template_id !== template.id) return false;
-  return (
-    item.name.trim().toLowerCase() === template.name_fr.trim().toLowerCase() &&
-    item.unit === template.unit &&
-    item.low_stock_threshold === template.suggested_threshold
-  );
-}
 
 // Per PRD §4.12 the queue is reserved for micro-coupures: a write that was
 // already IN FLIGHT when the connection dropped. Only connectivity-grade
@@ -158,7 +146,7 @@ export async function updateItem(
 
   const { data: current, error: currentError } = await client
     .from('items')
-    .select('id, name, unit, quantity, low_stock_threshold, template_id')
+    .select('id, name, unit, quantity, low_stock_threshold')
     .eq('id', itemId)
     .eq('household_id', householdId)
     .maybeSingle();
@@ -183,8 +171,7 @@ export async function updateItem(
   };
 
   // Unit change clears the low-stock threshold (user must re-enter). The DB column is
-  // non-nullable, so 1 is the "cleared" sentinel. The default-origin marker is preserved:
-  // divergence from the linked default IS the fork.
+  // non-nullable, so 1 is the "cleared" sentinel.
   if (unitChanged) {
     updateData.low_stock_threshold = 1;
   }

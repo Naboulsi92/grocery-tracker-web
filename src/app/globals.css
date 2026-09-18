@@ -233,11 +233,6 @@ input::placeholder {
   color: var(--color-danger);
 }
 
-.badge-item-forked {
-  background: var(--color-info-bg);
-  color: var(--color-info);
-}
-
 .text-sm {
   font-size: 0.875rem;
 }

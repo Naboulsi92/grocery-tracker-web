@@ -137,7 +137,6 @@
   "items.unit_ml": "Milliliter",
   "items.threshold": "Low stock threshold",
   "items.uncategorized": "Uncategorized",
-  "items.forked": "Modified",
   "items.low_stock": "To buy",
   "items.decrease_aria": "Decrease quantity of {name}",
   "items.increase_aria": "Increase quantity of {name}",

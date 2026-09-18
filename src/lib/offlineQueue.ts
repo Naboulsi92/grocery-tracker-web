@@ -169,10 +169,10 @@ export function getSnapshot(): QueueSnapshot {
 //            state needed; replay is safe regardless of other concurrent writes.
 //
 //   update — the original operation read the current item to decide on
-//            unit-change fork logic. At replay time we re-read the live item so
-//            fork decisions reflect the current world, not the stale offline
-//            snapshot. If the item was deleted in the meantime, we silently
-//            drop the stale action.
+//            unit-change clearing logic. At replay time we re-read the live
+//            item so those decisions reflect the current world, not the stale
+//            offline snapshot. If the item was deleted in the meantime, we
+//            silently drop the stale action.
 //
 //   updateQuantity — pure delta RPC call. Inherently idempotent per
 //                    (itemId, delta). Safe to replay.
@@ -200,7 +200,7 @@ async function replayAction(action: OfflineAction): Promise<void> {
       break;
     }
     case 'update': {
-      // Re-read the live item so fork/unit-change decisions are correct.
+      // Re-read the live item so unit-change decisions are correct.
       // If the item was deleted while offline, treat the action as stale.
       const { createClient } = await import('@/utils/supabase/client');
       const client = createClient();

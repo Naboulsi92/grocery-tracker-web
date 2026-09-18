@@ -137,7 +137,6 @@
   "items.unit_ml": "Millilitre",
   "items.threshold": "Seuil stock bas",
   "items.uncategorized": "Sans catégorie",
-  "items.forked": "Modifié",
   "items.low_stock": "À acheter",
   "items.decrease_aria": "Réduire la quantité de {name}",
   "items.increase_aria": "Augmenter la quantité de {name}",

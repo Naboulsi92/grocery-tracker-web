@@ -1,43 +1,44 @@
--- Item fork-on-modify: add default_item_id to items
--- Links household items back to their catalog origin for fork detection.
+-- Item template linkage: add template_id to items
+-- Links household items back to their catalog template (indicative, PRD §5:
+-- "à titre indicatif uniquement, sans effet fonctionnel").
 
 -- ══════════════════════════════════════════════════════════════
--- 1. Add default_item_id column
+-- 1. Add template_id column
 -- ══════════════════════════════════════════════════════════════
 
 do $$
 begin
   if not exists (
     select 1 from information_schema.columns
-    where table_schema = 'public' and table_name = 'items' and column_name = 'default_item_id'
+    where table_schema = 'public' and table_name = 'items' and column_name = 'template_id'
   ) then
-    alter table public.items add column default_item_id uuid
-      references public.default_items(id) on delete set null;
+    alter table public.items add column template_id uuid
+      references public.item_templates(id) on delete set null;
   end if;
 end $$;
 
 -- ══════════════════════════════════════════════════════════════
--- 2. Backfill default_item_id for existing households
+-- 2. Backfill template_id for existing households
 -- ══════════════════════════════════════════════════════════════
 
 update public.items i
-set default_item_id = di.id
-from public.default_items di
-where i.default_item_id is null
-  and lower(i.name) = lower(di.name_fr)
-  and i.unit = di.unit
-  and i.low_stock_threshold = di.threshold
+set template_id = ti.id
+from public.item_templates ti
+where i.template_id is null
+  and lower(i.name) = lower(ti.name_fr)
+  and i.unit = ti.unit
+  and i.low_stock_threshold = ti.suggested_threshold
   and i.category_id in (
     select c.id
     from public.categories c
     join public.default_categories dc on dc.name_fr = c.name
     where c.household_id = i.household_id
       and c.is_default = true
-      and dc.id = di.default_category_id
+      and dc.id = ti.category_key
   );
 
 -- ══════════════════════════════════════════════════════════════
--- 3. Update create_household to set default_item_id on seed
+-- 3. Update create_household to set template_id on seed
 -- ══════════════════════════════════════════════════════════════
 
 create or replace function public.create_household(p_name text) returns uuid
@@ -74,17 +75,17 @@ begin
   end loop;
 
   for default_item_row in
-    select di.id as default_item_id, di.name_fr, c.id as category_id, di.unit, di."threshold"
-    from public.default_items di
+    select ti.id as template_id, ti.name_fr, c.id as category_id, ti.unit, ti.suggested_threshold
+    from public.item_templates ti
     join public.categories c
       on c.household_id = new_household_id
       and c.name = (
-        select dc.name_fr from public.default_categories dc where dc.id = di.default_category_id
+        select dc.name_fr from public.default_categories dc where dc.id = ti.category_key
       )
       and c.is_default = true
   loop
-    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold, default_item_id)
-    values (new_household_id, default_item_row.category_id, default_item_row.name_fr, 0, default_item_row.unit, default_item_row."threshold", default_item_row.default_item_id);
+    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold, template_id)
+    values (new_household_id, default_item_row.category_id, default_item_row.name_fr, 0, default_item_row.unit, default_item_row.suggested_threshold, default_item_row.template_id);
   end loop;
 
   return new_household_id;
@@ -92,11 +93,11 @@ end;
 $$;
 
 -- ══════════════════════════════════════════════════════════════
--- 4. Update grants for default_item_id
+-- 4. Update grants for template_id
 -- ══════════════════════════════════════════════════════════════
 
 revoke all on table public.items from authenticated;
 grant select on table public.items to authenticated;
-grant insert (household_id, category_id, name, quantity, unit, low_stock_threshold, default_item_id) on table public.items to authenticated;
+grant insert (household_id, category_id, name, quantity, unit, low_stock_threshold, template_id) on table public.items to authenticated;
 grant update (name, category_id, unit, low_stock_threshold) on table public.items to authenticated;
 grant delete on table public.items to authenticated;

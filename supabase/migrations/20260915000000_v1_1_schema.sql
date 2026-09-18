@@ -15,13 +15,13 @@ create table public.default_categories (
   "position" int not null
 );
 
-create table public.default_items (
+create table public.item_templates (
   id uuid primary key default gen_random_uuid(),
   name_fr text not null,
   name_en text not null,
-  default_category_id uuid not null references public.default_categories(id) on delete cascade,
+  category_key uuid not null references public.default_categories(id) on delete cascade,
   unit text not null default 'unite',
-  "threshold" int not null default 1
+  suggested_threshold int not null default 1
 );
 
 create table public.category_positions (
@@ -179,7 +179,7 @@ insert into public.default_categories (name_fr, name_en, "position") values
 -- default category. Copied per household at household creation (fork occurs
 -- at creation, quantity 0); Pâtes is gram-based per the PRD. Threshold uses
 -- default 1 until a household customizes its copy.
-insert into public.default_items (name_fr, name_en, default_category_id, unit, "threshold") values
+insert into public.item_templates (name_fr, name_en, category_key, unit, suggested_threshold) values
   ('Lait', 'Milk',
     (select id from public.default_categories where name_fr = 'Produits laitiers'), 'l', 1),
   ('Pain', 'Bread',
@@ -206,14 +206,14 @@ insert into public.default_items (name_fr, name_en, default_category_id, unit, "
 -- ══════════════════════════════════════════════════════════════
 
 alter table public.default_categories enable row level security;
-alter table public.default_items enable row level security;
+alter table public.item_templates enable row level security;
 alter table public.category_positions enable row level security;
 
 -- Default catalog: readable by all authenticated
 create policy default_categories_select_authenticated on public.default_categories
   for select to authenticated using (true);
 
-create policy default_items_select_authenticated on public.default_items
+create policy item_templates_select_authenticated on public.item_templates
   for select to authenticated using (true);
 
 -- History: members only
@@ -273,7 +273,7 @@ grant delete on table public.items to authenticated;
 
 -- Default catalog: read-only for authenticated
 grant select on public.default_categories to authenticated;
-grant select on public.default_items to authenticated;
+grant select on public.item_templates to authenticated;
 
 -- ══════════════════════════════════════════════════════════════
 -- 14. Update create_household function
@@ -313,17 +313,17 @@ begin
   end loop;
 
   for default_item_row in
-    select di.name_fr, c.id as category_id, di.unit, di."threshold"
-    from public.default_items di
+    select di.name_fr, c.id as category_id, di.unit, di.suggested_threshold
+    from public.item_templates di
     join public.categories c
       on c.household_id = new_household_id
       and c.name = (
-        select dc.name_fr from public.default_categories dc where dc.id = di.default_category_id
+        select dc.name_fr from public.default_categories dc where dc.id = di.category_key
       )
       and c.is_default = true
   loop
     insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold, already_notified)
-    values (new_household_id, default_item_row.category_id, default_item_row.name_fr, 0, default_item_row.unit, default_item_row."threshold", true);
+    values (new_household_id, default_item_row.category_id, default_item_row.name_fr, 0, default_item_row.unit, default_item_row.suggested_threshold, true);
   end loop;
 
   return new_household_id;

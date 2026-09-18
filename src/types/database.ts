@@ -32,7 +32,7 @@ export type Database = {
           already_notified: boolean;
           category_id: string | null;
           created_at: string | null;
-          default_item_id: string | null;
+          template_id: string | null;
           household_id: string;
           id: string;
           last_modified_at: string | null;
@@ -47,7 +47,7 @@ export type Database = {
           already_notified?: boolean;
           category_id?: string | null;
           created_at?: string | null;
-          default_item_id?: string | null;
+          template_id?: string | null;
           household_id: string;
           id?: string;
           last_modified_at?: string | null;
@@ -90,8 +90,8 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
-      default_items: {
-        Row: { id: string; name_fr: string; name_en: string; default_category_id: string; unit: string; threshold: number };
+      item_templates: {
+        Row: { id: string; name_fr: string; name_en: string; category_key: string; unit: string; suggested_threshold: number };
         Insert: never;
         Update: never;
         Relationships: [];

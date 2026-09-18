@@ -108,7 +108,7 @@ begin
     or has_column_privilege('authenticated', 'public.items', 'id', 'INSERT')
     or not has_column_privilege('authenticated', 'public.items', 'name', 'UPDATE')
     or not has_column_privilege('authenticated', 'public.items', 'quantity', 'INSERT')
-    or not has_column_privilege('authenticated', 'public.items', 'default_item_id', 'INSERT')
+    or not has_column_privilege('authenticated', 'public.items', 'template_id', 'INSERT')
     or not has_column_privilege('authenticated', 'public.items', 'low_stock_threshold', 'UPDATE') then
     raise exception 'authenticated item column grants violate the write contract';
   end if;

@@ -81,7 +81,7 @@ const currentRow = {
   unit: 'unite',
   quantity: 2,
   low_stock_threshold: 1,
-  default_item_id: null,
+  template_id: null,
 };
 
 const connectivityError = { message: 'TypeError: Failed to fetch', status: 0, code: '' };

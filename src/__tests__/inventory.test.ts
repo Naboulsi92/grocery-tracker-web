@@ -27,7 +27,7 @@ const item = (id: string, categoryId: string | null, quantity = 1, threshold = 1
   created_at: null,
   last_modified_at: null,
   last_modified_by: null,
-  default_item_id: null,
+  template_id: null,
   already_notified: false,
   updated_at: null,
 });

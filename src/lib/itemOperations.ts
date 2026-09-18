@@ -7,16 +7,16 @@ import { enqueueAction, type OfflineAction } from './offlineQueue';
 type Item = Database['public']['Tables']['items']['Row'];
 type ItemInsert = Database['public']['Tables']['items']['Insert'];
 type ItemUpdate = Database['public']['Tables']['items']['Update'];
-type DefaultItem = Database['public']['Tables']['default_items']['Row'];
+type ItemTemplate = Database['public']['Tables']['item_templates']['Row'];
 
-export type { DefaultItem };
+export type { ItemTemplate };
 
-export function isItemPristine(item: Item, defaultItem?: DefaultItem | null): boolean {
-  if (!item.default_item_id || !defaultItem || item.default_item_id !== defaultItem.id) return false;
+export function isItemPristine(item: Item, template?: ItemTemplate | null): boolean {
+  if (!item.template_id || !template || item.template_id !== template.id) return false;
   return (
-    item.name.trim().toLowerCase() === defaultItem.name_fr.trim().toLowerCase() &&
-    item.unit === defaultItem.unit &&
-    item.low_stock_threshold === defaultItem.threshold
+    item.name.trim().toLowerCase() === template.name_fr.trim().toLowerCase() &&
+    item.unit === template.unit &&
+    item.low_stock_threshold === template.suggested_threshold
   );
 }
 
@@ -158,7 +158,7 @@ export async function updateItem(
 
   const { data: current, error: currentError } = await client
     .from('items')
-    .select('id, name, unit, quantity, low_stock_threshold, default_item_id')
+    .select('id, name, unit, quantity, low_stock_threshold, template_id')
     .eq('id', itemId)
     .eq('household_id', householdId)
     .maybeSingle();

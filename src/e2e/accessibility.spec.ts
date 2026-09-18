@@ -214,7 +214,7 @@ test.describe('Accessibility', () => {
   test.describe('Focus Indicators Visible (US 106)', () => {
     test('focus indicators visible on homepage buttons', async ({ page }) => {
       await page.goto('/');
-      const button = page.getByRole('button', { name: /Learn More/i }).first();
+      const button = page.getByRole('button', { name: /En savoir plus/i }).first();
       await button.focus();
       const outline = await button.evaluate((el) => {
         const style = window.getComputedStyle(el);

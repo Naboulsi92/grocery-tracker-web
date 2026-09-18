@@ -12,7 +12,7 @@ test.describe('Tab return behavior', () => {
     // Navigate to categories page and fill a form
     await page.getByTestId('dashboard-card-categories').click();
     await expect(page).toHaveURL('/categories');
-    await expect(page.getByRole('heading', { name: 'Catégories' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Catégories', exact: true })).toBeVisible();
 
     // Start creating a new category but don't submit
     await page.getByTestId('btn-new-category').click();

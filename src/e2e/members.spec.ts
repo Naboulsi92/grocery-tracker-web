@@ -46,15 +46,28 @@ test.describe('Members Page', () => {
     await expect(token).not.toBeEmpty();
     const invitationToken = await token.textContent();
 
+    // The token is also exposed as a read-only field holding exactly the value
+    // a clipboard write places in the system paste buffer.
+    const tokenField = page.getByTestId('invite-code-token');
+    await expect(tokenField).toHaveValue(invitationToken ?? '');
+
+    // Headless Chromium cannot focus the document to touch the OS clipboard, so
+    // intercept writeText and capture what the copy button hands over.
+    await page.evaluate(() => {
+      navigator.clipboard.writeText = async (text: string) => {
+        (window as Window & { __copiedText?: string }).__copiedText = text;
+      };
+    });
+
     const copyButton = page.getByRole('button', { name: 'Copier' });
     await expect(copyButton).toBeVisible();
     await copyButton.click();
 
     await expect(page.getByRole('button', { name: 'Copié !' })).toBeVisible();
-
-    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-    expect(clipboardText).toBe(invitationToken);
+    const copiedText = await page.evaluate(
+      () => (window as Window & { __copiedText?: string }).__copiedText,
+    );
+    expect(copiedText).toBe(invitationToken);
   });
 
   test('owner can revoke invitation token', async ({ page, account }) => {

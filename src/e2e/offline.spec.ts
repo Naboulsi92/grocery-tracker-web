@@ -37,7 +37,7 @@ test.describe('Offline read-only mode (PRD §8 #11)', () => {
     test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
     await createHousehold(page, account);
 
-    const itemName = `Article hors-ligne ${randomUUID()}`;
+    const itemName = `Article hors-ligne ${randomUUID().slice(0, 8)}`;
     await page.getByTestId('dashboard-card-items').click();
     await page.getByTestId('btn-new-item').click();
     await page.getByTestId('input-item-name').fill(itemName);
@@ -71,12 +71,12 @@ test.describe('Offline read-only mode (PRD §8 #11)', () => {
     test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
     await createHousehold(page, account);
 
-    const itemName = `Article à acheter ${randomUUID()}`;
+    const itemName = `Article à acheter ${randomUUID().slice(0, 8)}`;
     await page.getByTestId('dashboard-card-items').click();
     await page.getByTestId('btn-new-item').click();
     await page.getByTestId('input-item-name').fill(itemName);
-    await page.getByLabel('Quantité').fill('1');
-    await page.getByLabel('Seuil stock bas').fill('5');
+    await page.getByRole('spinbutton', { name: 'Quantité', exact: true }).fill('1');
+    await page.getByRole('spinbutton', { name: 'Seuil stock bas', exact: true }).fill('5');
     await page.getByTestId('btn-create-item').click();
     await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 

@@ -14,7 +14,7 @@ test.describe('Join Household Flow', () => {
       await expect(page).toHaveURL('/join-household');
       await expect(page.getByRole('heading', { name: 'Votre foyer' })).toBeVisible();
       
-      const householdName = `Foyer création ${randomUUID()}`;
+      const householdName = `Foyer création ${randomUUID().slice(0, 8)}`;
       await page.getByLabel('Nom du foyer').fill(householdName);
       await page.getByRole('button', { name: 'Créer mon foyer' }).click();
       await page.waitForURL('/home', { timeout: 20000 });
@@ -25,7 +25,7 @@ test.describe('Join Household Flow', () => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await signUp(page, account);
       
-      const customHouseholdName = `Mon Foyer Personnalisé ${randomUUID()}`;
+      const customHouseholdName = `Mon Foyer Personnalisé ${randomUUID().slice(0, 8)}`;
       await page.getByLabel('Nom du foyer').fill(customHouseholdName);
       await page.getByRole('button', { name: 'Créer mon foyer' }).click();
       await page.waitForURL('/home', { timeout: 20000 });
@@ -45,7 +45,7 @@ test.describe('Join Household Flow', () => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await signUp(page, account);
       
-      const householdName = `Foyer loading ${randomUUID()}`;
+      const householdName = `Foyer loading ${randomUUID().slice(0, 8)}`;
       await page.getByLabel('Nom du foyer').fill(householdName);
       await page.getByRole('button', { name: 'Créer mon foyer' }).click();
       
@@ -57,7 +57,7 @@ test.describe('Join Household Flow', () => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await signUp(page, account);
       
-      const previewName = `Foyer prévisualisation ${randomUUID()}`;
+      const previewName = `Foyer prévisualisation ${randomUUID().slice(0, 8)}`;
       await page.getByLabel('Nom du foyer').fill(previewName);
       
       const input = page.getByLabel('Nom du foyer');
@@ -258,6 +258,8 @@ test.describe('Join Household Flow', () => {
       
       // Tab through the header controls and the forms to reach the invitation field
       await page.keyboard.press('Tab'); // theme toggle
+      await page.keyboard.press('Tab'); // language FR button
+      await page.keyboard.press('Tab'); // language EN button
       await page.keyboard.press('Tab'); // back-home link
       await page.keyboard.press('Tab'); // sign out
       await page.keyboard.press('Tab'); // first name input

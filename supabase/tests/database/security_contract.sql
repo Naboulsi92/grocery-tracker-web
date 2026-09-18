@@ -139,6 +139,36 @@ begin
 end;
 $$;
 
+-- Debate C2: profiles.notification_type must default to 'push', be NOT NULL,
+-- and its CHECK must keep covering every allowed value.
+do $$
+begin
+  if (select column_default from information_schema.columns
+      where table_schema = 'public' and table_name = 'profiles'
+        and column_name = 'notification_type') is distinct from '''push''::text' then
+    raise exception 'profiles.notification_type default must be "push"';
+  end if;
+  if (select is_nullable from information_schema.columns
+      where table_schema = 'public' and table_name = 'profiles'
+        and column_name = 'notification_type') <> 'NO' then
+    raise exception 'profiles.notification_type must be NOT NULL';
+  end if;
+  if not exists (
+    select 1
+    from pg_constraint c
+    where c.conrelid = 'public.profiles'::regclass
+      and c.contype = 'c'
+      and pg_get_constraintdef(c.oid) ~ 'notification_type'
+      and pg_get_constraintdef(c.oid) ~ 'push'
+      and pg_get_constraintdef(c.oid) ~ 'badge'
+      and pg_get_constraintdef(c.oid) ~ 'both'
+      and pg_get_constraintdef(c.oid) ~ 'none'
+  ) then
+    raise exception 'profiles.notification_type CHECK must cover push, badge, both, none';
+  end if;
+end;
+$$;
+
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000001', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;

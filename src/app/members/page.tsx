@@ -20,8 +20,8 @@ export default function MembersPage() {
 
   const handleCopyInvitation = async () => {
     setCopied(false);
-    await actions.copyInviteCode();
-    setCopied(true);
+    const copied = await actions.copyInviteCode();
+    setCopied(copied);
   };
 
   if (loading) {
@@ -78,6 +78,15 @@ return (
             ) : (
               <div className="invite-code-display">
                 <code className="invite-code-text" style={{ overflowWrap: 'anywhere' }}>{invitation.token}</code>
+                <input
+                  type="text"
+                  readOnly
+                  value={invitation.token}
+                  data-testid="invite-code-token"
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                />
                 <button type="button" onClick={handleCopyInvitation} disabled={invitation.status === 'revoking'} className="btn btn-secondary" aria-describedby="copy-status">
                   {copied ? t('common.copied') : t('common.copy')}
                 </button>

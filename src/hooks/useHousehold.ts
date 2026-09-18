@@ -30,7 +30,7 @@ interface UseHouseholdResult {
   actions: {
     createInvitation: () => Promise<void>;
     revokeInvitation: (invitationId: string) => Promise<void>;
-    copyInviteCode: () => Promise<void>;
+    copyInviteCode: () => Promise<boolean>;
     refresh: () => void;
   };
 }
@@ -141,12 +141,14 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
   }, [invitation, supabase]);
 
   const copyInviteCode = useCallback(async () => {
-    if (invitation.status !== 'active') return;
+    if (invitation.status !== 'active') return false;
     setError('');
     try {
       await navigator.clipboard.writeText(invitation.token);
+      return true;
     } catch (copyError) {
       setError(householdActionError('copy', copyError instanceof Error ? copyError : null));
+      return false;
     }
   }, [invitation]);
 

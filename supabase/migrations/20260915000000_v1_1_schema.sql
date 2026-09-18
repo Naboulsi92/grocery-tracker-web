@@ -136,6 +136,16 @@ alter table public.profiles
   add column language text not null default 'fr' check (language in ('fr', 'en')),
   add column deleted_at timestamptz;
 
+-- T2C: first/last name replaces the single display name (PRD §4.2/§4.9/§7).
+-- Columns are nullable for existing rows and (alone or together) for other
+-- onboarding paths; the one-letter requirement is enforced app-side like every
+-- other name field. display_name is kept (nullable, still granted) so the
+-- security contract's legacy UPDATE assertion and the migration-tolerant
+-- display-name grant keep passing for existing signups.
+alter table public.profiles
+  add column first_name text check (first_name is null or char_length(btrim(first_name)) between 1 and 50),
+  add column last_name text check (last_name is null or char_length(btrim(last_name)) between 1 and 50);
+
 -- ══════════════════════════════════════════════════════════════
 -- 10. Add indexes and constraints
 -- ══════════════════════════════════════════════════════════════
@@ -466,7 +476,38 @@ end;
 $$;
 
 -- ══════════════════════════════════════════════════════════════
--- 22. Server-enforced invite try lockout
+-- 22. Equal-rights invitations: get_household_invitation
+-- ══════════════════════════════════════════════════════════════
+-- Any household member (not just the owner) may read the current invitation
+-- metadata, matching revoke_household_invitation above and PRD §11 household
+-- equality. Overrides the owner-only guard from the fix_invitation_functions
+-- migration. CREATE OR REPLACE preserves the existing EXECUTE grant to
+-- authenticated, and the function still never returns the raw token.
+
+create or replace function public.get_household_invitation(p_household_id uuid)
+returns table (
+  invitation_id uuid,
+  created_at timestamptz,
+  expires_at timestamptz,
+  revoked_at timestamptz,
+  consumed_at timestamptz
+)
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  if auth.uid() is null then raise exception 'authentication required' using errcode = '42501'; end if;
+  if not private.is_household_member(p_household_id) then raise exception 'household member required' using errcode = '42501'; end if;
+  return query
+  select i.id, i.created_at, i.expires_at, i.revoked_at, i.consumed_at
+  from public.household_invitations i
+  where i.household_id = p_household_id
+  order by i.created_at desc
+  limit 1;
+end;
+$$;
+
+-- ══════════════════════════════════════════════════════════════
+-- 23. Server-enforced invite try lockout
 -- ══════════════════════════════════════════════════════════════
 -- A known-but-invalid token (revoked, consumed, expired) counts toward a
 -- per-invitation brute-force counter. After 5 failed attempts the invitation

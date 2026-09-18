@@ -10,14 +10,14 @@ All RPCs require an authenticated Supabase session. Client roles cannot insert i
 | `create_household_invitation` | `p_household_id uuid`, `p_expires_in interval = '24 hours'` | table `(invitation_id uuid, token text, expires_at timestamptz)` | Any household member. Lifetime must be positive and at most 30 days. Creating a new invitation retires any prior live invitation for the household. The raw URL-safe token is returned once; only its SHA-256 digest is stored. |
 | `revoke_household_invitation` | `p_invitation_id uuid` | `boolean` | Any household member. Returns `true` only when an active invitation was revoked. Idempotent retries return `false`. |
 | `consume_household_invitation` | `p_token text` | `uuid` | Locks and consumes one valid, unexpired, unrevoked token, creates a `member` membership, and returns the household ID atomically. Fails without consuming the token if the caller already belongs to any household. |
-| `get_household_invitation` | `p_household_id uuid` | table `(invitation_id uuid, created_at timestamptz, expires_at timestamptz, revoked_at timestamptz, consumed_at timestamptz)` | Owner-only per the current implementation. Returns the household's latest invitation metadata and never the token. NOTE: the owner-only intent awaits product confirmation — do NOT widen access in this change. The security contract asserts anon is denied and authenticated is granted EXECUTE. |
+| `get_household_invitation` | `p_household_id uuid` | table `(invitation_id uuid, created_at timestamptz, expires_at timestamptz, revoked_at timestamptz, consumed_at timestamptz)` | Any household member — PRD §11 household equality. Returns the household's latest invitation metadata and never the token. The security contract asserts anon is denied and authenticated is granted EXECUTE. |
 | `adjust_item_quantity` | `p_item_id uuid`, `p_delta numeric` | `items` row | Household member only. Applies the delta in one SQL update, clamps at zero, records `auth.uid()`, and returns the authoritative row. Direct client updates of quantity are not granted. |
 
 PostgREST argument names are exact. Supabase JS calls therefore use objects such as `rpc('adjust_item_quantity', { p_item_id, p_delta: 1 })`. PostgreSQL `interval` values are passed as strings, for example `{ p_expires_in: '48 hours', p_household_id }`.
 
 ## Tables and visibility
 
-- `profiles` exposes only `id`, optional `display_name`, and timestamps. Signup creates a profile but no household.
+- `profiles` exposes `id`, optional `first_name`/`last_name`, the legacy optional `display_name`, preferences (language, notification type, reminder), and timestamps. Signup creates a profile but no household.
 - Members can read households, memberships, profiles, categories, and items only where they share a household. Owners can rename their household; members cannot.
 - Each user can belong to at most one household. Migration aborts explicitly if historical memberships violate this invariant; it never chooses a household or discards data implicitly.
 - An item category must belong to the same household as the item.

@@ -66,14 +66,16 @@ export type Database = {
           created_at: string;
           deleted_at: string | null;
           display_name: string | null;
+          first_name: string | null;
           id: string;
           language: string;
+          last_name: string | null;
           notification_type: string | null;
           reminder_time: string | null;
           updated_at: string;
         };
         Insert: never;
-        Update: { display_name?: string | null; notification_type?: string | null; reminder_time?: string | null; language?: string; deleted_at?: string | null };
+        Update: { display_name?: string | null; first_name?: string | null; last_name?: string | null; notification_type?: string | null; reminder_time?: string | null; language?: string; deleted_at?: string | null };
         Relationships: [];
       };
       push_subscriptions: {

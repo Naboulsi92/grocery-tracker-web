@@ -4,7 +4,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { logItemHistory } from './history';
 import { enqueueAction, type OfflineAction } from './offlineQueue';
 
-type Item = Database['public']['Tables']['items']['Row'];
 type ItemInsert = Database['public']['Tables']['items']['Insert'];
 type ItemUpdate = Database['public']['Tables']['items']['Update'];
 

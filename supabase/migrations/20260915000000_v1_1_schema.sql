@@ -595,3 +595,27 @@ $$;
 
 -- NOTE: token whitespace is stripped here via btrim() to mirror the client's
 -- normalizeInvitationToken() trimming (US 16 — whitespace-tolerant join).
+
+-- ══════════════════════════════════════════════════════════════
+-- 24. Equal-rights household rename + RLS helper EXECUTE grants
+-- ══════════════════════════════════════════════════════════════
+-- PRD §11 household equality: any member may rename the household. The
+-- owner-only UPDATE policy from the secure house model is replaced by a
+-- member-gated one (private.is_household_member), matching the equal-rights
+-- invitation functions above.
+
+drop policy if exists households_update_owner on public.households;
+create policy households_update_member on public.households for update to authenticated
+  using (private.is_household_member(id))
+  with check (private.is_household_member(id));
+
+-- RLS policy expressions run with the querying user's privileges, so a member
+-- querying any secured table needs EXECUTE on the private RLS helpers that its
+-- policies reference (CI: "permission denied for function is_household_member").
+-- Only EXECUTE on the function objects is granted: USAGE on schema private stays
+-- revoked, so the security contract's direct-call denial still holds, and
+-- Postgres only checks EXECUTE at runtime for pre-resolved policy expressions.
+-- can_view_profile(uuid) already carries the same grant from the main
+-- reconcile-schema-drift migration; is_household_owner is no longer referenced
+-- by any policy or RPC after the household rename change above.
+grant execute on function private.is_household_member(uuid) to authenticated;

@@ -6,7 +6,7 @@ All RPCs require an authenticated Supabase session. Client roles cannot insert i
 
 | Function | Arguments | Return | Authorization and behavior |
 |---|---|---|---|
-| `create_household` | `p_name text` | `uuid` | Creates the household, the caller's `owner` membership, and six default categories atomically. Fails if the caller already belongs to a household. |
+| `create_household` | `p_name text` | `uuid` | Creates the household, the caller's `owner` membership, and ten default categories atomically. Fails if the caller already belongs to a household. |
 | `create_household_invitation` | `p_household_id uuid`, `p_expires_in interval = '24 hours'` | table `(invitation_id uuid, token text, expires_at timestamptz)` | Any household member. Lifetime must be positive and at most 30 days. Creating a new invitation retires any prior live invitation for the household. The raw URL-safe token is returned once; only its SHA-256 digest is stored. |
 | `revoke_household_invitation` | `p_invitation_id uuid` | `boolean` | Any household member. Returns `true` only when an active invitation was revoked. Idempotent retries return `false`. |
 | `consume_household_invitation` | `p_token text` | `uuid` | Locks and consumes one valid, unexpired, unrevoked token, creates a `member` membership, and returns the household ID atomically. Fails without consuming the token if the caller already belongs to any household. |
@@ -18,10 +18,10 @@ PostgREST argument names are exact. Supabase JS calls therefore use objects such
 ## Tables and visibility
 
 - `profiles` exposes `id`, optional `first_name`/`last_name`, the legacy optional `display_name`, preferences (language, notification type, reminder), and timestamps. Signup creates a profile but no household.
-- Members can read households, memberships, profiles, categories, and items only where they share a household. Owners can rename their household; members cannot.
+- Members can read households, memberships, profiles, categories, and items only where they share a household. PRD §11 household equality: any member can rename the household and issue or revoke invitations; default categories stay immutable (PRD §4.3).
 - Each user can belong to at most one household. Migration aborts explicitly if historical memberships violate this invariant; it never chooses a household or discards data implicitly.
 - An item category must belong to the same household as the item.
-- Only owners can rename a household; any household member can issue or revoke invitations.
+- Household equality (PRD §11): any household member can rename the household and issue or revoke invitations.
 - `household_invitations` has no direct client grants. Backend code must never expose `token_hash`.
 - `push_subscriptions` stores one row per `(user_id, endpoint)`. The endpoint must equal `subscription.endpoint`; deleting one endpoint leaves the user's other devices intact.
 - Existing households and memberships are retained when they satisfy the single-household invariant. The earliest member of each existing household is promoted to `owner`; other members become `member`.

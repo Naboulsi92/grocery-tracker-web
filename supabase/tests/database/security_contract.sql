@@ -284,7 +284,7 @@ begin
     from public.create_household_invitation(current_setting('test.household_id')::uuid, interval '1 day')
   ) then raise exception 'member could not create an invitation'; end if;
   update public.households set name = 'Member rename' where id = current_setting('test.household_id')::uuid;
-  if found then raise exception 'member unexpectedly renamed household'; end if;
+  if not found then raise exception 'member could not rename household'; end if;
   begin
     perform 1 from public.household_invitations limit 1;
     raise exception 'member unexpectedly read invitation storage';

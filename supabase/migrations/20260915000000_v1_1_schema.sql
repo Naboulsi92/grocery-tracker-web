@@ -236,6 +236,24 @@ create policy category_positions_delete_member on public.category_positions for 
   using (private.is_household_member(household_id));
 
 -- ══════════════════════════════════════════════════════════════
+-- 12b. Lock default categories (RLS)
+-- ══════════════════════════════════════════════════════════════
+-- Default categories are shared and immutable (PRD §4.3: "ni modifiables ni
+-- supprimables"). The member UPDATE/DELETE policies re-created here exclude
+-- is_default = true rows: members keep full control of custom categories while
+-- default categories refuse modification/removal at the RLS level. The
+-- create_household security-definer insert (is_default = true) is unaffected.
+drop policy if exists categories_update_member on public.categories;
+drop policy if exists categories_delete_member on public.categories;
+
+create policy categories_update_member on public.categories for update to authenticated
+  using (private.is_household_member(household_id) and is_default = false)
+  with check (private.is_household_member(household_id) and is_default = false);
+
+create policy categories_delete_member on public.categories for delete to authenticated
+  using (private.is_household_member(household_id) and is_default = false);
+
+-- ══════════════════════════════════════════════════════════════
 -- 13. Update grants
 -- ══════════════════════════════════════════════════════════════
 

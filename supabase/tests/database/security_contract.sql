@@ -250,6 +250,7 @@ select set_config('test.joined_household_id', :'joined_household_id', true);
 set local role authenticated;
 
 do $$
+declare default_cat_id uuid; custom_cat_id uuid;
 begin
   if current_setting('test.household_id')::uuid <> current_setting('test.joined_household_id')::uuid then
     raise exception 'wrong joined household';
@@ -289,6 +290,26 @@ begin
     raise exception 'member unexpectedly read invitation storage';
   exception when insufficient_privilege then null;
   end;
+  -- Default categories are immutable for members (PRD §4.3): RLS must hide
+  -- is_default = true rows from UPDATE/DELETE, while custom categories remain
+  -- fully editable/deletable by any household member.
+  select id into default_cat_id
+  from public.categories
+  where household_id = current_setting('test.household_id')::uuid
+    and is_default = true
+  limit 1;
+  update public.categories set name = 'Forged name' where id = default_cat_id;
+  if found then raise exception 'default category name was modifiable'; end if;
+  delete from public.categories where id = default_cat_id;
+  if found then raise exception 'default category was deletable'; end if;
+
+  insert into public.categories (household_id, name, is_default)
+  values (current_setting('test.household_id')::uuid, 'Custom', false)
+  returning id into custom_cat_id;
+  update public.categories set name = 'Custom renamed' where id = custom_cat_id;
+  if not found then raise exception 'member could not rename a custom category'; end if;
+  delete from public.categories where id = custom_cat_id;
+  if not found then raise exception 'member could not delete a custom category'; end if;
 end;
 $$;
 

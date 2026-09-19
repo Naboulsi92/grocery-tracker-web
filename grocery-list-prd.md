@@ -1,6 +1,40 @@
 # Grocery List — Product Requirements Document (PRD)
 
-**Version 1.1 — Document de référence produit**
+**Version 1.4 — Document de référence produit**
+
+**Auteurs** : NABOULSI Riyad et Claude Sonnet
+
+---
+
+## Changelog
+
+### v1.4
+- Correction du modèle de fork : les articles par défaut sont copiés dans l'inventaire du foyer **à la création**, pas à la première modification (introduction de `ITEM_TEMPLATES`).
+- Nettoyage des descriptions devenues obsolètes suite à ce changement : unicité des noms, RLS, comportement en cascade.
+- Clarification de l'ordre des catégories : colonne `position` directe pour les catégories personnalisées, table de jointure séparée pour les catégories par défaut partagées.
+- Ajout d'un état `none` à `notification_type`, pour permettre de désactiver complètement les notifications.
+
+### v1.3
+- Intégration d'une session de questions/réponses externe (Big Pickle) : liste précise des 10 catégories et 10 articles par défaut (avec assignation catégorie/unité), format du code d'invitation en entité `INVITATIONS` dédiée (token + hachage), reconnexion réseau affinée (récupération silencieuse en arrière-plan, file d'attente persistée en IndexedDB, backoff exponentiel).
+- Nouvelle section 4.13 sur le bandeau d'installation PWA (2ᵉ visite, dismissable, réapparition après 2 visites).
+- Clarifications : badge de notification = compteur OS natif, couverture bilingue complète, mode sombre suivant l'OS, texte exact du dialogue pour quitter le foyer, rétention indéfinie des données du membre restant, suppression de compte en soft-delete + cron, politique de mot de passe (8+ caractères), résolution de conflit silencieuse confirmée.
+- Ajout de la section 11 (Réconciliation avec l'implémentation existante), suite à l'examen du dépôt `grocery-tracker-web`.
+
+### v1.2
+- Adoption de Playwright comme outil de test principal (remplace Cypress), avec justification technique (contextes multiples pour tester la synchronisation).
+- Ajout de la convention de sélecteurs `data-testid` et des comptes de test E2E dédiés (seeding direct via l'API admin Supabase, domaine `.test`).
+- Ajout de la section 10 (Workflow Git et déploiement), adaptée aux forfaits gratuits GitHub/Supabase/Vercel.
+- Résolution de six trous identifiés : expiration du code d'invitation à 24h, blocage de suppression d'une catégorie non vide, lien profond pour le QR code scanné hors application, clarification de l'unicité face aux articles par défaut, possibilité d'annuler une suppression de compte, choix de TypeScript pour Next.js.
+- Ajout de `updated_at` sur `ITEMS`, unicité du nom de catégorie, RLS explicite sur `HOUSEHOLDS`, note sur la resynchronisation après reconnexion.
+
+### v1.1
+- Passage du hors-ligne de "non pris en charge" à **lecture seule hors-ligne**, avec file d'attente limitée pour les micro-coupures pendant une action en cours.
+- Décisions sur les trous initiaux : seuil déclenché dès `quantité ≤ seuil`, nom d'article unique dans tout le foyer, changement d'unité qui vide quantité et seuil.
+- Ajout des longueurs de champs (50 caractères), de la résolution de conflit (dernier qui écrit gagne), de la sécurité du code d'invitation (5 tentatives), et de la durée de session.
+- Nouvelle section 8 (Stratégie de tests) avec scénarios critiques et importants.
+
+### v1.0
+- Première compilation du PRD à partir de l'ensemble des décisions produit, techniques, du modèle de données et des écrans définis en conversation.
 
 ---
 
@@ -54,6 +88,7 @@
 - **Vérification d'email obligatoire** avant utilisation, pour les comptes créés par email.
 - **Mot de passe oublié** : email avec code de réinitialisation, valable 15 minutes.
 - **Modification du mot de passe** : réservée aux comptes email (Google/Apple gèrent leur propre sécurité), nécessite la saisie du mot de passe actuel.
+- **Politique de mot de passe** : minimum 8 caractères, cohérent avec ce qui est déjà appliqué dans l'implémentation existante (Supabase Auth local et formulaire d'inscription).
 
 ### 4.2 Onboarding et foyer
 
@@ -63,13 +98,15 @@
 - **Foyer limité à deux personnes** pour la V1.
 - Une fois le foyer complet (2/2 membres), le **code et le QR code d'invitation deviennent automatiquement invalides** — impossible d'inviter une troisième personne.
 - Le code d'invitation **expire aussi après 24 heures**, même si le foyer n'est pas encore complet — il faut en régénérer un nouveau passé ce délai.
-- Le créateur (ou l'autre membre) peut **régénérer un nouveau code** à tout moment si l'ancien a été partagé par erreur ; l'ancien code est alors immédiatement invalidé.
+- **Format du code** : un token aléatoire de 8 caractères, affiché en clair une seule fois à la création ; seul son hachage SHA-256 est conservé en base, jamais le token lui-même.
+- Le créateur (ou l'autre membre) peut **régénérer un nouveau code** à tout moment via un bouton dédié, avec une **confirmation explicite** avant action ; l'ancien code est alors immédiatement invalidé.
 - Un code invalide ou expiré affiche un message d'erreur invitant à le ressaisir.
 - **QR code scanné hors de l'application** (via l'appareil photo natif, sans avoir de compte) : ouvre un **lien profond** vers l'application, avec le code d'invitation déjà pré-rempli une fois l'inscription terminée — pas besoin de le ressaisir manuellement.
 
 ### 4.3 Catégories
 
-- **Catégories par défaut** : communes à tous les foyers, ni modifiables ni supprimables (structure de base garantie).
+- **Catégories par défaut** : communes à tous les foyers, ni modifiables ni supprimables (structure de base garantie). **10 catégories** au lancement : Fruits, Légumes, Produits laitiers, Viandes et poissons, Féculents, Épicerie, Boissons, Surgelés, Hygiène, Entretien — injectées via un **seed SQL bilingue codé en dur**, pas configurables en base a posteriori.
+- **Le fork (voir 4.4) ne s'applique qu'aux articles.** Les catégories par défaut restent toujours intégralement verrouillées ; il n'existe pas de mécanisme de fork pour les catégories.
 - **Catégories personnalisées** : créées par un foyer, visibles et éditables/supprimables uniquement par ce foyer. Le **nom d'une catégorie personnalisée doit être unique** au sein du foyer (insensible à la casse).
 - **Suppression bloquée si non vide** : un foyer ne peut pas supprimer une catégorie personnalisée tant qu'elle contient encore des articles ; un message explicite invite à d'abord déplacer ou supprimer les articles concernés (ex. « Déplacez ou supprimez d'abord les 3 articles de cette catégorie »).
 - **Ordre des catégories** : personnalisable par foyer via glisser-déposer (recommandation technique : librairie dédiée type dnd-kit pour la robustesse tactile et l'accessibilité clavier).
@@ -78,8 +115,8 @@
 ### 4.4 Articles et inventaire
 
 - Articles en **texte simple**, sans photo ni icône.
-- Certains articles sont **pré-remplis par défaut** pour tous les foyers (ex. lait, pain). Un foyer peut les renommer ou les modifier localement (ex. préciser une marque) **sans impacter les autres foyers** (mécanisme de « fork » par foyer).
-- **Nom d'article unique dans tout le foyer** (tous catégories confondues) — impossible de créer deux articles portant le même nom, même dans des catégories différentes. Cette unicité s'applique aussi face aux **articles par défaut non encore forkés** : si un article générique (ex. « Lait ») existe encore dans sa version par défaut pour ce foyer, il n'est pas possible d'en créer un second du même nom tant que le générique n'a pas été renommé.
+- Certains articles sont **pré-remplis par défaut** pour tous les foyers. **Le fork a lieu à la création du foyer** : les 10 articles par défaut sont automatiquement copiés dans l'inventaire du nouveau foyer, chacun avec sa propre quantité initiale (0) — pas de ligne partagée entre foyers, même temporairement. Un foyer peut ensuite renommer ou modifier sa copie (ex. préciser une marque) **sans jamais impacter les autres foyers**, puisqu'aucune ligne n'a jamais été commune. 10 articles au lancement, chacun pré-assigné à sa catégorie par défaut, injectés via le même seed SQL bilingue : Lait (Produits laitiers, litre), Pain (Féculents, unité), Œufs (Produits laitiers, unité), Tomates (Légumes, kg), Pommes (Fruits, kg), Poulet (Viandes et poissons, kg), Pâtes (Féculents, g), Café (Épicerie, g), Eau (Boissons, litre), Papier toilette (Hygiène, unité).
+- **Nom d'article unique dans tout le foyer** (tous catégories confondues) — impossible de créer deux articles portant le même nom, même dans des catégories différentes. Comme chaque foyer possède déjà sa propre copie de chaque article par défaut dès sa création, cette règle s'applique simplement entre les articles du foyer, sans cas particulier à gérer pour les articles par défaut.
 - **Unités disponibles** : kilogramme, gramme, litre, millilitre, unité — choisies via liste déroulante, jamais saisies librement.
   - kg / litre / unité : nombres entiers uniquement (pas de décimales), incrément de 1, jamais négatif.
   - gramme / millilitre : incrément de 100 via les boutons, mais saisie manuelle libre possible (ex. 150 g), toujours en entiers, jamais négatif.
@@ -103,31 +140,33 @@
 
 - Quand un article franchit son seuil (que ce soit par une modification ou dès la création d'un article), **seul le membre qui n'a pas fait l'action** reçoit la notification.
 - **Une seule notification par franchissement** de seuil — pas de répétition tant que l'article reste sous le seuil.
-- Canaux disponibles, au choix de chaque utilisateur : **notification push**, **badge** sur l'icône de l'application, ou les deux. **Pas d'option email.**
+- Canaux disponibles, au choix de chaque utilisateur : **notification push**, **badge de comptage au niveau OS** sur l'icône de l'application (le badge natif du système d'exploitation, pas un simple indicateur dans l'interface), **les deux simultanément**, ou **aucun** (désactivation complète possible). **Pas d'option email.**
 - **Rappel quotidien optionnel** à une heure choisie par l'utilisateur, qui ne se déclenche que s'il reste des articles en attente dans la liste de courses.
 
 ### 4.7 Historique
 
 - Écran séparé listant les **20 dernières actions** (modifications et suppressions d'articles et de catégories uniquement — les achats/réapprovisionnements n'y figurent pas, ils sont visibles directement via le compteur de chaque article).
-- Rotation automatique : la 21ᵉ action supprime la plus ancienne de la base de données.
-- Chaque entrée affiche : l'action, l'auteur, et un horodatage relatif.
+- Rotation automatique : la 21ᵉ action supprime la plus ancienne de la base de données, via un **trigger de base de données (`AFTER INSERT`)** plutôt qu'une logique applicative — garantit la cohérence même en cas d'écriture directe en base.
+- Chaque entrée affiche : l'**auteur**, l'**action**, l'**article concerné**, et un **horodatage relatif** — sans le détail des valeurs avant/après, pour rester lisible en un coup d'œil.
 
 ### 4.8 Droits et permissions
 
 - **Égalité totale** entre les deux membres du foyer — aucun rôle spécial, aucune hiérarchie.
 - **Un membre ne peut jamais retirer l'autre** du foyer (pour éviter d'aggraver un conflit de couple). Seul celui qui souhaite partir peut quitter le foyer, de son propre chef.
-- Si un membre quitte le foyer (volontairement ou par erreur), il **perd l'accès à l'inventaire** ; l'autre membre **garde tout intact**.
+- Si un membre quitte le foyer (volontairement ou par erreur), il **perd l'accès à l'inventaire** ; l'autre membre **garde tout intact**, sans limite de durée (rétention indéfinie).
+- **Confirmation avant de quitter** : un dialogue explicite s'affiche — « Vous perdrez l'accès à l'inventaire. L'autre membre garde toutes les données. » — avec les boutons Confirmer/Annuler.
 - Les autres risques inhérents à l'égalité totale (suppression accidentelle) sont volontairement laissés à la gestion du couple, sans mécanisme de médiation intégré. Les conflits d'édition simultanée sont gérés techniquement (voir 4.12).
 
 ### 4.9 Compte utilisateur
 
 - Modification du prénom/nom à tout moment, **indépendante** du nom du foyer.
 - **Suppression de compte** : suit la même logique que « quitter le foyer » (l'autre membre garde l'inventaire), avec une **période de rétention de 7 jours** avant effacement définitif des données personnelles, conformément au RGPD. Pendant ces 7 jours, l'utilisateur peut **annuler la suppression à tout moment** en se reconnectant, ce qui restaure immédiatement son compte.
+- **Implémentation** : suppression logique (`deleted_at` renseigné sur `USERS`) suivie d'une **tâche planifiée (cron)** qui procède à l'effacement définitif après 7 jours ; une reconnexion avant cette échéance réinitialise `deleted_at` et annule la suppression.
 
 ### 4.10 Localisation et apparence
 
-- Application disponible en **français et anglais**.
-- **Mode sombre** inclus.
+- Application disponible en **français et anglais**, avec une **couverture complète** : interface, messages d'erreur et de validation, et noms des articles/catégories par défaut (seedés bilingues dès la base) — pas seulement l'interface principale.
+- **Mode sombre** inclus, qui **suit le réglage du système d'exploitation** par défaut, avec possibilité pour l'utilisateur de le forcer manuellement depuis les réglages du compte.
 
 ### 4.11 Légal et conformité
 
@@ -136,9 +175,15 @@
 ### 4.12 Connectivité et résolution de conflits
 
 - **Hors-ligne = lecture seule.** Le service worker garde en cache le dernier état connu de l'inventaire : sans connexion, l'utilisateur peut consulter son inventaire et sa liste de courses, mais toute action (boutons plus/moins, cocher, ajouter, modifier, supprimer) est désactivée. Un bandeau discret indique « Hors connexion — lecture seule ».
-- **Micro-coupure pendant une action** : si la connexion tombe pendant qu'une action est en cours (ex. ajustement d'une quantité), cette action précise est mise en attente quelques secondes et renvoyée automatiquement dès le retour du réseau. Si la coupure se prolonge, le mode lecture seule prend le relais.
+- **Micro-coupure pendant une action** : si la connexion tombe pendant qu'une action est en cours (ex. ajustement d'une quantité), cette action est placée dans une **file d'attente persistée en IndexedDB** (survit à un rafraîchissement de page) et rejouée automatiquement au retour du réseau, avec un **backoff exponentiel** entre les tentatives. Si la coupure se prolonge, le mode lecture seule prend le relais.
+- **Reconnexion** : au retour du réseau, l'application effectue une **récupération silencieuse en arrière-plan** (pas de rechargement complet de la page) qui vide la file d'attente puis resynchronise l'état affiché.
 - **Écrans nécessitant une connexion active** (connexion/inscription, rejoindre un foyer) : un écran bloquant dédié s'affiche en l'absence de réseau, avec option de réessayer.
-- **Résolution de conflit d'édition simultanée** : politique du **dernier qui écrit gagne** (*last write wins*) — si les deux membres modifient le même article au même moment, la dernière écriture enregistrée dans la base de données l'emporte, sans fusion ni notification de conflit.
+- **Résolution de conflit d'édition simultanée** : politique du **dernier qui écrit gagne** (*last write wins*) — si les deux membres modifient le même article au même moment, la dernière écriture enregistrée dans la base de données l'emporte, sans fusion, et **totalement silencieux** : le membre dont la modification a été écrasée n'en est pas informé.
+
+### 4.13 Installation PWA
+
+- Un **bandeau d'installation personnalisé** (plutôt que de compter uniquement sur l'invite native du navigateur) apparaît à la **deuxième visite** de l'utilisateur.
+- **Dismissable** : l'utilisateur peut le fermer ; il **réapparaît après 2 visites supplémentaires** s'il a été fermé sans installation.
 
 ---
 
@@ -146,10 +191,12 @@
 
 ### Entités principales
 
-- **HOUSEHOLDS** : `id`, `name` (max. 50 caractères), `invite_code`, `created_at`
-- **USERS** : `id`, `household_id`, `first_name` (max. 50), `last_name` (max. 50), `email`, `auth_provider`, `notification_type`, `reminder_time`, `language`
-- **CATEGORIES** : `id`, `household_id` (null = catégorie par défaut), `name` (max. 50), `is_default`, `position`
-- **ITEMS** : `id`, `household_id` (null = article par défaut), `category_id`, `name` (max. 50, unique par foyer), `unit`, `quantity`, `threshold`, `last_modified_by`, `already_notified`, `updated_at`
+- **HOUSEHOLDS** : `id`, `name` (max. 50 caractères), `created_at`
+- **INVITATIONS** : `id`, `household_id`, `token_hash` (SHA-256 du token ; le token en clair n'est jamais stocké, seulement affiché une fois à la création), `status` (`pending`, `consumed`, `revoked`, `expired`), `expires_at` (24h après création), `created_at`, `revoked_at`
+- **USERS** : `id`, `household_id`, `first_name` (max. 50), `last_name` (max. 50), `email`, `auth_provider`, `notification_type`, `reminder_time`, `language`, `deleted_at` (soft-delete)
+- **CATEGORIES** : `id`, `household_id` (null = catégorie par défaut), `name` (max. 50), `is_default`, `position` (n'a de sens que pour les catégories personnalisées, déjà propres à un foyer ; l'ordre des catégories par défaut, partagées, passe par la table de jointure décrite ci-dessous)
+- **ITEM_TEMPLATES** (catalogue des articles par défaut, sans foyer ni quantité) : `id`, `name` (bilingue), `category_key` (référence vers la catégorie par défaut correspondante), `unit`, `suggested_threshold`
+- **ITEMS** : `id`, `household_id` (toujours renseigné — aucun article n'existe sans foyer propriétaire), `category_id`, `name` (max. 50, unique par foyer), `unit`, `quantity`, `threshold`, `last_modified_by`, `already_notified`, `updated_at`, `template_id` (nullable, référence vers `ITEM_TEMPLATES` à titre indicatif uniquement, sans effet fonctionnel)
 - **HISTORY** : `id`, `household_id`, `performed_by`, `action_type`, `item_name`, `performed_at`
 
 ### Relations
@@ -159,16 +206,18 @@
 
 ### Règles d'implémentation clés
 
-- **Fork par foyer** : toute modification d'un article par défaut crée une copie propre au foyer, sans jamais altérer l'original partagé (impossible pour les catégories, qui sont verrouillées).
-- **Ordre des catégories** : une table de jointure séparée (`household_id`, `category_id`, `position`) permet à chaque foyer d'avoir son propre ordre, y compris sur les catégories par défaut partagées.
+- **Fork à la création du foyer** : les 10 articles par défaut sont copiés depuis `ITEM_TEMPLATES` vers les `ITEMS` du foyer dès sa création (quantité initiale à 0, seuil repris du template `suggested_threshold`) — jamais de ligne partagée entre foyers, même temporairement. Modifier sa copie n'affecte donc jamais un autre foyer. Les catégories par défaut, elles, restent verrouillées et ne sont jamais copiées (impossible pour les catégories).
+- **Ordre des catégories** : pour les catégories personnalisées, la colonne `position` sur `CATEGORIES` suffit (chaque ligne appartient déjà à un seul foyer). Pour les **catégories par défaut** (partagées entre tous les foyers), l'ordre par foyer passe par une **table de jointure séparée** (`household_id`, `category_id`, `position`), puisqu'une même ligne `CATEGORIES` ne peut pas porter une position différente pour chaque foyer.
 - **Notification unique** : le champ `already_notified` sur `ITEMS` évite les alertes répétées tant que l'article reste sous le seuil ; il repasse à faux dès que le stock redépasse le seuil.
-- **Unicité du nom d'article** : contrainte unique sur (`household_id`, `name`) au niveau base de données, insensible à la casse — applicable également aux articles par défaut tant qu'ils n'ont pas été forkés par le foyer.
+- **Unicité du nom d'article** : contrainte unique sur (`household_id`, `name`) au niveau base de données, insensible à la casse. S'applique uniformément, puisque chaque article — y compris les copies issues de `ITEM_TEMPLATES` — appartient toujours à un foyer précis dès sa création.
 - **Unicité du nom de catégorie** : contrainte unique sur (`household_id`, `name`) pour les catégories personnalisées, insensible à la casse.
 - **Suppression de catégorie bloquée si non vide** : vérification applicative (et contrainte `ON DELETE RESTRICT` côté base) empêchant la suppression tant que des articles y sont rattachés.
+- **Seed des valeurs par défaut** : 10 catégories et 10 articles par défaut injectés via un script SQL bilingue codé en dur, exécuté une fois à l'initialisation de la base — pas de configuration éditable a posteriori.
+- **Rotation de l'historique** : appliquée par un **trigger `AFTER INSERT`** sur `HISTORY`, qui supprime la plus ancienne entrée du foyer dès que la 21ᵉ est insérée.
 - **Résolution de conflit** : `updated_at` mis à jour à chaque écriture ; la valeur la plus récente fait foi (last write wins), sans verrouillage optimiste en V1.
 - **Valeurs figées** :
   - `unit` : `kg`, `g`, `l`, `ml`, `unite`
-  - `notification_type` : `push`, `badge`, `both`
+  - `notification_type` : `push`, `badge`, `both`, `none`
   - `language` : `fr`, `en`
   - `action_type` : `modification`, `suppression`
   - `auth_provider` : `email`, `google`, `apple`
@@ -176,9 +225,10 @@
 ### Sécurité d'accès (Row Level Security)
 
 - Un utilisateur ne peut lire/modifier que les données dont le `household_id` correspond à son propre foyer.
-- Les catégories et articles par défaut sont lisibles par tous mais jamais modifiables directement ; toute tentative déclenche un fork.
+- Les catégories par défaut sont lisibles par tous mais jamais modifiables (verrouillées, sans exception). Les articles, eux, sont toujours des lignes propres à un foyer dès la création — aucune modification ne peut donc jamais toucher un autre foyer, puisqu'aucune ligne n'est partagée.
 - L'historique n'est visible que par les membres du foyer concerné.
-- La table `HOUSEHOLDS` elle-même (nom du foyer, code d'invitation) n'est lisible et modifiable que par ses propres membres — aucun autre utilisateur ne peut consulter le code d'invitation ou renommer un foyer auquel il n'appartient pas.
+- La table `HOUSEHOLDS` elle-même (nom du foyer) n'est lisible et modifiable que par ses propres membres.
+- La table `INVITATIONS` n'est jamais lue directement : elle n'est accessible qu'au travers des fonctions dédiées (`consume_household_invitation`, `revoke_household_invitation`), qui manipulent le `token_hash` sans jamais l'exposer.
 
 ### Robustesse de la synchronisation temps réel
 
@@ -186,14 +236,14 @@ Supabase Realtime peut manquer des événements pendant une coupure réseau ou u
 
 ### Sécurité applicative
 
-- **Code d'invitation** : limité à 5 tentatives erronées avant un blocage temporaire d'une minute, pour empêcher le brute-force ; expire aussi automatiquement après 24 heures.
+- **Code d'invitation** : token aléatoire de 8 caractères, dont seul le hachage SHA-256 (`token_hash`) est stocké ; limité à 5 tentatives erronées avant un blocage temporaire d'une minute ; `expires_at` fixé à 24h après création.
 - **Session utilisateur** : session longue durée avec renouvellement automatique tant que l'utilisateur ne se déconnecte pas explicitement (pas d'expiration courte, pour un usage fluide multi-quotidien).
 
 ### Comportement en cascade
 
 - Un foyer n'est jamais supprimé tant qu'il lui reste au moins un membre.
-- Si les deux membres ont quitté ou supprimé leur compte, le foyer devient orphelin : ses catégories personnalisées, articles forkés et historique sont supprimés automatiquement (`ON DELETE CASCADE`).
-- Les catégories et articles par défaut ne sont jamais affectés, puisqu'ils n'appartiennent à aucun foyer.
+- Si les deux membres ont quitté ou supprimé leur compte, le foyer devient orphelin : ses catégories personnalisées, tous ses articles (y compris les copies issues des articles par défaut) et son historique sont supprimés automatiquement (`ON DELETE CASCADE`).
+- Seuls le catalogue `ITEM_TEMPLATES` et les catégories par défaut ne sont jamais affectés par une suppression de foyer, puisqu'ils n'appartiennent à aucun foyer en particulier.
 
 ---
 
@@ -286,6 +336,8 @@ Les deux premières couvrent les scénarios de synchronisation temps réel et d'
 10. **Historique** : rotation correcte après 20 entrées (la 21ᵉ action supprime bien la plus ancienne).
 11. **Mode lecture seule hors-ligne** : couper le réseau simulé, vérifier que la consultation reste possible mais que toute action est bloquée.
 12. **Sécurité du code d'invitation** : blocage après 5 tentatives erronées.
+13. **Données de seed** : vérifier que les 10 catégories et 10 articles par défaut sont bien présents à la création d'un nouveau foyer, correctement traduits dans les deux langues.
+14. **Bandeau d'installation PWA** : apparaît à la 2ᵉ visite, disparaît si fermé, réapparaît après 2 visites supplémentaires.
 
 ### Note technique
 
@@ -322,7 +374,37 @@ Les scénarios mono-utilisateur (7 à 12) s'écrivent de façon classique, un se
 - **Vercel (gratuit)** : chaque Pull Request, `feature/*` comme `release/*`, génère automatiquement une URL de prévisualisation ; seule `master` déclenche un déploiement en production. Le forfait gratuit couvre ce workflow nativement, sans adaptation nécessaire.
 - **GitHub (gratuit)** : dépôts privés, branches et Pull Requests illimités. Seul point à surveiller : si la suite Playwright tourne en CI (GitHub Actions) à chaque push, le forfait gratuit inclut un quota mensuel de minutes d'exécution — large pour un projet à deux personnes, mais pas illimité.
 
-## 11. Points restant à traiter (hors produit)
+## 11. Réconciliation avec l'implémentation existante (grocery-tracker-web)
+
+Le projet ne part pas de zéro : un dépôt existant ([Naboulsi92/grocery-tracker-web](https://github.com/Naboulsi92/grocery-tracker-web), déployé sur `grocery-tracker-web-wine.vercel.app`) implémente déjà une bonne partie du produit — Next.js + Supabase, tables `households`/`household_members`/`profiles`/`invitations`, système d'invitation par token haché (SHA-256, statuts pending/consumed/revoked/expired), synchronisation temps réel avec debounce (300ms) et prévention des race conditions par ID de requête, ainsi qu'une suite de tests déjà mature (Jest, Playwright, contrat de sécurité SQL testé en CI).
+
+La décision est de **faire évoluer cette base existante** vers les décisions prises dans ce PRD, plutôt que de repartir de zéro. **Ce PRD fait autorité** : en cas de divergence avec le code, la documentation existante (`CONTEXT.md`, ADRs) ou les tickets déjà ouverts, c'est ce document qui tranche — le code doit être réconcilié vers le PRD, pas l'inverse. Ce qui suit documente les écarts identifiés et la façon de les résorber.
+
+### Écarts à corriger
+
+| Sujet | État actuel du code | Décision (PRD) | Action |
+|---|---|---|---|
+| Rôle owner | Un rôle `owner` existe et conditionne certaines actions (ex. `revoke_household_invitation` vérifie que l'appelant est owner) | Égalité totale, aucun rôle | Retirer les vérifications de rôle owner des fonctions et politiques RLS ; toute action devient accessible aux deux membres à égalité |
+| Taille du foyer | Aucune limite de membres | Maximum 2 personnes | Ajouter un contrôle dans `consume_household_invitation` : rejeter la consommation d'un token si le foyer a déjà 2 membres |
+| Articles par défaut | Chaque foyer a directement ses propres articles, sans modèle partagé | Articles génériques copiés automatiquement à la création du foyer (fork immédiat, jamais de ligne partagée) | Introduire une table `ITEM_TEMPLATES` et copier ses 10 lignes vers `ITEMS` à la création de chaque foyer (voir section 5) |
+| Unités de mesure | Définies librement par foyer | Liste fermée : kg, g, l, ml, unité | Contraindre la colonne `unit` à ces 5 valeurs (migration + validation applicative), avec migration des données existantes le cas échéant |
+| Expiration du code d'invitation | Un champ d'expiration existe déjà dans le modèle `invitations` | 24 heures | Vérifier/fixer `expires_at` à 24h dans la logique de création d'invitation |
+| Invalidation à 2 membres | Non geré (aucune limite de taille) | Code invalidé automatiquement une fois le foyer complet | Découle directement de l'ajout de la limite à 2 membres ci-dessus |
+
+**Bonne nouvelle sur le format du code** : le choix confirmé (token aléatoire de 8 caractères + hachage SHA-256) correspond exactement au système déjà en place dans le dépôt (table `invitations`, colonne `token_hash`) — ce n'est donc pas un écart à corriger, juste une confirmation que l'architecture existante était la bonne direction dès le départ.
+
+### Éléments existants à conserver tels quels
+
+- Le **système d'invitation par token haché** (SHA-256, statuts, une seule invitation vivante à la fois) est plus robuste que le simple "code régénérable" envisagé initialement dans le PRD — il est conservé et complété (24h, cap à 2 membres), pas remplacé.
+- Le **debounce de 300ms** et la **prévention des race conditions par ID de requête** sur la synchronisation temps réel sont de bonnes pratiques déjà en place, à documenter dans le modèle de données (section 5) plutôt qu'à réinventer.
+- L'infrastructure de tests existante (Jest, Playwright, contrat de sécurité SQL en CI) constitue une base solide pour la stratégie de tests de la section 8, à étendre plutôt qu'à remplacer.
+
+### Notes de sécurité déjà signalées dans le dépôt
+
+- La longueur minimale de mot de passe (8 caractères) est déjà appliquée à la fois côté Supabase Auth local et côté formulaire d'inscription.
+- La protection contre les mots de passe compromis ("leaked password protection") est une option Supabase Auth hébergée nécessitant le forfait Pro ou supérieur — non activable par migration, et non garantie activée sur l'environnement de production actuel. À vérifier manuellement dans le tableau de bord Supabase avant le lancement.
+
+## 12. Points restant à traiter (hors produit)
 
 - **Branding** : logo, identité visuelle, icônes de l'application.
 - **Contenu des emails transactionnels** : vérification de compte, réinitialisation de mot de passe.

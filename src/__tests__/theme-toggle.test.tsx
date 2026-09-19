@@ -1,6 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import ThemeToggle from '@/components/ThemeToggle';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
+
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ user: null }),
+}));
+jest.mock('@/utils/supabase/client', () => ({
+  createClient: () => ({}) as never,
+}));
 
 const matchMedia = jest.fn().mockImplementation(() => ({
   matches: false,
@@ -20,9 +28,11 @@ describe('ThemeToggle', () => {
 
   it('exposes its state and accessible action', () => {
     render(
-      <ThemeProvider>
-        <ThemeToggle />
-      </ThemeProvider>,
+      <LanguageProvider>
+        <ThemeProvider>
+          <ThemeToggle />
+        </ThemeProvider>
+      </LanguageProvider>,
     );
 
     const toggle = screen.getByRole('button', { name: 'Thème sombre' });
@@ -32,9 +42,11 @@ describe('ThemeToggle', () => {
 
   it('persists and applies the selected theme', () => {
     render(
-      <ThemeProvider>
-        <ThemeToggle />
-      </ThemeProvider>,
+      <LanguageProvider>
+        <ThemeProvider>
+          <ThemeToggle />
+        </ThemeProvider>
+      </LanguageProvider>,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Thème sombre' }));

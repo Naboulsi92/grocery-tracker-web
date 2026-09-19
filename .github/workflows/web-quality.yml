@@ -135,7 +135,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: blob-report-${{ matrix.shardIndex }}
-          path: blob-report-${{ matrix.shardIndex }}/
+          path: blob-report
           if-no-files-found: ignore
           retention-days: 1
 

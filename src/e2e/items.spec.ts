@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { deleteAllItems, deleteItemRow } from './helpers';
 import {
   e2eEnvironment,
   fixtureRequiredReason,
@@ -12,12 +13,30 @@ test.describe('Items CRUD', () => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await createHousehold(page, account);
 
+      const itemName = `Article E ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
-      await page.getByTestId('input-item-name').fill('');
+      await page.getByTestId('input-item-name').fill(itemName);
+
+      await page.route('**/rest/v1/items**', async (route) => {
+        if (route.request().method() === 'POST') {
+          await route.fulfill({
+            status: 403,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              code: '42501',
+              message: 'new row violates row-level security policy',
+              details: '',
+              hint: '',
+            }),
+          });
+        } else {
+          await route.continue();
+        }
+      });
       await page.getByTestId('btn-create-item').click();
 
-      await expect(page.getByRole('alert')).toBeVisible();
+      await expect(page.locator('.auth-error')).toBeVisible();
     });
 
     test('validates unit selection and display', async ({ page, account }) => {
@@ -51,7 +70,7 @@ test.describe('Items CRUD', () => {
       await createHousehold(page, account);
 
       const originalName = `Article ${randomUUID()}`;
-      const newName = `Article modifié ${randomUUID()}`;
+      const newName = `Renommé ${randomUUID()}`;
       
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -73,7 +92,7 @@ test.describe('Items CRUD', () => {
       await page.locator('.item-row').filter({ hasText: newName }).getByTestId(/^btn-delete-item-/).click();
     });
 
-    test('can edit item quantity (US 46)', async ({ page, account }) => {
+    test('can adjust item quantity via atomic buttons (US 46)', async ({ page, account }) => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await createHousehold(page, account);
 
@@ -81,18 +100,18 @@ test.describe('Items CRUD', () => {
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité').fill('5');
+      await page.getByLabel('Quantité', { exact: true }).fill('5');
       await page.getByTestId('btn-create-item').click();
-      
+
       const itemRow = page.locator('.item-row').filter({ hasText: itemName });
       await expect(itemRow.locator('.qty-value')).toContainText('5');
-      
-      await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
-      await page.getByLabel('Quantité').fill('10');
-      await page.getByTestId('btn-create-item').click();
-      
-      await expect(itemRow.locator('.qty-value')).toContainText('10');
-      
+
+      await itemRow.getByRole('button', { name: /Réduire la quantité/ }).click();
+      await expect(itemRow.locator('.qty-value')).toContainText('4');
+
+      await itemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await expect(itemRow.locator('.qty-value')).toContainText('5');
+
       page.once('dialog', (dialog) => dialog.accept());
       await itemRow.getByTestId(/^btn-delete-item-/).click();
     });
@@ -101,14 +120,15 @@ test.describe('Items CRUD', () => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await createHousehold(page, account);
 
-      const categoryName = `Catégorie test ${randomUUID()}`;
+      const categoryName = `Catégorie ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
       await page.getByTestId('input-category-name').fill(categoryName);
       await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
-      const itemName = `Article catégorie ${randomUUID()}`;
+      const itemName = `Article cat ${randomUUID()}`;
+      await page.goto('/home');
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
@@ -120,13 +140,15 @@ test.describe('Items CRUD', () => {
       await page.locator('#item-category').selectOption({ label: categoryName });
       await page.getByTestId('btn-create-item').click();
       
-      await expect(page.locator('.item-row').filter({ hasText: categoryName })).toBeVisible();
-      
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
+      const itemGroupHeader = page.locator('h3').filter({ hasText: categoryName });
+      await expect(itemGroupHeader).toBeVisible();
+
+      await deleteItemRow(page, page.locator('.item-row').filter({ hasText: itemName }));
+      await page.goto('/home');
       await page.getByTestId('dashboard-card-categories').click();
-      page.once('dialog', (dialog) => dialog.accept());
+      const deleteCategoryDialog = page.waitForEvent('dialog');
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+      await (await deleteCategoryDialog).accept();
     });
 
     test('can edit low stock threshold (US 48)', async ({ page, account }) => {
@@ -137,7 +159,7 @@ test.describe('Items CRUD', () => {
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité').fill('3');
+      await page.getByLabel('Quantité', { exact: true }).fill('3');
       await page.getByLabel('Seuil stock bas').fill('5');
       await page.getByTestId('btn-create-item').click();
       
@@ -166,7 +188,7 @@ test.describe('Items CRUD', () => {
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité').fill('2');
+      await page.getByLabel('Quantité', { exact: true }).fill('2');
       await page.getByTestId('btn-create-item').click();
       
       const itemRow = page.locator('.item-row').filter({ hasText: itemName });
@@ -190,7 +212,7 @@ test.describe('Items CRUD', () => {
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité').fill('5');
+      await page.getByLabel('Quantité', { exact: true }).fill('5');
       await page.getByTestId('btn-create-item').click();
       
       const itemRow = page.locator('.item-row').filter({ hasText: itemName });
@@ -214,7 +236,7 @@ test.describe('Items CRUD', () => {
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité').fill('1');
+      await page.getByLabel('Quantité', { exact: true }).fill('1');
       await page.getByTestId('btn-create-item').click();
       
       const itemRow = page.locator('.item-row').filter({ hasText: itemName });
@@ -239,11 +261,16 @@ test.describe('Items CRUD', () => {
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
-      
-      await expect(page.locator('.empty-state')).toBeVisible();
-      await expect(page.locator('.empty-state')).toContainText('Aucun article');
-      await expect(page.locator('.empty-state')).toContainText('Ajoutez votre premier article');
-      await expect(page.getByTestId('btn-new-item')).toBeVisible();
+      await expect(page.getByTestId('btn-new-item')).toBeVisible({ timeout: 10000 });
+      await deleteAllItems(page);
+
+      const emptyState = page.locator('.empty-state');
+      await expect(emptyState).toBeVisible();
+      await expect(emptyState).toContainText('Aucun article');
+      await expect(emptyState).toContainText('Ajoutez votre premier article');
+      const ctaButton = page.getByTestId('btn-new-item');
+      await expect(ctaButton).toBeVisible();
+      await expect(ctaButton).toBeEnabled();
     });
   });
 
@@ -252,25 +279,35 @@ test.describe('Items CRUD', () => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await createHousehold(page, account);
 
-      const itemName = `Article erreur ${randomUUID()}`;
+      const itemName = `Article E ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      page.on('dialog', async (dialog) => {
-        await dialog.accept();
+      await page.route('**/rest/v1/items**', async (route) => {
+        if (route.request().method() === 'DELETE') {
+          await route.fulfill({
+            status: 403,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              code: '42501',
+              message: 'new row violates row-level security policy',
+              details: '',
+              hint: '',
+            }),
+          });
+        } else {
+          await route.continue();
+        }
       });
-      
-      await page.evaluate(() => {
-        (window as unknown as { __supabaseError?: boolean }).__supabaseError = true;
-      });
-      
+
+      page.once('dialog', (dialog) => dialog.accept());
       const itemRow = page.locator('.item-row').filter({ hasText: itemName });
       await itemRow.getByTestId(/^btn-delete-item-/).click();
-      
-      await expect(page.getByRole('alert')).toBeVisible();
+
+      await expect(page.locator('.auth-error')).toBeVisible();
     });
   });
 
@@ -279,7 +316,7 @@ test.describe('Items CRUD', () => {
       test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
       const householdName = await createHousehold(page, account);
 
-      const itemName = `Article realtime ${randomUUID()}`;
+      const itemName = `Article rt ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
@@ -327,7 +364,7 @@ test.describe('Items CRUD', () => {
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité').fill('2');
+      await page.getByLabel('Quantité', { exact: true }).fill('2');
       await page.getByLabel('Seuil stock bas').fill('2');
       await page.getByTestId('btn-create-item').click();
       

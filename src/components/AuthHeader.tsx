@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import { BrandIcon } from '@/components/BrandIcon';
 
 interface AuthHeaderProps {
@@ -13,6 +14,7 @@ interface AuthHeaderProps {
 
 export function AuthHeader({ showBackHome = false, showSignOut = false, title, subtitle }: AuthHeaderProps) {
   const { user, signOut } = useAuth();
+  const { t } = useI18n();
 
   return (
     <div className="auth-header">
@@ -21,7 +23,7 @@ export function AuthHeader({ showBackHome = false, showSignOut = false, title, s
           <Link
             href="/"
             className="back-home-link"
-            aria-label="Retour à l'accueil"
+            aria-label={t('auth.back_home')}
             data-testid="back-home-link"
           >
             <svg
@@ -39,22 +41,22 @@ export function AuthHeader({ showBackHome = false, showSignOut = false, title, s
               <line x1="19" y1="12" x2="5" y2="12" />
               <polyline points="12 19 5 12 12 5" />
             </svg>
-            <span>Accueil</span>
+            <span>{t('auth.home')}</span>
           </Link>
         )}
         <div className="auth-icon">
           <BrandIcon size={32} />
         </div>
         <div className="auth-title">
-          <h1>{title || (user ? 'Bienvenue' : 'Connexion')}</h1>
-          <p className="text-muted">{subtitle || 'Accédez à votre liste de courses'}</p>
+          <h1>{title || (user ? t('auth.welcome') : t('auth.default_title'))}</h1>
+          <p className="text-muted">{subtitle || t('auth.default_subtitle')}</p>
         </div>
       </div>
       {showSignOut && user && (
         <button
           onClick={signOut}
           className="btn btn-ghost"
-          aria-label="Déconnexion"
+          aria-label={t('auth.sign_out')}
         >
           <svg
             aria-hidden="true"
@@ -72,7 +74,7 @@ export function AuthHeader({ showBackHome = false, showSignOut = false, title, s
             <polyline points="16 17 21 12 16 7" />
             <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
-          <span>Déconnexion</span>
+          <span>{t('auth.sign_out')}</span>
         </button>
       )}
     </div>

@@ -6,6 +6,8 @@ import { e2eEnvironment } from './environment';
 type Account = {
   email: string;
   password: string;
+  firstName: string;
+  lastName: string;
 };
 
 type LocalFixtures = {
@@ -19,6 +21,8 @@ export function createAccount(prefix = 'e2e'): Account {
   return {
     email: `${prefix}-${id}${String.fromCharCode(64)}example.test`,
     password: ['Local', 'e2e', id].join('-'),
+    firstName: `Camille-${id.slice(0, 8)}`,
+    lastName: 'E2E',
   };
 }
 
@@ -76,6 +80,8 @@ export async function signUp(page: Page, account: Account) {
   await page.getByLabel('Confirmer le mot de passe').fill(account.password);
   await page.getByRole('button', { name: "S'inscrire" }).click();
   await page.waitForURL('/join-household', { timeout: 20000 });
+  await page.getByTestId('onboarding-first-name-input').fill(account.firstName);
+  await page.getByTestId('onboarding-last-name-input').fill(account.lastName);
 }
 
 export async function createHousehold(page: Page, account: Account) {

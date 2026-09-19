@@ -19,36 +19,36 @@ test.describe('Homepage', () => {
   });
 
   test('Hero section renders with expected content', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Collaborative grocery lists');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Des listes de courses collaboratives');
     // Use data-testid to avoid strict mode violation: 'for households' appears twice in the DOM
     // (once in H1, once in the hero note below CTAs)
     await expect(page.getByTestId('hero-households-text')).toBeVisible();
-    await expect(page.locator('#hero').getByRole('link', { name: 'Get Started', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Learn More/ })).toBeVisible();
+    await expect(page.locator('#hero').getByRole('link', { name: 'Commencer', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /En savoir plus/ })).toBeVisible();
   });
 
   test('Features section renders', async ({ page }) => {
     const featuresSection = page.locator('#features');
     await expect(featuresSection).toBeVisible();
-    await expect(featuresSection.getByRole('heading', { name: /Everything you need for shared shopping/i })).toBeVisible();
+    await expect(featuresSection.getByRole('heading', { name: /Tout ce qu'il faut pour les courses en commun/i })).toBeVisible();
   });
 
   test('How It Works section renders', async ({ page }) => {
     const howItWorksSection = page.locator('#how-it-works');
     await expect(howItWorksSection).toBeVisible();
-    await expect(howItWorksSection.getByRole('heading', { name: /How It Works/i })).toBeVisible();
+    await expect(howItWorksSection.getByRole('heading', { name: /Comment ça marche/i })).toBeVisible();
   });
 
   test('FAQ section renders', async ({ page }) => {
     const faqSection = page.locator('#faq');
     await expect(faqSection).toBeVisible();
-    await expect(faqSection.getByRole('heading', { name: /Frequently Asked Questions/i })).toBeVisible();
+    await expect(faqSection.getByRole('heading', { name: /Questions fréquentes/i })).toBeVisible();
   });
 
   test('CTA section renders', async ({ page }) => {
     const ctaSection = page.locator('#cta');
     await expect(ctaSection).toBeVisible();
-    await expect(ctaSection.getByText(/Ready to simplify your shopping/i)).toBeVisible();
+    await expect(ctaSection.getByText(/Prêt à simplifier vos courses/i)).toBeVisible();
   });
 
   test('navigation links work - Signup button in header', async ({ page }) => {
@@ -74,7 +74,7 @@ test.describe('Homepage', () => {
   });
 
   test('scroll to section functionality works - Learn More button', async ({ page }) => {
-    const learnMoreButton = page.getByRole('button', { name: /Learn More/i });
+    const learnMoreButton = page.getByRole('button', { name: /En savoir plus/i });
     await learnMoreButton.click();
     
     const featuresSection = page.locator('#features');
@@ -82,7 +82,7 @@ test.describe('Homepage', () => {
   });
 
   test('Get Started button navigates to signup', async ({ page }) => {
-    const getStartedButton = page.locator('#hero').getByRole('link', { name: 'Get Started', exact: true });
+    const getStartedButton = page.locator('#hero').getByRole('link', { name: 'Commencer', exact: true });
     await getStartedButton.click();
     await expect(page).toHaveURL('/signup');
   });
@@ -177,7 +177,7 @@ test.describe('Homepage', () => {
       const mobileMenuButton = page.locator('button').filter({ hasText: '' }).first();
       await expect(mobileMenuButton).toBeVisible();
       
-      await page.locator('#hero').getByRole('link', { name: 'Get Started', exact: true }).click();
+      await page.locator('#hero').getByRole('link', { name: 'Commencer', exact: true }).click();
       await expect(page).toHaveURL('/signup');
     });
 

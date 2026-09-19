@@ -3,6 +3,7 @@ import { Features } from '@/components/marketing/Features';
 import { HowItWorks } from '@/components/marketing/HowItWorks';
 import { FAQ } from '@/components/marketing/FAQ';
 import { CTA } from '@/components/marketing/CTA';
+import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 
 export default function HomePage() {
   return (
@@ -14,6 +15,7 @@ export default function HomePage() {
       <HowItWorks />
       <FAQ />
       <CTA />
+      <PwaInstallBanner />
     </>
   );
 }

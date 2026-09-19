@@ -1,9 +1,14 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import MembersPage from '@/app/members/page';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { createClient } from '@/utils/supabase/client';
 
 const writeText = jest.fn();
 const rpc = jest.fn();
+
+function renderWithLanguage(ui: React.ReactElement) {
+  return render(<LanguageProvider>{ui}</LanguageProvider>);
+}
 
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'owner-1' }, householdId: 'household-1' }),
@@ -47,8 +52,8 @@ describe('MembersPage', () => {
     });
     const profiles = query({
       data: [
-        { id: 'owner-1', display_name: 'Alex' },
-        { id: 'member-2', display_name: 'Sam' },
+        { id: 'owner-1', first_name: 'Alex', last_name: 'Dupont' },
+        { id: 'member-2', first_name: 'Sam', last_name: 'Smith' },
       ],
       error: null,
     });
@@ -61,11 +66,11 @@ describe('MembersPage', () => {
   });
 
   it('loads the household and exposes members through accessible content', async () => {
-    render(<MembersPage />);
+    renderWithLanguage(<MembersPage />);
 
     expect(await screen.findByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
-    expect(screen.getByText('Alex')).toBeVisible();
-    expect(screen.getByText('Sam')).toBeVisible();
+    expect(screen.getByText('Alex Dupont')).toBeVisible();
+    expect(screen.getByText('Sam Smith')).toBeVisible();
     expect(screen.getByText(/Propriétaire/)).toBeVisible();
     expect(screen.getByText('Membre', { exact: true })).toBeVisible();
     expect(screen.getByText('Vous')).toBeVisible();
@@ -80,7 +85,24 @@ describe('MembersPage', () => {
     rpc
       .mockResolvedValueOnce({ data: [invitation], error: null })
       .mockResolvedValueOnce({ data: true, error: null });
-    render(<MembersPage />);
+
+    const household = query({ data: { id: 'household-1', name: 'Foyer des tests' }, error: null });
+    const memberships = query({
+      data: [{ user_id: 'owner-1', role: 'owner', joined_at: '2026-08-30T12:00:00Z' }],
+      error: null,
+    });
+    const profiles = query({
+      data: [{ id: 'owner-1', first_name: 'Alex', last_name: 'Dupont' }],
+      error: null,
+    });
+    const from = jest.fn((table: string) => {
+      if (table === 'households') return household;
+      if (table === 'household_members') return memberships;
+      return profiles;
+    });
+    jest.mocked(createClient).mockReturnValue({ from, rpc } as never);
+
+    renderWithLanguage(<MembersPage />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Créer une invitation' }));
     expect(await screen.findByText(invitation.token)).toBeVisible();
@@ -99,11 +121,11 @@ describe('MembersPage', () => {
     const memberships = query({ data: [], error: null });
     const from = jest.fn((table: string) => table === 'households' ? failedHousehold : memberships);
     jest.mocked(createClient).mockReturnValue({ from, rpc } as never);
-    render(<MembersPage />);
+    renderWithLanguage(<MembersPage />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Impossible de charger le foyer. Vous pouvez réessayer.');
     expect(screen.getByRole('alert')).not.toHaveTextContent('service indisponible');
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
-    await waitFor(() => expect(from).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(from).toHaveBeenCalledTimes(5));
   });
 });

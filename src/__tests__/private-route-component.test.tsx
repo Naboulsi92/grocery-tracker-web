@@ -1,16 +1,24 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { PrivateRoute } from '@/components/PrivateRoute';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { useAuth, type PrivateAccess, type User } from '@/contexts/AuthContext';
 
 const replace = jest.fn();
 const retryHousehold = jest.fn();
 let access: PrivateAccess;
 
+function renderPrivateRoute(children: React.ReactElement) {
+  return render(<LanguageProvider>{children}</LanguageProvider>);
+}
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
 }));
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
+}));
+jest.mock('@/utils/supabase/client', () => ({
+  createClient: () => ({}) as never,
 }));
 jest.mock('@/components/ThemeToggle', () => function ThemeToggle() {
   return <button type="button">Thème</button>;
@@ -28,7 +36,7 @@ describe('PrivateRoute', () => {
   });
 
   it('announces loading without rendering private content', () => {
-    render(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    renderPrivateRoute(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
 
     expect(screen.getByRole('status')).toHaveTextContent('Chargement...');
     expect(screen.queryByText('Contenu privé')).not.toBeInTheDocument();
@@ -37,22 +45,22 @@ describe('PrivateRoute', () => {
 
   it('redirects an anonymous user to login', async () => {
     access = { status: 'anonymous' };
-    render(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    renderPrivateRoute(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/login'));
   });
 
   it('rechecks a missing membership once before redirecting to onboarding', async () => {
     access = { status: 'no-household', user: testUser };
-    const view = render(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    const view = renderPrivateRoute(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
 
     await waitFor(() => expect(retryHousehold).toHaveBeenCalledTimes(1));
     expect(replace).not.toHaveBeenCalled();
 
     access = { status: 'loading' };
-    view.rerender(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    view.rerender(<LanguageProvider><PrivateRoute><p>Contenu privé</p></PrivateRoute></LanguageProvider>);
     access = { status: 'no-household', user: testUser };
-    view.rerender(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    view.rerender(<LanguageProvider><PrivateRoute><p>Contenu privé</p></PrivateRoute></LanguageProvider>);
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/join-household'));
     expect(retryHousehold).toHaveBeenCalledTimes(1);
@@ -60,7 +68,7 @@ describe('PrivateRoute', () => {
 
   it('shows a recoverable error and retries membership resolution', () => {
     access = { status: 'error', user: testUser, error: new Error('hors ligne') };
-    render(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    renderPrivateRoute(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
 
     expect(screen.getByRole('alert')).toHaveTextContent('Impossible de vérifier votre foyer. Vous pouvez réessayer.');
     expect(screen.getByRole('alert')).not.toHaveTextContent('hors ligne');
@@ -70,7 +78,7 @@ describe('PrivateRoute', () => {
 
   it('renders children only for a validated household member', () => {
     access = { status: 'member', user: testUser, householdId: 'home-1' };
-    render(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    renderPrivateRoute(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
 
     expect(screen.getByText('Contenu privé')).toBeVisible();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -78,14 +86,14 @@ describe('PrivateRoute', () => {
 
   it('keeps children mounted during background re-resolution (member -> loading -> member)', () => {
     access = { status: 'member', user: testUser, householdId: 'home-1' };
-    const view = render(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    const view = renderPrivateRoute(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
 
     expect(screen.getByText('Contenu privé')).toBeVisible();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
     // Simulate background re-resolution: access becomes loading
     access = { status: 'loading' };
-    view.rerender(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    view.rerender(<LanguageProvider><PrivateRoute><p>Contenu privé</p></PrivateRoute></LanguageProvider>);
 
     // Children should stay mounted
     expect(screen.getByText('Contenu privé')).toBeVisible();
@@ -93,7 +101,7 @@ describe('PrivateRoute', () => {
 
     // Access resolves back to member
     access = { status: 'member', user: testUser, householdId: 'home-1' };
-    view.rerender(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    view.rerender(<LanguageProvider><PrivateRoute><p>Contenu privé</p></PrivateRoute></LanguageProvider>);
 
     expect(screen.getByText('Contenu privé')).toBeVisible();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -101,7 +109,7 @@ describe('PrivateRoute', () => {
 
   it('shows loading on initial load before any member access', () => {
     access = { status: 'loading' };
-    render(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    renderPrivateRoute(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
 
     expect(screen.getByRole('status')).toHaveTextContent('Chargement...');
     expect(screen.queryByText('Contenu privé')).not.toBeInTheDocument();
@@ -109,16 +117,16 @@ describe('PrivateRoute', () => {
 
   it('unmounts children when background re-resolution results in no-household', () => {
     access = { status: 'member', user: testUser, householdId: 'home-1' };
-    const view = render(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    const view = renderPrivateRoute(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
 
     expect(screen.getByText('Contenu privé')).toBeVisible();
 
     // Simulate background re-resolution resulting in no-household
     access = { status: 'loading' };
-    view.rerender(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    view.rerender(<LanguageProvider><PrivateRoute><p>Contenu privé</p></PrivateRoute></LanguageProvider>);
 
     access = { status: 'no-household', user: testUser };
-    view.rerender(<PrivateRoute><p>Contenu privé</p></PrivateRoute>);
+    view.rerender(<LanguageProvider><PrivateRoute><p>Contenu privé</p></PrivateRoute></LanguageProvider>);
 
     // Children should be unmounted, loading/error shown
     expect(screen.queryByText('Contenu privé')).not.toBeInTheDocument();

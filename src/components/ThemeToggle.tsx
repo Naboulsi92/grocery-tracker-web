@@ -1,21 +1,23 @@
 'use client';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import { useI18n } from '@/contexts/LanguageContext';
 
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
-  const nextTheme = theme === 'dark' ? 'clair' : 'sombre';
+  const { t } = useI18n();
+  const isDark = theme === 'dark';
 
   return (
     <button
       onClick={toggleTheme}
       className="theme-toggle"
       type="button"
-      aria-label="Thème sombre"
-      aria-pressed={theme === 'dark'}
-      title={`Activer le thème ${nextTheme}`}
+      aria-label={t('theme.aria_dark')}
+      aria-pressed={isDark}
+      title={t(isDark ? 'theme.enable_light' : 'theme.enable_dark')}
     >
-      {theme === 'dark' ? (
+      {isDark ? (
         <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="5"/>
           <line x1="12" y1="1" x2="12" y2="3"/>

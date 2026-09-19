@@ -169,7 +169,7 @@
   "time.days_ago": "{count} d ago",
   "members.invitation": "Invitation",
   "members.full": "Household full — 2/2 members",
-  "members.invite_hint": "Create a single-use code, valid for seven days. The full code is only shown here.",
+  "members.invite_hint": "Create a single-use code, valid for 24 hours. The full code is only shown here.",
   "members.create_invitation": "Create an invitation",
   "members.creating": "Creating...",
   "members.copied_aria": "Full invitation code copied to the clipboard",

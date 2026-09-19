@@ -45,6 +45,20 @@ begin
 end;
 $$;
 
+-- Ticket #106 (PRD v1.4 §5): household_invitations is function-only
+-- (consume/revoke/get RPCs). Zero direct policies; RLS stays enabled with no
+-- grants, so any direct SELECT raises insufficient_privilege.
+do $$
+begin
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'household_invitations'
+  ) then
+    raise exception 'household_invitations must have zero policies (function-only)';
+  end if;
+end;
+$$;
+
 do $$
 declare
   function_signature text;

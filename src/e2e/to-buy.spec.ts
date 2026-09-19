@@ -156,12 +156,28 @@ test.describe('To-Buy Page', () => {
   });
 
   test('shows loading state while data is being fetched', async ({ page }) => {
+    // TEMPORARY [DEBUG-tobuy] probe — keep for one CI cycle, then remove.
+    page.on('request', (request) => {
+      if (request.url().includes('/rest/v1/')) {
+        console.log('[DEBUG-tobuy-req]', request.method(), request.url());
+      }
+    });
+    page.on('requestfailed', (request) => {
+      if (request.url().includes('/rest/v1/')) {
+        console.log('[DEBUG-tobuy-failed]', request.method(), request.url(), request.failure()?.errorText ?? 'unknown');
+      }
+    });
+    let tobuyRouteHits = 0;
     await page.route('**/rest/v1/items**', async (route) => {
+      tobuyRouteHits += 1;
+      console.log('[DEBUG-tobuy-route-hit]', tobuyRouteHits, route.request().method(), route.request().url());
       await new Promise((resolve) => setTimeout(resolve, 1000));
       await route.continue();
     });
 
     await page.goto('/to-buy');
+    console.log('[DEBUG-tobuy-sw]', await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL ?? 'none'));
+    console.log('[DEBUG-tobuy-route-total]', tobuyRouteHits);
     await expect(page.getByRole('status', { name: 'Chargement...' })).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('heading', { name: 'À acheter' })).toBeVisible();
   });

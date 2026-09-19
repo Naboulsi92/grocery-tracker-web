@@ -110,6 +110,7 @@ test.describe('Real-time Collaboration', () => {
       await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
       const itemName = `Article cat ${randomUUID()}`;
+      await page.goto('/home');
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
@@ -148,6 +149,7 @@ test.describe('Real-time Collaboration', () => {
       const deleteItemDialog = page.waitForEvent('dialog');
       await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
       await (await deleteItemDialog).accept();
+      await page.goto('/home');
       await page.getByTestId('dashboard-card-categories').click();
       const deleteCategoryDialog = page.waitForEvent('dialog');
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
@@ -169,6 +171,7 @@ test.describe('Real-time Collaboration', () => {
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
+      await page.goto('/home');
       await page.getByTestId('dashboard-card-to-buy').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
@@ -190,17 +193,20 @@ test.describe('Real-time Collaboration', () => {
         await secondPage.getByTestId('dashboard-card-to-buy').click();
         await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
+        await secondPage.goto('/home');
         await secondPage.getByTestId('dashboard-card-items').click();
         const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
         await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
         await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
 
+        await page.goto('/home');
         await page.getByTestId('dashboard-card-to-buy').click();
         await expect(page.getByText(itemName)).not.toBeVisible({ timeout: 10000 });
       }
 
       await secondContext.close();
 
+      await page.goto('/items');
       page.once('dialog', (dialog) => dialog.accept());
       await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
     });

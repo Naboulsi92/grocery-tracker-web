@@ -139,6 +139,7 @@ test.describe('Items CRUD', () => {
       await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
       const itemName = `Article cat ${randomUUID()}`;
+      await page.goto('/home');
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);
@@ -156,6 +157,7 @@ test.describe('Items CRUD', () => {
       const deleteItemDialog = page.waitForEvent('dialog');
       await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
       await (await deleteItemDialog).accept();
+      await page.goto('/home');
       await page.getByTestId('dashboard-card-categories').click();
       const deleteCategoryDialog = page.waitForEvent('dialog');
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();

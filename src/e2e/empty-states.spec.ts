@@ -154,7 +154,7 @@ test.describe('Empty States', () => {
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      await page.getByRole('link', { name: /À acheter/ }).click();
+      await page.goto('/to-buy');
 
       const successState = page.locator('.empty-state, .success-state, .all-stocked');
       await expect(successState).toBeVisible();
@@ -178,7 +178,7 @@ test.describe('Empty States', () => {
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      await page.getByRole('link', { name: /À acheter/ }).click();
+      await page.goto('/to-buy');
 
       await expect(page.getByText(itemName)).toBeVisible();
       await expect(page.getByText('À acheter')).toBeVisible();

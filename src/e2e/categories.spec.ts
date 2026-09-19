@@ -83,14 +83,16 @@ test.describe('Categories CRUD', () => {
       await expect(defaultSection.locator('.category-card').filter({ hasText: 'Légumes' }).locator('.category-icon')).toContainText('🥬');
       await expect(defaultSection.locator('.category-card').filter({ hasText: 'Fruits' }).locator('.category-icon')).toContainText('🍎');
 
-      const customSection = page.locator('[data-testid="category-section-custom"]');
-      await expect(customSection).toBeVisible();
-
       const categoryName = `Ma catégorie ${randomUUID()}`;
       await page.getByTestId('btn-new-category').click();
       await page.getByTestId('input-category-name').fill(categoryName);
       await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
+
+      // The custom section only renders once at least one custom category
+      // exists, so it can only be asserted after creating one.
+      const customSection = page.locator('[data-testid="category-section-custom"]');
+      await expect(customSection).toBeVisible();
 
       const categoryCard = customSection.locator('.category-card').filter({ hasText: categoryName });
       await expect(categoryCard.locator('.category-icon')).toContainText('📦');

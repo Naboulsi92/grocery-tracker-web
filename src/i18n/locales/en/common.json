@@ -186,7 +186,7 @@
   "household.members_title": "Household members ({count})",
   "household.invitation": "Invitation",
   "household.full": "Household full — 2/2 members",
-  "household.invite_hint": "Create a single-use code to invite a member.",
+  "household.invite_hint": "Create a single-use code, valid for 24 hours. The full code is only shown here.",
   "household.generate": "Generate a code",
   "household.regenerate": "Regenerate",
   "household.leave_section": "Leave household",

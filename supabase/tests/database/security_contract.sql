@@ -35,10 +35,14 @@ end;
 $$;
 
 -- Ticket #106 iteration 2, condition 1 (preuve convergence): no PUBLIC surface.
--- Zero policies targeting the PUBLIC role, zero bare WITH CHECK (true), and
--- zero table grants (SELECT/INSERT/UPDATE/DELETE) for anon AND for the PUBLIC
--- pseudo-role on every public table (migration REVOKE ALL FROM PUBLIC).
--- Function EXECUTE anon=false / public=false is asserted in the RPC grant loop below.
+-- Zero policies targeting the PUBLIC role, zero policies targeting anon, zero
+-- bare WITH CHECK (true), and zero table grants (SELECT/INSERT/UPDATE/DELETE)
+-- for anon AND for the PUBLIC pseudo-role on every public table (migration
+-- REVOKE ALL FROM PUBLIC). Function EXECUTE anon=false / public=false is
+-- asserted in the RPC grant loop below. Anon perimeter: the pg_policies
+-- 'anon' = ANY(roles) assert is the symmetric pendant of the PUBLIC one —
+-- canonical policies are all TO authenticated, so any anon-targeted policy
+-- (legacy or divergent prod) fails here and is purged by the migration loop.
 do $$
 declare
   convergence_table text;
@@ -49,6 +53,12 @@ begin
     where schemaname = 'public' and 'public' = any (roles)
   ) then
     raise exception 'a policy still targets PUBLIC (expected TO authenticated only)';
+  end if;
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and 'anon' = any (roles)
+  ) then
+    raise exception 'a policy still targets anon (expected TO authenticated only)';
   end if;
   if exists (
     select 1 from pg_policies
@@ -757,6 +767,119 @@ begin
   end;
 end;
 $$;
+
+-- Ticket #106 iteration 4, C2 (PRD §5: 5 essais / 1 minute): lockout prouvé
+-- sur foyer NON-PLEIN (1/2). Chemin connu-invalide (invitation révoquée) 5x
+-- -> 22023 à chaque fois puis blocked_until setté -> 6e tentative P0001
+-- 'temporarily locked' -> une invitation live fraîche reste consommable
+-- (lockout par invitation, pas par foyer) et son succès reset
+-- failed_attempts à 0 / blocked_until à NULL. La migration n'est pas touchée
+-- (contrat seul) sauf bug avéré.
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+values
+  ('00000000-0000-4000-8000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lockowner@example.test', '', now(), now()),
+  ('00000000-0000-4000-8000-000000000008', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lockjoiner@example.test', '', now(), now());
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000007', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.create_household('Lockout household') as lock_household_id \gset
+select * from public.create_household_invitation(:'lock_household_id'::uuid, interval '1 day') \gset lock_
+select public.revoke_household_invitation(:'lock_invitation_id'::uuid) as lock_revoked_ok \gset
+reset role;
+select set_config('test.lock_household_id', :'lock_household_id', true);
+select set_config('test.lock_id', :'lock_invitation_id', true);
+select set_config('test.lock_token', :'lock_token', true);
+select set_config('test.lock_revoked_ok', :'lock_revoked_ok', true);
+do $$
+begin
+  if not current_setting('test.lock_revoked_ok')::boolean then
+    raise exception 'lockout fixture could not revoke the invitation';
+  end if;
+end;
+$$;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000008', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+declare i int;
+begin
+  for i in 1..5 loop
+    begin
+      perform public.consume_household_invitation(current_setting('test.lock_token'));
+      raise exception 'revoked invitation unexpectedly consumed on attempt %', i;
+    exception when sqlstate '22023' then null;
+    end;
+  end loop;
+end;
+$$;
+reset role;
+do $$
+begin
+  if not exists (
+    select 1 from public.household_invitations
+    where id = current_setting('test.lock_id')::uuid
+      and failed_attempts >= 5
+      and blocked_until is not null
+      and blocked_until > now()
+  ) then raise exception 'lockout not armed after 5 attempts (failed_attempts/blocked_until)'; end if;
+end;
+$$;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000008', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+begin
+  begin
+    perform public.consume_household_invitation(current_setting('test.lock_token'));
+    raise exception 'locked invitation unexpectedly consumed on 6th attempt';
+  exception when sqlstate 'P0001' then
+    if position('temporarily locked' in sqlerrm) = 0 then
+      raise exception 'wrong P0001 message for lockout: %', sqlerrm;
+    end if;
+  end;
+end;
+$$;
+reset role;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000007', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select * from public.create_household_invitation(current_setting('test.lock_household_id')::uuid, interval '1 day') \gset lockvalid_
+reset role;
+select set_config('test.lockvalid_token', :'lockvalid_token', true);
+select set_config('test.lockvalid_id', :'lockvalid_invitation_id', true);
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000008', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.consume_household_invitation(current_setting('test.lockvalid_token')) as lock_joined_id \gset
+reset role;
+select set_config('test.lock_joined_id', :'lock_joined_id', true);
+do $$
+begin
+  if current_setting('test.lock_joined_id')::uuid <> current_setting('test.lock_household_id')::uuid then
+    raise exception 'valid invitation was blocked by a sibling lockout';
+  end if;
+  if not exists (
+    select 1 from public.household_invitations
+    where id = current_setting('test.lockvalid_id')::uuid
+      and consumed_at is not null
+      and failed_attempts = 0
+      and blocked_until is null
+  ) then raise exception 'successful consume did not reset failed_attempts/blocked_until'; end if;
+  if not exists (
+    select 1 from public.household_members
+    where household_id = current_setting('test.lock_household_id')::uuid
+      and user_id = '00000000-0000-4000-8000-000000000008'
+      and role = 'member'
+  ) then raise exception 'lockout success did not create member'; end if;
+end;
+$$;
+
+reset role;
 
 -- Debate C1: anonymous users cannot insert categories (nor anything else)
 reset role;

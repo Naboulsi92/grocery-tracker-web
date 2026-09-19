@@ -23,6 +23,21 @@ PostgREST argument names are exact. Supabase JS calls therefore use objects such
 - An item category must belong to the same household as the item.
 - Household equality (PRD §11): any household member can rename the household and issue or revoke invitations.
 - `household_invitations` has no direct client grants. Backend code must never expose `token_hash`.
+
+### Household equality — `owner` derogation (accepted, #106 C3)
+
+- Proof: `grep` over the convergence migration and the live catalog shows zero
+  `owner` gates — no policy references `owner`, and `private.is_household_owner`
+  is absent outside its `DROP FUNCTION` (all policies/RPCs gate on
+  `private.is_household_member`, i.e. pure equality, PRD §11).
+- Accepted derogation: the creator membership keeps the stored value `owner`
+  (backwards compat) and UI labels (`members.role_owner` / `members.role_member`)
+  remain, but confer no privilege — every action (rename, invite, revoke,
+  consume) is member-gated.
+- Follow-up (explicitly out of scope here): semantic purge of the `owner`
+  value/labels (e.g. normalize creators to `member`). No value migration is
+  attempted in this iteration — rewriting existing membership rows is deemed
+  too risky and will be tracked separately.
 - `push_subscriptions` stores one row per `(user_id, endpoint)`. The endpoint must equal `subscription.endpoint`; deleting one endpoint leaves the user's other devices intact.
 - Existing households and memberships are retained when they satisfy the single-household invariant. The earliest member of each existing household is promoted to `owner`; other members become `member`.
 - The migration normalizes any legacy negative item quantity to zero before validating the nonnegative constraint.

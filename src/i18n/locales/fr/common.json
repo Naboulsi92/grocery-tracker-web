@@ -186,7 +186,7 @@
   "household.members_title": "Membres du foyer ({count})",
   "household.invitation": "Invitation",
   "household.full": "Foyer complet — 2/2 membres",
-  "household.invite_hint": "Créez un code à usage unique pour inviter un membre.",
+  "household.invite_hint": "Créez un code à usage unique, valable 24 heures. Le code complet n'est affiché qu'ici.",
   "household.generate": "Générer un code",
   "household.regenerate": "Régénérer",
   "household.leave_section": "Quitter le foyer",

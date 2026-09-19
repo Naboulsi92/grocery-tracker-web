@@ -5,10 +5,10 @@
 -- invitations sans policy. This migration re-asserts the canonical state so a
 -- prod that never applied the secure-household migrations converges:
 --   1. DROP legacy INSERT policy "Users can insert households they belong to"
---      (WITH CHECK(true)) + any other legacy PUBLIC policies, via a generic
---      pg_policies purge (TO PUBLIC roles or WITH CHECK(true)) on top of the
---      named legacy drops. Canonical policies are all TO authenticated with
---      real WITH CHECK expressions, so the generic loop drops nothing on a
+--      (WITH CHECK(true)) + any other legacy PUBLIC/anon policies, via a generic
+--      pg_policies purge (TO PUBLIC / TO anon roles or WITH CHECK(true)) on top
+--      of the named legacy drops. Canonical policies are all TO authenticated
+--      with real WITH CHECK expressions, so the generic loop drops nothing on a
 --      converged chain.
 --   1b. REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC (generic proof
 --      of convergence) + targeted anon revokes incl. units.
@@ -55,8 +55,11 @@ drop policy if exists households_update_owner on public.households;
 -- ── 1b. Generic convergence proof: no PUBLIC surface ────────────────────────
 -- Belt-and-suspenders on top of the named drops above: revoke every grant
 -- ever given TO PUBLIC on any public table, and drop any policy still
--- targeting the PUBLIC role or carrying a bare WITH CHECK (true). Canonical
--- policies are all TO authenticated, so this is a no-op on a converged chain.
+-- targeting the PUBLIC or anon role or carrying a bare WITH CHECK (true).
+-- Canonical policies are all TO authenticated, so this is a no-op on a
+-- converged chain. The anon arm is the symmetric pendant of the PUBLIC one:
+-- any legacy/divergent anon-targeted policy fails the security-contract
+-- pg_policies assert and is purged here.
 revoke all on all tables in schema public from public;
 
 do $$
@@ -65,7 +68,7 @@ begin
   for r in
     select schemaname, tablename, policyname from pg_policies
     where schemaname = 'public'
-      and ('public' = any (roles) or with_check = 'true')
+      and ('public' = any (roles) or 'anon' = any (roles) or with_check = 'true')
   loop
     execute format('drop policy if exists %I on %I.%I', r.policyname, r.schemaname, r.tablename);
   end loop;

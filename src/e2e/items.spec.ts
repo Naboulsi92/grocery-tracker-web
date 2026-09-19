@@ -1,23 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { Page } from '@playwright/test';
 import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { deleteAllItems, deleteItemRow } from './helpers';
 import {
   e2eEnvironment,
   fixtureRequiredReason,
   writesDisabledReason,
 } from './environment';
-
-async function deleteAllItems(page: Page) {
-  const rows = page.locator('.item-row');
-  let remaining = await rows.count();
-  while (remaining > 0) {
-    const dialogPromise = page.waitForEvent('dialog');
-    await rows.first().getByTestId(/^btn-delete-item-/).click();
-    await (await dialogPromise).accept();
-    await expect(rows).toHaveCount(remaining - 1);
-    remaining -= 1;
-  }
-}
 
 test.describe('Items CRUD', () => {
   test.describe('Create Item', () => {
@@ -154,10 +142,8 @@ test.describe('Items CRUD', () => {
       
       const itemGroupHeader = page.locator('h3').filter({ hasText: categoryName });
       await expect(itemGroupHeader).toBeVisible();
-      
-      const deleteItemDialog = page.waitForEvent('dialog');
-      await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
-      await (await deleteItemDialog).accept();
+
+      await deleteItemRow(page, page.locator('.item-row').filter({ hasText: itemName }));
       await page.goto('/home');
       await page.getByTestId('dashboard-card-categories').click();
       const deleteCategoryDialog = page.waitForEvent('dialog');

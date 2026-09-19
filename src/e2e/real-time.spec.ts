@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { deleteItemRow } from './helpers';
 import {
   e2eEnvironment,
   fixtureRequiredReason,
@@ -146,9 +147,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondContext.close();
 
-      const deleteItemDialog = page.waitForEvent('dialog');
-      await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
-      await (await deleteItemDialog).accept();
+      await deleteItemRow(page, page.locator('.item-row').filter({ hasText: itemName }));
       await page.goto('/home');
       await page.getByTestId('dashboard-card-categories').click();
       const deleteCategoryDialog = page.waitForEvent('dialog');

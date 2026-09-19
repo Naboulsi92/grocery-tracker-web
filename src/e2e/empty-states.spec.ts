@@ -1,23 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { Page } from '@playwright/test';
 import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { deleteAllItems } from './helpers';
 import {
   e2eEnvironment,
   fixtureRequiredReason,
   writesDisabledReason,
 } from './environment';
-
-async function deleteAllItems(page: Page) {
-  const rows = page.locator('.item-row');
-  let remaining = await rows.count();
-  while (remaining > 0) {
-    const dialogPromise = page.waitForEvent('dialog');
-    await rows.first().getByTestId(/^btn-delete-item-/).click();
-    await (await dialogPromise).accept();
-    await expect(rows).toHaveCount(remaining - 1);
-    remaining -= 1;
-  }
-}
 
 test.describe('Empty States', () => {
   test.describe('Categories Empty State', () => {

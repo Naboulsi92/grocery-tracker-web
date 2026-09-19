@@ -174,7 +174,6 @@
   "members.creating": "Création...",
   "members.copied_aria": "Code d’invitation complet copié dans le presse-papiers",
   "members.expires": "Expire le {date}",
-  "members.owner_only": "Seul le propriétaire du foyer peut inviter de nouveaux membres.",
   "members.counter": "Membres du foyer ({count})",
   "members.role_owner": "Propriétaire",
   "members.role_member": "Membre",

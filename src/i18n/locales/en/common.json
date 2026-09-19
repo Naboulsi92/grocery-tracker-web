@@ -174,7 +174,6 @@
   "members.creating": "Creating...",
   "members.copied_aria": "Full invitation code copied to the clipboard",
   "members.expires": "Expires on {date}",
-  "members.owner_only": "Only the household owner can invite new members.",
   "members.counter": "Household members ({count})",
   "members.role_owner": "Owner",
   "members.role_member": "Member",

@@ -10,24 +10,13 @@ values
 
 do $$
 begin
-  if not exists (
-    select 1 from pg_publication_tables
-    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'categories'
-  ) or not exists (
-    select 1 from pg_publication_tables
-    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'items'
-  ) then
-    raise exception 'inventory tables must be published to Realtime';
-  end if;
-  if exists (
-    select 1 from pg_publication_tables
-    where pubname = 'supabase_realtime' and schemaname = 'public'
-      and tablename in (
-        'households', 'household_members', 'profiles', 'household_invitations',
-        'push_subscriptions'
-      )
-  ) then
-    raise exception 'non-inventory application tables must not be published to Realtime';
+  -- Realtime publication must be EXACTLY {categories, items}: inventory tables
+  -- present, every other public table (incl. units/history) absent.
+  if (select coalesce(array_agg(tablename order by tablename), '{}'::text[])
+      from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public')
+     <> array['categories', 'items'] then
+    raise exception 'Realtime publication must be exactly {categories, items}';
   end if;
   if exists (
     select 1 from pg_class
@@ -42,6 +31,42 @@ begin
   if exists (select 1 from public.household_members where user_id::text like '00000000-0000-4000-8000-00000000000%') then
     raise exception 'signup must not create implicit households';
   end if;
+end;
+$$;
+
+-- Ticket #106 iteration 2, condition 1 (preuve convergence): no PUBLIC surface.
+-- Zero policies targeting the PUBLIC role, zero bare WITH CHECK (true), and
+-- zero table grants (SELECT/INSERT/UPDATE/DELETE) for anon on every public
+-- table. Function EXECUTE anon=false is asserted in the RPC grant loop below.
+do $$
+declare
+  convergence_table text;
+  convergence_priv text;
+begin
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and 'public' = any (roles)
+  ) then
+    raise exception 'a policy still targets PUBLIC (expected TO authenticated only)';
+  end if;
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and with_check = 'true'
+  ) then
+    raise exception 'a policy still carries WITH CHECK (true)';
+  end if;
+  foreach convergence_table in array array[
+    'households', 'household_members', 'categories', 'items', 'profiles',
+    'household_invitations', 'push_subscriptions', 'history',
+    'category_positions', 'default_categories', 'item_templates',
+    'pending_notifications', 'units'
+  ] loop
+    foreach convergence_priv in array array['SELECT', 'INSERT', 'UPDATE', 'DELETE'] loop
+      if has_table_privilege('anon', 'public.' || convergence_table, convergence_priv) then
+        raise exception 'anon keeps % on public.%', convergence_priv, convergence_table;
+      end if;
+    end loop;
+  end loop;
 end;
 $$;
 
@@ -392,26 +417,168 @@ set local role authenticated;
 
 do $$
 begin
+  -- Iteration 2, condition 4: on a full (2/2) household every KNOWN token
+  -- raises 23505 'household is full' with priority over the 22023 validity
+  -- errors (PRD §4.2 cap 2). Only unknown tokens (no row) stay 22023.
   begin
     perform public.consume_household_invitation(current_setting('test.invite_token'));
     raise exception 'retired invitation unexpectedly consumed';
-  exception when sqlstate '22023' then null;
+  exception when unique_violation then
+    if position('household is full' in sqlerrm) = 0 then
+      raise exception 'wrong 23505 message for retired invitation on full household: %', sqlerrm;
+    end if;
   end;
   begin
     perform public.consume_household_invitation(current_setting('test.revoked_token'));
     raise exception 'revoked invitation unexpectedly consumed';
-  exception when sqlstate '22023' then null;
+  exception when unique_violation then
+    if position('household is full' in sqlerrm) = 0 then
+      raise exception 'wrong 23505 message for revoked invitation on full household: %', sqlerrm;
+    end if;
   end;
   begin
     perform public.consume_household_invitation(current_setting('test.expired_token'));
     raise exception 'expired invitation unexpectedly consumed';
-  exception when sqlstate '22023' then null;
+  exception when unique_violation then
+    if position('household is full' in sqlerrm) = 0 then
+      raise exception 'wrong 23505 message for expired invitation on full household: %', sqlerrm;
+    end if;
   end;
   begin
     perform public.consume_household_invitation('unknown-token');
     raise exception 'unknown invitation unexpectedly consumed';
   exception when sqlstate '22023' then null;
   end;
+end;
+$$;
+
+reset role;
+
+-- Iteration 2, condition 3: p_expires_in capped at 24h strict (PRD §4.2/§5).
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000001', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+begin
+  begin
+    perform public.create_household_invitation(current_setting('test.household_id')::uuid, interval '25 hours');
+    raise exception 'invitation beyond 24h unexpectedly created';
+  exception when sqlstate '22023' then null;
+  end;
+  if not exists (
+    select 1
+    from public.create_household_invitation(current_setting('test.household_id')::uuid, interval '24 hours')
+  ) then raise exception 'invitation at exactly 24h was rejected'; end if;
+end;
+$$;
+
+reset role;
+
+-- Iteration 2, condition 4 (cap 2/2, PRD §4.2 « automatiquement invalides »):
+-- self-contained household. 004 creates, 005 joins (2/2 full), 006 attempts a
+-- live token (23505 + row auto-consumed), 005 leaves (1/2), the invalidated
+-- row stays unusable without regen (22023), a regen lets 006 join.
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+values
+  ('00000000-0000-4000-8000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'capjoiner@example.test', '', now(), now()),
+  ('00000000-0000-4000-8000-000000000006', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'capoutsider@example.test', '', now(), now());
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000004', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.create_household('Cap household') as cap_household_id \gset
+select * from public.create_household_invitation(:'cap_household_id'::uuid, interval '1 day') \gset capfill_
+reset role;
+select set_config('test.cap_token', :'capfill_token', true);
+select set_config('test.cap_household_id', :'cap_household_id', true);
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000005', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.consume_household_invitation(current_setting('test.cap_token')) as cap_joined_id \gset
+reset role;
+select set_config('test.cap_joined_id', :'cap_joined_id', true);
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000004', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select * from public.create_household_invitation(:'cap_household_id'::uuid, interval '1 day') \gset capfull_
+reset role;
+select set_config('test.capfull_token', :'capfull_token', true);
+select set_config('test.capfull_id', :'capfull_invitation_id', true);
+
+do $$
+begin
+  if current_setting('test.cap_joined_id')::uuid <> current_setting('test.cap_household_id')::uuid then
+    raise exception 'cap fixture did not reach 2/2';
+  end if;
+end;
+$$;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000006', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+begin
+  begin
+    perform public.consume_household_invitation(current_setting('test.capfull_token'));
+    raise exception 'full-household invitation unexpectedly consumed';
+  exception when unique_violation then
+    if position('household is full' in sqlerrm) = 0 then
+      raise exception 'wrong 23505 message on full household: %', sqlerrm;
+    end if;
+  end;
+end;
+$$;
+
+reset role;
+do $$
+begin
+  if not exists (
+    select 1 from public.household_invitations
+    where id = current_setting('test.capfull_id')::uuid
+      and consumed_at is not null
+  ) then raise exception 'full-household invitation was not auto-invalidated (consumed)'; end if;
+end;
+$$;
+
+-- A member leaves (2/2 → 1/2): the invalidated row stays unusable without regen.
+delete from public.household_members
+where household_id = current_setting('test.cap_household_id')::uuid
+  and user_id = '00000000-0000-4000-8000-000000000005';
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000006', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+begin
+  begin
+    perform public.consume_household_invitation(current_setting('test.capfull_token'));
+    raise exception 'invalidated invitation unexpectedly reusable after departure';
+  exception when sqlstate '22023' then null;
+  end;
+end;
+$$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000004', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select * from public.create_household_invitation(current_setting('test.cap_household_id')::uuid, interval '1 day') \gset capregen_
+reset role;
+select set_config('test.capregen_token', :'capregen_token', true);
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000006', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.consume_household_invitation(current_setting('test.capregen_token')) as cap_rejoined_id \gset
+reset role;
+select set_config('test.cap_rejoined_id', :'cap_rejoined_id', true);
+do $$
+begin
+  if current_setting('test.cap_rejoined_id')::uuid <> current_setting('test.cap_household_id')::uuid then
+    raise exception 'regen invitation did not join the household after departure';
+  end if;
 end;
 $$;
 

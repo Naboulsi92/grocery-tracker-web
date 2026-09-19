@@ -5,7 +5,13 @@
 -- invitations sans policy. This migration re-asserts the canonical state so a
 -- prod that never applied the secure-household migrations converges:
 --   1. DROP legacy INSERT policy "Users can insert households they belong to"
---      (WITH CHECK(true)) + any other legacy PUBLIC policies.
+--      (WITH CHECK(true)) + any other legacy PUBLIC policies, via a generic
+--      pg_policies purge (TO PUBLIC roles or WITH CHECK(true)) on top of the
+--      named legacy drops. Canonical policies are all TO authenticated with
+--      real WITH CHECK expressions, so the generic loop drops nothing on a
+--      converged chain.
+--   1b. REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC (generic proof
+--      of convergence) + targeted anon revokes incl. units.
 --   2. Revoke ALL table grants from anon (0 grant anon checklist).
 --   3. household_invitations stays function-only: DROP every policy on it
 --      (zero-policy), REVOKE ALL from anon/authenticated/public (no grants).
@@ -14,12 +20,16 @@
 --      inert `role` value is kept for backwards compat (contract + UI labels)
 --      but confers no privilege.
 --   5. Cap 2 (PRD §4.2, §8 P0-6): explicit full-household guard in
---      consume_household_invitation BEFORE the membership insert, raising
---      23505 'household is full' (UI maps to foyer-complet). The DB trigger
---      remains as a second line of defence. Invalid tokens still raise 22023
---      first, so the existing contract probes are unaffected.
---   6. Expiry 24h default, 8-char token, retire-previous (regen+invalidation),
---      5-attempt/1-min lockout: re-asserted unchanged (CREATE OR REPLACE).
+--      consume_household_invitation BEFORE the validity (22023) and lockout
+--      (P0001) checks, raising 23505 'household is full' (UI maps to
+--      foyer-complet). A still-live invitation is auto-invalidated at once
+--      (consumed_at/consumed_by set, PRD « automatiquement invalides ») so it
+--      stays unusable after a departure without regen. The DB trigger
+--      remains as a second line of defence. Unknown tokens (no row, no
+--      household to check) stay 22023.
+--   6. Expiry 24h STRICT (PRD §4.2/§5: « expire après 24 heures »): any
+--      p_expires_in above 24 hours is rejected (22023). The 30-day bound from
+--      earlier migrations is retired, not clamped.
 --   7. Realtime publication re-asserted to exactly {categories, items}.
 --
 -- No db push prod from here; CI database job (security_contract.sql) is the
@@ -41,6 +51,26 @@ drop policy if exists "Users can manage their own push subscriptions" on public.
 -- Owner-only policy superseded by the member-gated one (v1.1 §24); re-drop for
 -- prod convergence in case the secure-household migration never applied.
 drop policy if exists households_update_owner on public.households;
+
+-- ── 1b. Generic convergence proof: no PUBLIC surface ────────────────────────
+-- Belt-and-suspenders on top of the named drops above: revoke every grant
+-- ever given TO PUBLIC on any public table, and drop any policy still
+-- targeting the PUBLIC role or carrying a bare WITH CHECK (true). Canonical
+-- policies are all TO authenticated, so this is a no-op on a converged chain.
+revoke all on all tables in schema public from public;
+
+do $$
+declare r record;
+begin
+  for r in
+    select schemaname, tablename, policyname from pg_policies
+    where schemaname = 'public'
+      and ('public' = any (roles) or with_check = 'true')
+  loop
+    execute format('drop policy if exists %I on %I.%I', r.policyname, r.schemaname, r.tablename);
+  end loop;
+end;
+$$;
 
 -- ── 2. Zero-policy invitations (function-only) ───────────────────────────────
 do $$
@@ -71,6 +101,7 @@ revoke all on table public.category_positions from anon;
 revoke all on table public.default_categories from anon;
 revoke all on table public.item_templates from anon;
 revoke all on table public.pending_notifications from anon;
+revoke all on table public.units from anon;
 
 -- ── 4. Retirer owner (PRD §11): helper + index, both unreferenced ────────────
 -- All policies/RPCs gate on private.is_household_member (equality). The helper
@@ -83,9 +114,10 @@ alter table public.household_invitations
   add column if not exists failed_attempts int not null default 0,
   add column if not exists blocked_until timestamptz;
 
--- ── 6. create_household_invitation: member-gated, 24h default, regen retires ─
--- Any member (egalite); default lifetime 24h (PRD §4.2); creating retires the
--- previous live invitation (regen+confirmation UI-side, invalidation DB-side).
+-- ── 6. create_household_invitation: member-gated, 24h STRICT, regen retires ─
+-- Any member (egalite); lifetime capped at 24h strict (PRD §4.2/§5, 22023
+-- beyond); creating retires the previous live invitation (regen+confirmation
+-- UI-side, invalidation DB-side).
 create or replace function public.create_household_invitation(
   p_household_id uuid,
   p_expires_in interval default interval '24 hours'
@@ -101,8 +133,8 @@ declare
 begin
   if actor is null then raise exception 'authentication required' using errcode = '42501'; end if;
   if not private.is_household_member(p_household_id) then raise exception 'household member required' using errcode = '42501'; end if;
-  if p_expires_in <= interval '0 seconds' or p_expires_in > interval '30 days' then
-    raise exception 'invitation lifetime must be between 0 and 30 days' using errcode = '22023';
+  if p_expires_in <= interval '0 seconds' or p_expires_in > interval '24 hours' then
+    raise exception 'invitation lifetime must be between 0 and 24 hours' using errcode = '22023';
   end if;
 
   -- Retire any existing live invitation for this household
@@ -167,11 +199,14 @@ begin
 end;
 $$;
 
--- ── 8. consume: validity (22023) → lockout (P0001) → CAP 2 (23505) ───────────
--- PRD §4.2 + §8 P0-6: a full household (2/2) rejects every consume, even for an
--- otherwise-live token. The invitation row is left untouched (stays live until
--- expiry); the caller gets the foyer-complet message via the 23505 mapping.
--- Unknown tokens stay 22023 and never increment the per-invitation counter.
+-- ── 8. consume: CAP 2 (23505, priority) → lockout (P0001) → validity (22023) ──
+-- PRD §4.2 + §8 P0-6: a full household (2/2) rejects every KNOWN token with
+-- 23505 'household is full' (UI maps to foyer-complet), ahead of the 22023
+-- validity and P0001 lockout checks. A still-live invitation is
+-- auto-invalidated at once (PRD « automatiquement invalides »): consumed_at
+-- + consumed_by are set (the pair satisfies the consumption CHECK), so the
+-- row stays unusable after a departure without regen. Already-invalid rows
+-- are left untouched; unknown tokens (no row) stay 22023.
 create or replace function public.consume_household_invitation(p_token text) returns uuid
 language plpgsql security definer set search_path = ''
 as $$
@@ -193,6 +228,17 @@ begin
     raise exception 'invitation is invalid or unavailable' using errcode = '22023';
   end if;
 
+  -- Cap 2: foyer complet — reject before validity/lockout, auto-invalidate
+  -- the live row (trigger remains as backstop for the membership insert).
+  if (select count(*) from public.household_members where household_id = invitation.household_id) >= 2 then
+    if invitation.revoked_at is null and invitation.consumed_at is null and invitation.expires_at > v_now then
+      update public.household_invitations
+      set consumed_at = v_now, consumed_by = actor
+      where id = invitation.id;
+    end if;
+    raise exception 'household is full' using errcode = '23505';
+  end if;
+
   -- Server-side lockout: previously blocked via failed_attempts
   if invitation.blocked_until is not null and invitation.blocked_until > v_now then
     raise exception 'invitation is temporarily locked' using errcode = 'P0001';
@@ -208,11 +254,6 @@ begin
         end
     where id = invitation.id;
     raise exception 'invitation is invalid or unavailable' using errcode = '22023';
-  end if;
-
-  -- Cap 2: foyer complet — reject before inserting (trigger remains as backstop)
-  if (select count(*) from public.household_members where household_id = invitation.household_id) >= 2 then
-    raise exception 'household is full' using errcode = '23505';
   end if;
 
   -- Valid live invitation: consume and reset the try counter
@@ -254,7 +295,8 @@ begin
   end loop;
   foreach realtime_table in array array[
     'households', 'household_members', 'profiles', 'household_invitations',
-    'push_subscriptions', 'units'
+    'push_subscriptions', 'units', 'history', 'category_positions',
+    'default_categories', 'item_templates', 'pending_notifications'
   ] loop
     if exists (
       select 1 from pg_publication_tables

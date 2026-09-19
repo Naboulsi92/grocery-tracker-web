@@ -36,8 +36,9 @@ $$;
 
 -- Ticket #106 iteration 2, condition 1 (preuve convergence): no PUBLIC surface.
 -- Zero policies targeting the PUBLIC role, zero bare WITH CHECK (true), and
--- zero table grants (SELECT/INSERT/UPDATE/DELETE) for anon on every public
--- table. Function EXECUTE anon=false is asserted in the RPC grant loop below.
+-- zero table grants (SELECT/INSERT/UPDATE/DELETE) for anon AND for the PUBLIC
+-- pseudo-role on every public table (migration REVOKE ALL FROM PUBLIC).
+-- Function EXECUTE anon=false / public=false is asserted in the RPC grant loop below.
 do $$
 declare
   convergence_table text;
@@ -64,6 +65,9 @@ begin
     foreach convergence_priv in array array['SELECT', 'INSERT', 'UPDATE', 'DELETE'] loop
       if has_table_privilege('anon', 'public.' || convergence_table, convergence_priv) then
         raise exception 'anon keeps % on public.%', convergence_priv, convergence_table;
+      end if;
+      if has_table_privilege('public', 'public.' || convergence_table, convergence_priv) then
+        raise exception 'public keeps % on public.%', convergence_priv, convergence_table;
       end if;
     end loop;
   end loop;
@@ -99,6 +103,9 @@ begin
   ] loop
     if has_function_privilege('anon', function_signature, 'EXECUTE') then
       raise exception 'anon can execute %', function_signature;
+    end if;
+    if has_function_privilege('public', function_signature, 'EXECUTE') then
+      raise exception 'public can execute %', function_signature;
     end if;
     if not has_function_privilege('authenticated', function_signature, 'EXECUTE') then
       raise exception 'authenticated cannot execute %', function_signature;

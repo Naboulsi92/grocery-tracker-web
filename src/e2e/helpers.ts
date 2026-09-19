@@ -4,17 +4,15 @@ import { expect } from './fixtures';
 /**
  * Shared deletion helpers for the items page.
  *
- * Churn source (why naive delete clicks time out): every `.item-row` carries
- * `animate-fade-in` (translateY, 0.3s) with a per-`index` `animationDelay`
- * (`src/app/items/page.tsx`). Each deletion optimistically filters the list,
- * which shifts every remaining row's `index` and restarts all of their
- * animations; ~300ms later the realtime subscription fires a debounced
- * refetch (`loadData`) that setStates a second render wave. Clicking inside
- * those motion windows makes the delete button fail Playwright's stability
- * check ("element is not stable") or stall mid-dispatch until the test
- * times out. There is no timer/presence polling on this page
- * (`useOnlineStatus` is event-only), so draining animations plus asserting
- * row detachment is sufficient quiescence — no forced clicks needed.
+ * Deadlock source (trace-proven, NOT animation instability): `handleDelete`
+ * opens a SYNCHRONOUS native `confirm()` as the first statement of the click
+ * handler (`src/app/items/page.tsx`). The old lazy order — `waitForEvent`
+ * then `click()` then `accept()` — deadlocks because the modal opens mid-click
+ * (CDP input round-trip), so `click()` never resolves and `accept()` is
+ * unreachable. Eager `page.once('dialog', accept)` registered BEFORE the click
+ * unblocks it, mirroring every passing delete site in the suite. Animation
+ * draining is kept only as a pre-click stability nicety (harmless), and
+ * row-detach/count assertions after each click remain the post-conditions.
  */
 export async function waitForAnimationsToSettle(page: Page, timeout = 10000) {
   await expect
@@ -34,9 +32,8 @@ async function acceptDeleteDialog(page: Page, deleteButton: Locator) {
   await expect(deleteButton).toBeEnabled();
   await deleteButton.scrollIntoViewIfNeeded();
   await waitForAnimationsToSettle(page);
-  const dialogPromise = page.waitForEvent('dialog');
+  page.once('dialog', (dialog) => void dialog.accept());
   await deleteButton.click();
-  await (await dialogPromise).accept();
 }
 
 /**

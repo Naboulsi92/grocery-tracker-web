@@ -171,7 +171,7 @@ test.describe('To-Buy Page', () => {
 
     await page.goto('/to-buy');
     try {
-      await expect(page.getByRole('status', { name: 'Chargement...' })).toBeVisible({ timeout: 15000 });
+      await expect(page.getByText('Chargement...')).toBeVisible({ timeout: 15000 });
     } finally {
       releaseInventory();
     }
@@ -374,7 +374,7 @@ test.describe('To-Buy Page', () => {
     await page.goto('/to-buy');
 
     try {
-      await expect(page.getByRole('status', { name: 'Chargement...' })).toBeVisible({ timeout: 15000 });
+      await expect(page.getByText('Chargement...')).toBeVisible({ timeout: 15000 });
     } finally {
       releaseInventory();
     }

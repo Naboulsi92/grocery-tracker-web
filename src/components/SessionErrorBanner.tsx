@@ -2,9 +2,11 @@
 
 import { useSearchParams } from 'next/navigation';
 import { ErrorBanner } from '@/components/ErrorBanner';
+import { useI18n } from '@/contexts/LanguageContext';
 
 export function SessionErrorBanner() {
   const searchParams = useSearchParams();
+  const { t } = useI18n();
   const sessionError = searchParams.get('error');
 
   if (sessionError !== 'session_refresh_failed') {
@@ -12,6 +14,6 @@ export function SessionErrorBanner() {
   }
 
   return (
-    <ErrorBanner message="Votre session a expiré. Veuillez vous reconnecter." />
+    <ErrorBanner message={t('session.expired')} />
   );
 }

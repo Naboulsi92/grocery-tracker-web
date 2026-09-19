@@ -1,5 +1,10 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { e2eEnvironment, writesDisabledReason, fixtureRequiredReason } from './environment';
+
+async function fillOnboardingNames(page: Page) {
+  await page.getByTestId('onboarding-first-name-input').fill('Camille');
+  await page.getByTestId('onboarding-last-name-input').fill('E2E');
+}
 
 test.describe('Error States', () => {
   test.beforeEach(async ({ page }) => {
@@ -88,6 +93,7 @@ test.describe('Error States', () => {
         test.skip(true, 'No Supabase backend available - auth loading never completes');
       }
 
+      await fillOnboardingNames(page);
       await page.getByLabel('Code d\'invitation complet').fill('invalid-token-12345');
       await page.getByRole('button', { name: 'Rejoindre le foyer' }).click();
 
@@ -105,6 +111,7 @@ test.describe('Error States', () => {
         test.skip(true, 'No Supabase backend available - auth loading never completes');
       }
 
+      await fillOnboardingNames(page);
       await page.getByLabel('Nom du foyer').fill('');
       await page.getByRole('button', { name: 'Créer mon foyer' }).click();
 
@@ -125,6 +132,7 @@ test.describe('Error States', () => {
         test.skip(true, 'No Supabase backend available - auth loading never completes');
       }
 
+      await fillOnboardingNames(page);
       await page.getByLabel('Nom du foyer').fill('Test Household');
 
       const createButton = page.getByRole('button', { name: 'Créer mon foyer' });
@@ -143,6 +151,7 @@ test.describe('Error States', () => {
         test.skip(true, 'No Supabase backend available - auth loading never completes');
       }
 
+      await fillOnboardingNames(page);
       await page.getByLabel('Code d\'invitation complet').fill('some-valid-token');
 
       const joinButton = page.getByRole('button', { name: 'Rejoindre le foyer' });
@@ -160,6 +169,7 @@ test.describe('Error States', () => {
         test.skip(true, 'No Supabase backend available - auth loading never completes');
       }
 
+      await fillOnboardingNames(page);
       await page.getByLabel('Code d\'invitation complet').fill('invalid-token');
       await page.getByRole('button', { name: 'Rejoindre le foyer' }).click();
 
@@ -520,6 +530,7 @@ test.describe('Error States', () => {
         test.skip(true, 'No Supabase backend available - auth loading never completes');
       }
 
+      await fillOnboardingNames(page);
       await page.getByLabel('Code d\'invitation complet').fill('invalid-token');
       await page.getByRole('button', { name: 'Rejoindre le foyer' }).click();
 

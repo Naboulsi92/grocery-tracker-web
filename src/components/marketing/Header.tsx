@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import ThemeToggle from '@/components/ThemeToggle';
+import LanguageToggle from '@/components/LanguageToggle';
 import { BrandIcon } from '@/components/BrandIcon';
 
 export function Header() {
@@ -28,6 +29,7 @@ export function Header() {
         </div>
 
         <div className="mk-nav-end">
+          <LanguageToggle />
           <ThemeToggle />
           <button
             className="mk-menu-btn"

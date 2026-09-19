@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { BrandIcon } from '@/components/BrandIcon';
+import { useI18n } from '@/contexts/LanguageContext';
 
 export function CTA() {
+  const { t } = useI18n();
   return (
     <section id="cta" className="mk-cta-section">
       <div className="mk-container">
@@ -13,14 +15,14 @@ export function CTA() {
           <div className="mk-cta-tile" aria-hidden="true">
             <BrandIcon size={32} />
           </div>
-          <h2>Ready to simplify your shopping?</h2>
+          <h2>{t('mk.cta_h2')}</h2>
           <p>
-            Set up your household in seconds and invite everyone you shop with.
+            {t('mk.cta_sub')}
           </p>
           <Link href="/signup" data-cta-name="Bottom_GetStarted" className="mk-btn-primary">
-            Get Started Free
+            {t('mk.cta_button')}
           </Link>
-          <p className="mk-cta-note">No credit card required</p>
+          <p className="mk-cta-note">{t('mk.cta_note')}</p>
         </div>
       </div>
     </section>

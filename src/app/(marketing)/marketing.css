@@ -135,7 +135,8 @@
 
 /* the fixed .theme-toggle would float over the mobile menu button;
    pin it into the header flow instead (scoped to marketing only) */
-.mk-header .theme-toggle {
+.mk-header .theme-toggle,
+.mk-header .language-toggle {
   position: static;
   box-shadow: none;
 }

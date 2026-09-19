@@ -1,0 +1,35 @@
+name: GDPR sweep
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gdpr-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Invoke member-gdpr-sweep edge function
+        run: |
+          set -euo pipefail
+          response_file="$RUNNER_TEMP/gdpr-sweep-response.json"
+          http_code="$(
+            curl --fail-with-body --silent --show-error \
+              --request POST \
+              --url "https://oizfmmnuoqkdqkguynfv.supabase.co/functions/v1/member-gdpr-sweep" \
+              --header "x-cron-secret: ${{ secrets.SUPABASE_CRON_SECRET }}" \
+              --header "Content-Type: application/json" \
+              --data '{}' \
+              --output "$response_file" \
+              --write-out '%{http_code}'
+          )"
+          echo "member-gdpr-sweep responded HTTP $http_code"
+          cat "$response_file"

@@ -1,6 +1,8 @@
 'use client';
 
 import { BrandIcon } from '@/components/BrandIcon';
+import LanguageToggle from '@/components/LanguageToggle';
+import { useI18n } from '@/contexts/LanguageContext';
 import type { Household } from '@/hooks/useHousehold';
 
 interface AuthenticatedHeaderProps {
@@ -13,10 +15,11 @@ interface AuthenticatedHeaderProps {
 }
 
 export function AuthenticatedHeader({ showBackLink = false, onBackLinkClick, trailingAction, household, loading = false, error }: AuthenticatedHeaderProps) {
+  const { t } = useI18n();
   const backLink = showBackLink ? (
     <button
       className="back-link"
-      aria-label="Retour à l'accueil"
+      aria-label={t('auth.back_home')}
       onClick={onBackLinkClick ?? (() => window.history.back())}
       data-testid="back-link"
     >
@@ -47,7 +50,7 @@ export function AuthenticatedHeader({ showBackLink = false, onBackLinkClick, tra
               <BrandIcon />
             </div>
             {backLink}
-            <h1>Chargement...</h1>
+            <h1>{t('header.loading')}</h1>
           </div>
         </div>
       </header>
@@ -63,7 +66,7 @@ export function AuthenticatedHeader({ showBackLink = false, onBackLinkClick, tra
               <BrandIcon />
             </div>
             {backLink}
-            <h1>Erreur</h1>
+            <h1>{t('header.error')}</h1>
           </div>
         </div>
       </header>
@@ -78,9 +81,12 @@ export function AuthenticatedHeader({ showBackLink = false, onBackLinkClick, tra
               <BrandIcon />
             </div>
             {backLink}
-            <h1>{household?.name || 'Mon foyer'}</h1>
+            <h1>{household?.name || t('header.default_name')}</h1>
         </div>
-        {trailingAction}
+        <div className="header-actions">
+          {trailingAction}
+          <LanguageToggle />
+        </div>
       </div>
     </header>
   );

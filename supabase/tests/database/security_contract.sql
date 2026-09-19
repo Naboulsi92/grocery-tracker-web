@@ -24,7 +24,7 @@ begin
     where pubname = 'supabase_realtime' and schemaname = 'public'
       and tablename in (
         'households', 'household_members', 'profiles', 'household_invitations',
-        'push_subscriptions', 'units'
+        'push_subscriptions'
       )
   ) then
     raise exception 'non-inventory application tables must not be published to Realtime';
@@ -55,6 +55,7 @@ begin
     'public.create_household_invitation(uuid,interval)',
     'public.revoke_household_invitation(uuid)',
     'public.consume_household_invitation(text)',
+    'public.get_household_invitation(uuid)',
     'public.adjust_item_quantity(uuid,numeric)'
   ] loop
     if has_function_privilege('anon', function_signature, 'EXECUTE') then
@@ -106,7 +107,9 @@ begin
     or has_column_privilege('authenticated', 'public.items', 'created_at', 'INSERT')
     or has_column_privilege('authenticated', 'public.items', 'id', 'INSERT')
     or not has_column_privilege('authenticated', 'public.items', 'name', 'UPDATE')
-    or not has_column_privilege('authenticated', 'public.items', 'quantity', 'INSERT') then
+    or not has_column_privilege('authenticated', 'public.items', 'quantity', 'INSERT')
+    or not has_column_privilege('authenticated', 'public.items', 'template_id', 'INSERT')
+    or not has_column_privilege('authenticated', 'public.items', 'low_stock_threshold', 'UPDATE') then
     raise exception 'authenticated item column grants violate the write contract';
   end if;
   if has_column_privilege('authenticated', 'public.categories', 'id', 'INSERT')
@@ -126,8 +129,42 @@ begin
     or has_column_privilege('authenticated', 'public.households', 'created_at', 'UPDATE')
     or not has_column_privilege('authenticated', 'public.categories', 'name', 'UPDATE')
     or not has_column_privilege('authenticated', 'public.push_subscriptions', 'subscription', 'UPDATE')
-    or not has_column_privilege('authenticated', 'public.profiles', 'display_name', 'UPDATE') then
+    or not has_column_privilege('authenticated', 'public.profiles', 'display_name', 'UPDATE')
+    or not has_column_privilege('authenticated', 'public.profiles', 'first_name', 'UPDATE')
+    or not has_column_privilege('authenticated', 'public.profiles', 'last_name', 'UPDATE')
+    or not has_column_privilege('authenticated', 'public.profiles', 'notification_type', 'UPDATE')
+    or not has_column_privilege('authenticated', 'public.profiles', 'reminder_time', 'UPDATE') then
     raise exception 'authenticated can write generated identifiers or timestamps';
+  end if;
+end;
+$$;
+
+-- Debate C2: profiles.notification_type must default to 'push', be NOT NULL,
+-- and its CHECK must keep covering every allowed value.
+do $$
+begin
+  if (select column_default from information_schema.columns
+      where table_schema = 'public' and table_name = 'profiles'
+        and column_name = 'notification_type') is distinct from '''push''::text' then
+    raise exception 'profiles.notification_type default must be "push"';
+  end if;
+  if (select is_nullable from information_schema.columns
+      where table_schema = 'public' and table_name = 'profiles'
+        and column_name = 'notification_type') <> 'NO' then
+    raise exception 'profiles.notification_type must be NOT NULL';
+  end if;
+  if not exists (
+    select 1
+    from pg_constraint c
+    where c.conrelid = 'public.profiles'::regclass
+      and c.contype = 'c'
+      and pg_get_constraintdef(c.oid) ~ 'notification_type'
+      and pg_get_constraintdef(c.oid) ~ 'push'
+      and pg_get_constraintdef(c.oid) ~ 'badge'
+      and pg_get_constraintdef(c.oid) ~ 'both'
+      and pg_get_constraintdef(c.oid) ~ 'none'
+  ) then
+    raise exception 'profiles.notification_type CHECK must cover push, badge, both, none';
   end if;
 end;
 $$;
@@ -146,7 +183,7 @@ begin
       and user_id = '00000000-0000-4000-8000-000000000001'
       and role = 'owner'
   ) then raise exception 'household creator must be owner'; end if;
-  if (select count(*) from public.categories where household_id = current_setting('test.household_id')::uuid) <> 6 then
+  if (select count(*) from public.categories where household_id = current_setting('test.household_id')::uuid) <> 10 then
     raise exception 'household defaults must be complete';
   end if;
 end;
@@ -217,7 +254,13 @@ set local role authenticated;
 
 do $$
 begin
-  if length(current_setting('test.invite_token')) < 30 then raise exception 'invitation token is too short'; end if;
+  -- v1.1 invites use an 8-char alphanumeric token (62-symbol alphabet ≈ 47.6 bits
+  -- entropy), sufficient because expiry (24h default), single-use, and a
+  -- 5-attempt/1-minute server-side lockout are enforced. The lockout only mitigates
+  -- known-but-invalid tokens; unknown-token enumeration is bounded by keyspace size.
+  if length(current_setting('test.invite_token')) <> 8
+    or current_setting('test.invite_token') !~ '^[A-Za-z0-9]+$'
+  then raise exception 'invitation token must be exactly 8 alphanumeric characters'; end if;
   if not current_setting('test.revoked_ok')::boolean then raise exception 'owner could not revoke invitation'; end if;
   if not current_setting('test.invite_retired')::boolean then raise exception 'first invitation was not retired when second was created'; end if;
   if not current_setting('test.revoked_revoked')::boolean then raise exception 'second invitation was not revoked'; end if;
@@ -237,6 +280,7 @@ select set_config('test.joined_household_id', :'joined_household_id', true);
 set local role authenticated;
 
 do $$
+declare default_cat_id uuid; custom_cat_id uuid; forged_insert_denied boolean := false;
 begin
   if current_setting('test.household_id')::uuid <> current_setting('test.joined_household_id')::uuid then
     raise exception 'wrong joined household';
@@ -264,18 +308,51 @@ begin
     raise exception 'member consumed an invitation while already in a household';
   exception when unique_violation then null;
   end;
-  begin
-    perform public.create_household_invitation(current_setting('test.household_id')::uuid, interval '1 day');
-    raise exception 'member unexpectedly issued an invitation';
-  exception when insufficient_privilege then null;
-  end;
+  -- Equal-rights invites: a member (not only the owner) may create an invitation
+  if not exists (
+    select 1
+    from public.create_household_invitation(current_setting('test.household_id')::uuid, interval '1 day')
+  ) then raise exception 'member could not create an invitation'; end if;
   update public.households set name = 'Member rename' where id = current_setting('test.household_id')::uuid;
-  if found then raise exception 'member unexpectedly renamed household'; end if;
+  if not found then raise exception 'member could not rename household'; end if;
   begin
     perform 1 from public.household_invitations limit 1;
     raise exception 'member unexpectedly read invitation storage';
   exception when insufficient_privilege then null;
   end;
+  -- Default categories are immutable for members (PRD §4.3): RLS must hide
+  -- is_default = true rows from UPDATE/DELETE, while custom categories remain
+  -- fully editable/deletable by any household member.
+  select id into default_cat_id
+  from public.categories
+  where household_id = current_setting('test.household_id')::uuid
+    and is_default = true
+  limit 1;
+  update public.categories set name = 'Forged name' where id = default_cat_id;
+  if found then raise exception 'default category name was modifiable'; end if;
+  delete from public.categories where id = default_cat_id;
+  if found then raise exception 'default category was deletable'; end if;
+
+  insert into public.categories (household_id, name, is_default)
+  values (current_setting('test.household_id')::uuid, 'Custom', false)
+  returning id into custom_cat_id;
+  update public.categories set name = 'Custom renamed' where id = custom_cat_id;
+  if not found then raise exception 'member could not rename a custom category'; end if;
+  delete from public.categories where id = custom_cat_id;
+  if not found then raise exception 'member could not delete a custom category'; end if;
+  -- Debate C1: the INSERT policy must not let members forge is_default = true
+  -- rows (default categories are reserved for the create_household definer).
+  begin
+    insert into public.categories (household_id, name, is_default)
+    values (current_setting('test.household_id')::uuid, 'Forged default', true);
+  exception when insufficient_privilege then forged_insert_denied := true;
+  end;
+  if not forged_insert_denied then raise exception 'member was allowed to forge a default category'; end if;
+  if (select count(*) from public.categories
+      where household_id = current_setting('test.household_id')::uuid
+        and is_default = true) <> 10 then
+    raise exception 'denied default-category forge altered the default set';
+  end if;
 end;
 $$;
 
@@ -334,10 +411,16 @@ reset role;
 select set_config('test.renamed_name', :'renamed_name', true);
 
 reset role;
-select id as unit_id from public.units limit 1 \gset
-select set_config('test.unit_id', :'unit_id', true);
-insert into public.items (household_id, name, quantity, unit_id)
-values (:'household_id', 'Milk', 1, :'unit_id') returning id as item_id \gset
+select c.id as item_category_id
+from public.categories c
+join public.category_positions cp
+  on cp.category_id = c.id and cp.household_id = c.household_id
+where c.household_id = :'household_id'::uuid
+order by cp."position"
+limit 1 \gset
+select set_config('test.item_category_id', :'item_category_id', true);
+insert into public.items (household_id, category_id, name, quantity, unit)
+values (:'household_id', :'item_category_id', 'Milk', 1, 'l') returning id as item_id \gset
 select set_config('test.item_id', :'item_id', true);
 
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000002', true);
@@ -349,8 +432,8 @@ select set_config('test.adjusted_quantity', :'adjusted_quantity', true);
 select set_config('test.adjusted_user', :'adjusted_last_modified_by', true);
 set local role authenticated;
 
-insert into public.items (household_id, name, quantity, unit_id)
-values (:'household_id', 'Bread', 2, :'unit_id') returning id as inserted_item_id \gset
+insert into public.items (household_id, category_id, name, quantity, unit)
+values (:'household_id', :'item_category_id', 'Bread', 2, 'unite') returning id as inserted_item_id \gset
 select set_config('test.inserted_item_id', :'inserted_item_id', true);
 
 update public.profiles
@@ -449,10 +532,12 @@ end;
 $$;
 
 select public.create_household('Outsider household') as outsider_household_id \gset
-select id as outsider_category_id
-from public.categories
-where household_id = :'outsider_household_id'::uuid
-order by "order"
+select c.id as outsider_category_id
+from public.categories c
+join public.category_positions cp
+  on cp.category_id = c.id and cp.household_id = c.household_id
+where c.household_id = :'outsider_household_id'::uuid
+order by cp."position"
 limit 1 \gset
 select set_config('test.outsider_household_id', :'outsider_household_id', true);
 select set_config('test.outsider_category_id', :'outsider_category_id', true);
@@ -461,13 +546,13 @@ reset role;
 do $$
 begin
   begin
-    insert into public.items (household_id, category_id, name, quantity, unit_id)
+    insert into public.items (household_id, category_id, name, quantity, unit)
     values (
       current_setting('test.household_id')::uuid,
       current_setting('test.outsider_category_id')::uuid,
       'Invalid category',
       1,
-      current_setting('test.unit_id')::uuid
+      'unite'
     );
     raise exception 'cross-household item category unexpectedly succeeded';
   exception when foreign_key_violation then null;
@@ -482,6 +567,21 @@ begin
     raise exception 'second household membership unexpectedly succeeded';
   exception when unique_violation then null;
   end;
+end;
+$$;
+
+-- Debate C1: anonymous users cannot insert categories (nor anything else)
+reset role;
+set local role anon;
+do $$
+declare denied boolean := false;
+begin
+  begin
+    insert into public.categories (household_id, name, is_default)
+    values (current_setting('test.household_id')::uuid, 'Anon category', false);
+  exception when sqlstate '42501' then denied := true;
+  end;
+  if not denied then raise exception 'anon inserted a category'; end if;
 end;
 $$;
 

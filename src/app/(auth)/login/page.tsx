@@ -6,10 +6,14 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import ThemeToggle from '@/components/ThemeToggle';
+import LanguageToggle from '@/components/LanguageToggle';
 import { AuthHeader } from '@/components/AuthHeader';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import { SessionErrorBanner } from '@/components/SessionErrorBanner';
+import { OfflineBlockedScreen } from '@/components/OfflineBlockedScreen';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,6 +21,8 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn, user, loading: authLoading } = useAuth();
+  const { t } = useI18n();
+  const { isOnline } = useOnlineStatus();
   const router = useRouter();
 
   useEffect(() => {
@@ -25,14 +31,25 @@ export default function LoginPage() {
     }
   }, [user, authLoading, router]);
 
+  if (!isOnline) {
+    return (
+      <div className="auth-container">
+        <ThemeToggle />
+        <LanguageToggle />
+        <OfflineBlockedScreen />
+      </div>
+    );
+  }
+
   if (authLoading) {
     return (
       <div className="auth-container">
         <ThemeToggle />
+        <LanguageToggle />
         <div className="auth-card">
           <div className="loading-container" role="status">
             <div className="loading-spinner" aria-hidden="true"></div>
-            <p>Chargement...</p>
+            <p>{t('common.loading')}</p>
           </div>
         </div>
       </div>
@@ -57,11 +74,12 @@ export default function LoginPage() {
   return (
     <div className="auth-container">
       <ThemeToggle />
+      <LanguageToggle />
       <div className="auth-card animate-fade-in">
         <AuthHeader
           showBackHome
-          title="Connexion"
-          subtitle="Accédez à votre liste de courses"
+          title={t('login.title')}
+          subtitle={t('login.subtitle')}
         />
         
         {error && <ErrorBanner message={error} />}
@@ -72,20 +90,20 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">{t('auth.email')}</label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="vous@exemple.com"
+              placeholder={t('auth.email_placeholder')}
               autoComplete="email"
               required
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Mot de passe</label>
+            <label htmlFor="password">{t('auth.password')}</label>
             <input
               id="password"
               type="password"
@@ -105,17 +123,17 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <span className="spinner" aria-hidden="true"></span>
-                Connexion...
+                {t('login.submitting')}
               </>
             ) : (
-              'Se connecter'
+              t('login.submit')
             )}
           </button>
         </form>
 
         <p className="auth-footer">
-          Pas encore de compte ?{' '}
-          <Link href="/signup">S&apos;inscrire</Link>
+          {t('login.footer_prompt')}{' '}
+          <Link href="/signup">{t('login.signup_link')}</Link>
         </p>
       </div>
     </div>

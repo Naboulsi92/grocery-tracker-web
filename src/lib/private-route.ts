@@ -20,7 +20,7 @@ export function resolvePrivateRoute(access: PrivateAccess): PrivateRouteDecision
         action: 'access_check',
         code: 'unknown',
       });
-      return { outcome: 'error', message: 'Impossible de vérifier votre foyer. Vous pouvez réessayer.' };
+      return { outcome: 'error', message: 'private.verify_household_error' };
     case 'member':
       return { outcome: 'render', householdId: access.householdId };
   }

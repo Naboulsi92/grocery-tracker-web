@@ -46,15 +46,28 @@ test.describe('Members Page', () => {
     await expect(token).not.toBeEmpty();
     const invitationToken = await token.textContent();
 
+    // The token is also exposed as a read-only field holding exactly the value
+    // a clipboard write places in the system paste buffer.
+    const tokenField = page.getByTestId('invite-code-token');
+    await expect(tokenField).toHaveValue(invitationToken ?? '');
+
+    // Headless Chromium cannot focus the document to touch the OS clipboard, so
+    // intercept writeText and capture what the copy button hands over.
+    await page.evaluate(() => {
+      navigator.clipboard.writeText = async (text: string) => {
+        (window as Window & { __copiedText?: string }).__copiedText = text;
+      };
+    });
+
     const copyButton = page.getByRole('button', { name: 'Copier' });
     await expect(copyButton).toBeVisible();
     await copyButton.click();
 
     await expect(page.getByRole('button', { name: 'Copié !' })).toBeVisible();
-
-    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-    expect(clipboardText).toBe(invitationToken);
+    const copiedText = await page.evaluate(
+      () => (window as Window & { __copiedText?: string }).__copiedText,
+    );
+    expect(copiedText).toBe(invitationToken);
   });
 
   test('owner can revoke invitation token', async ({ page, account }) => {
@@ -88,7 +101,7 @@ test.describe('Members Page', () => {
     expect(expirationDate).toMatch(/Expire le \d{1,2}\/\d{1,2}\/\d{4}/);
   });
 
-  test('non-owner cannot see create invitation button', async ({ page, account, browser }) => {
+  test('member can reach the invite section (equal rights, no owner-only gate)', async ({ page, account, browser }) => {
     test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
     const householdName = await createHousehold(page, account);
 
@@ -112,11 +125,13 @@ test.describe('Members Page', () => {
 
       await expect(memberPage.getByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
 
-      const createInvitationButton = memberPage.getByRole('button', { name: 'Créer une invitation' });
-      await expect(createInvitationButton).not.toBeVisible();
+      // Equal rights: every member reaches the invite section — the owner-only gate is gone.
+      const ownerOnlyMessage = memberPage.getByText('Seul le propriétaire du foyer peut inviter de nouveaux membres.');
+      await expect(ownerOnlyMessage).not.toBeVisible();
 
-      const nonOwnerMessage = memberPage.getByText('Seul le propriétaire du foyer peut inviter de nouveaux membres.');
-      await expect(nonOwnerMessage).toBeVisible();
+      // At 2/2 the invite section renders in its full state (no create button for anyone).
+      await expect(memberPage.getByRole('heading', { name: 'Invitation' })).toBeVisible();
+      await expect(memberPage.getByTestId('household-full-message')).toBeVisible();
     } finally {
       await memberContext.close();
     }

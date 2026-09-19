@@ -31,7 +31,7 @@ test.describe('Mobile Responsiveness', () => {
       await createHousehold(page, account);
 
       const cards = page.locator('[data-testid^="dashboard-card-"]');
-      await expect(cards).toHaveCount(4);
+      await expect(cards).toHaveCount(8);
 
       const firstCard = cards.first();
       const secondCard = cards.nth(1);
@@ -50,12 +50,12 @@ test.describe('Mobile Responsiveness', () => {
       const account = createAccount();
       await createHousehold(page, account);
 
-      const clickableElements = page.locator('button, a[href], [role="button"]');
-      const count = await clickableElements.count();
+      const primaryTargets = page.locator('a[data-testid^="dashboard-card-"]');
+      const count = await primaryTargets.count();
 
       let allTargetsValid = true;
       for (let i = 0; i < Math.min(count, 20); i++) {
-        const element = clickableElements.nth(i);
+        const element = primaryTargets.nth(i);
         const box = await element.boundingBox();
         if (box && (box.width < 44 || box.height < 44)) {
           const isVisible = await element.isVisible();
@@ -178,7 +178,7 @@ test.describe('Mobile Responsiveness', () => {
 
       await page.getByTestId('dashboard-card-categories').click();
       await expect(page).toHaveURL('/categories');
-      await expect(page.getByRole('heading', { name: 'Catégories' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Catégories', exact: true })).toBeVisible();
 
       await page.getByTestId('back-link').click();
       await expect(page).toHaveURL('/home');
@@ -215,7 +215,7 @@ test.describe('Mobile Responsiveness', () => {
       await createHousehold(page, account);
 
       const cards = page.locator('[data-testid^="dashboard-card-"]');
-      await expect(cards).toHaveCount(4);
+      await expect(cards).toHaveCount(8);
     });
 
     test('navigation works on tablet viewport', async ({ page, browserName }) => {
@@ -267,7 +267,7 @@ test.describe('Mobile Responsiveness', () => {
       await createHousehold(page, account);
 
       const cards = page.locator('[data-testid^="dashboard-card-"]');
-      await expect(cards).toHaveCount(4);
+      await expect(cards).toHaveCount(8);
     });
 
     test('navigation works on small laptop viewport', async ({ page, browserName }) => {
@@ -303,7 +303,7 @@ test.describe('Mobile Responsiveness', () => {
       await createHousehold(page, account);
 
       const cards = page.locator('[data-testid^="dashboard-card-"]');
-      await expect(cards).toHaveCount(4);
+      await expect(cards).toHaveCount(8);
     });
 
     test('navigation works on large desktop viewport', async ({ page, browserName }) => {

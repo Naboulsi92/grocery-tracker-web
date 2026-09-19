@@ -4,22 +4,24 @@ export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import ThemeToggle from '@/components/ThemeToggle';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
+import { translateMessage } from '@/lib/i18n';
 
 export default function MembersPage() {
   const [copied, setCopied] = useState(false);
   const { user, householdId } = useAuth();
-  const { household, members, loading, error, invitation, actions } = useHousehold(householdId ?? '');
+  const { t, language } = useI18n();
+  const { household, members, loading, error, invitation, actions } = useHousehold(householdId ?? '', { language });
 
-  const currentMembership = members.find((member) => member.user_id === user?.id);
-  const isOwner = currentMembership?.role === 'owner';
+  const isHouseholdFull = members.length >= 2;
 
   const handleCopyInvitation = async () => {
     setCopied(false);
-    await actions.copyInviteCode();
-    setCopied(true);
+    const copied = await actions.copyInviteCode();
+    setCopied(copied);
   };
 
   if (loading) {
@@ -28,7 +30,7 @@ export default function MembersPage() {
         <ThemeToggle />
         <div className="loading-container" role="status">
           <div className="loading-spinner" aria-hidden="true" />
-          <p>Chargement...</p>
+          <p>{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -43,7 +45,7 @@ return (
         error={error}
         trailingAction={
           <button onClick={() => actions.refresh()} className="btn btn-secondary">
-            Réessayer
+            {t('common.retry')}
           </button>
         }
       />
@@ -51,47 +53,56 @@ return (
       <main className="app-main">
         {error && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1rem' }}>
-            {error}
-            {!household && <button type="button" className="btn btn-secondary" onClick={() => actions.refresh()}>Réessayer</button>}
+            {translateMessage(language, error)}
+            {!household && <button type="button" className="btn btn-secondary" onClick={() => actions.refresh()}>{t('common.retry')}</button>}
           </div>
         )}
 
-        {household && isOwner && (
+        {household && isHouseholdFull && (
           <div className="card" style={{ marginBottom: '1.5rem' }}>
-            <h2 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>Invitation</h2>
+            <h2 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>{t('members.invitation')}</h2>
+            <p data-testid="household-full-message">{t('members.full')}</p>
+          </div>
+        )}
+
+        {household && !isHouseholdFull && (
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <h2 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>{t('members.invitation')}</h2>
             <p style={{ color: 'var(--color-text-muted)', marginBottom: '1rem', fontSize: '0.875rem' }}>
-              Créez un code à usage unique, valable sept jours. Le code complet n’est affiché qu’ici.
+              {t('members.invite_hint')}
             </p>
             {invitation.status === 'none' || invitation.status === 'creating' ? (
               <button type="button" onClick={() => actions.createInvitation()} disabled={invitation.status === 'creating'} className="btn btn-primary">
-                {invitation.status === 'creating' ? 'Création...' : 'Créer une invitation'}
+                {invitation.status === 'creating' ? t('members.creating') : t('members.create_invitation')}
               </button>
             ) : (
               <div className="invite-code-display">
                 <code className="invite-code-text" style={{ overflowWrap: 'anywhere' }}>{invitation.token}</code>
+                <input
+                  type="text"
+                  readOnly
+                  value={invitation.token}
+                  data-testid="invite-code-token"
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                />
                 <button type="button" onClick={handleCopyInvitation} disabled={invitation.status === 'revoking'} className="btn btn-secondary" aria-describedby="copy-status">
-                  {copied ? 'Copié !' : 'Copier'}
+                  {copied ? t('common.copied') : t('common.copy')}
                 </button>
                 <button type="button" onClick={() => actions.revokeInvitation(invitation.invitationId)} disabled={invitation.status === 'revoking'} className="btn btn-secondary">
-                  {invitation.status === 'revoking' ? 'Révocation...' : 'Révoquer'}
+                  {invitation.status === 'revoking' ? t('members.revoking') : t('members.revoke')}
                 </button>
-                <span id="copy-status" className="sr-only" aria-live="polite">{copied ? 'Code d’invitation complet copié dans le presse-papiers' : ''}</span>
-                <p className="text-muted">Expire le {new Date(invitation.expiresAt).toLocaleString('fr-FR')}</p>
+                <span id="copy-status" className="sr-only" aria-live="polite">{copied ? t('members.copied_aria') : ''}</span>
+                <p className="text-muted">{t('members.expires', { date: new Date(invitation.expiresAt).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR') })}</p>
               </div>
             )}
           </div>
         )}
 
-        {household && !isOwner && (
-          <div className="card" style={{ marginBottom: '1.5rem' }}>
-            <h2 style={{ marginBottom: '0.5rem', fontSize: '1.125rem' }}>Invitations</h2>
-            <p className="text-muted">Seul le propriétaire du foyer peut inviter de nouveaux membres.</p>
-          </div>
-        )}
-
         {household && (
           <div className="card">
-            <h2 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>Membres du foyer ({members.length})</h2>
+            <h2 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>{t('members.counter', { count: members.length })}</h2>
             <div className="members-list">
               {members.map((member, index) => (
                 <div key={member.user_id} className="member-item animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
@@ -102,13 +113,13 @@ return (
                     </svg>
                   </div>
                   <div className="member-info">
-                    <span className="member-email">{member.displayName}</span>
+                    <span className="member-email">{member.fullName}</span>
                     <span className="member-joined">
-                      {member.role === 'owner' ? 'Propriétaire' : 'Membre'}
-                      {member.joined_at ? ` depuis le ${new Date(member.joined_at).toLocaleDateString('fr-FR')}` : ''}
+                      {member.role === 'owner' ? t('members.role_owner') : t('members.role_member')}
+                      {member.joined_at ? t('members.joined_since', { date: new Date(member.joined_at).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR') }) : ''}
                     </span>
                   </div>
-                  {member.user_id === user?.id && <span className="member-badge">Vous</span>}
+                  {member.user_id === user?.id && <span className="member-badge">{t('members.you')}</span>}
                 </div>
               ))}
             </div>

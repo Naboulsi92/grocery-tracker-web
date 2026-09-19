@@ -16,7 +16,7 @@ describe('resolvePrivateRoute', () => {
   it('exposes recoverable membership errors', () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     expect(resolvePrivateRoute({ status: 'error', user: { id: 'user-1' } as never, error: new Error('database internals') }))
-      .toEqual({ outcome: 'error', message: 'Impossible de vérifier votre foyer. Vous pouvez réessayer.' });
+      .toEqual({ outcome: 'error', message: 'private.verify_household_error' });
     expect(JSON.stringify(warn.mock.calls)).not.toContain('database internals');
     warn.mockRestore();
   });

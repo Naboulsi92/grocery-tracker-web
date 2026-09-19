@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import SignupPage from '@/app/(auth)/signup/page';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 
 const push = jest.fn();
 const replace = jest.fn();
@@ -10,12 +11,19 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ access: { status: 'signed-out' }, loading: false, signUp }),
 }));
 jest.mock('@/components/ThemeToggle', () => () => null);
+jest.mock('@/utils/supabase/client', () => ({
+  createClient: () => ({}) as never,
+}));
 
 describe('SignupPage', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('rejects passwords shorter than the configured minimum', () => {
-    render(<SignupPage />);
+    render(
+      <LanguageProvider>
+        <SignupPage />
+      </LanguageProvider>,
+    );
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.test' } });
     fireEvent.change(screen.getByLabelText('Mot de passe', { exact: true }), { target: { value: '1234567' } });

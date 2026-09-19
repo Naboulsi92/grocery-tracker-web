@@ -13,28 +13,28 @@ test.describe('App Flow', () => {
     
     await page.getByTestId('dashboard-card-categories').click();
     await expect(page).toHaveURL('/categories');
-    await expect(page.getByRole('heading', { name: 'Catégories' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Catégories', exact: true })).toBeVisible();
     
     await page.getByTestId('back-link').click();
     await expect(page).toHaveURL('/home');
     
     await page.getByTestId('dashboard-card-items').click();
     await expect(page).toHaveURL('/items');
-    await expect(page.getByRole('heading', { name: 'Articles' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Articles', exact: true })).toBeVisible();
     
     await page.getByTestId('back-link').click();
     await expect(page).toHaveURL('/home');
     
     await page.getByTestId('dashboard-card-to-buy').click();
     await expect(page).toHaveURL('/to-buy');
-    await expect(page.getByRole('heading', { name: 'À acheter' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'À acheter', exact: true })).toBeVisible();
   });
 
   test('can add and remove a new category', async ({ page, account }) => {
     test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
     await createHousehold(page, account);
 
-    const categoryName = `Catégorie e2e ${randomUUID()}`;
+    const categoryName = `Catégorie e2e ${randomUUID().slice(0, 8)}`;
     await page.getByTestId('dashboard-card-categories').click();
     await page.getByTestId('btn-new-category').click();
     await page.getByTestId('input-category-name').fill(categoryName);
@@ -98,11 +98,11 @@ test.describe('App Flow', () => {
     await createHousehold(page, account);
     await page.getByRole('link', { name: 'Articles Voir et modifier' }).click();
 
-    const itemName = `Article quantité ${randomUUID()}`;
-    await page.getByRole('button', { name: 'Nouveau' }).click();
+    const itemName = `Article quantité ${randomUUID().slice(0, 8)}`;
+    await page.getByTestId('btn-new-item').click();
     await page.getByLabel('Nom').fill(itemName);
-    await page.getByLabel('Quantité').fill('2');
-    await page.getByRole('button', { name: 'Créer' }).click();
+    await page.getByRole('spinbutton', { name: 'Quantité', exact: true }).fill('2');
+    await page.getByTestId('btn-create-item').click();
 
     const row = page.locator('.item-row').filter({ hasText: itemName });
     await row.getByRole('button', { name: `Augmenter la quantité de ${itemName}` }).click();

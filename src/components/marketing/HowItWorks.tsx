@@ -1,34 +1,38 @@
+'use client';
+
+import { useI18n } from '@/contexts/LanguageContext';
+
 export function HowItWorks() {
+  const { t } = useI18n();
   const steps = [
     {
       number: 1,
-      title: 'Create your household',
-      description: 'Set up your shared space in seconds',
+      title: t('mk.how_1_title'),
+      description: t('mk.how_1_desc'),
     },
     {
       number: 2,
-      title: 'Add items to your list',
-      description: 'What do you need? Add it instantly',
+      title: t('mk.how_2_title'),
+      description: t('mk.how_2_desc'),
     },
     {
       number: 3,
-      title: 'Shop together',
-      description: 'Real-time updates as you shop',
+      title: t('mk.how_3_title'),
+      description: t('mk.how_3_desc'),
     },
     {
       number: 4,
-      title: 'Never forget again',
-      description: 'Smart reminders for recurring items',
+      title: t('mk.how_4_title'),
+      description: t('mk.how_4_desc'),
     },
   ];
 
   return (
     <section className="mk-section mk-section-tinted" id="how-it-works">
       <div className="mk-container">
-        <h2 className="mk-h2">How it works</h2>
+        <h2 className="mk-h2">{t('mk.how_h2')}</h2>
         <p className="mk-section-sub">
-          From signup to a full cart in four steps — no app download, no setup
-          meeting with your roommates.
+          {t('mk.how_sub')}
         </p>
         <div className="mk-steps">
           {steps.map((step) => (

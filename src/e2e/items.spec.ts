@@ -10,9 +10,10 @@ import {
 async function deleteAllItems(page: Page) {
   const rows = page.locator('.item-row');
   let remaining = await rows.count();
-  page.on('dialog', (dialog) => void dialog.accept());
   while (remaining > 0) {
+    const dialogPromise = page.waitForEvent('dialog');
     await rows.first().getByTestId(/^btn-delete-item-/).click();
+    await (await dialogPromise).accept();
     await expect(rows).toHaveCount(remaining - 1);
     remaining -= 1;
   }
@@ -274,6 +275,7 @@ test.describe('Items CRUD', () => {
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
+      await expect(page.getByTestId('btn-new-item')).toBeVisible({ timeout: 10000 });
       await deleteAllItems(page);
 
       const emptyState = page.locator('.empty-state');

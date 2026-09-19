@@ -10,9 +10,10 @@ import {
 async function deleteAllItems(page: Page) {
   const rows = page.locator('.item-row');
   let remaining = await rows.count();
-  page.on('dialog', (dialog) => void dialog.accept());
   while (remaining > 0) {
+    const dialogPromise = page.waitForEvent('dialog');
     await rows.first().getByTestId(/^btn-delete-item-/).click();
+    await (await dialogPromise).accept();
     await expect(rows).toHaveCount(remaining - 1);
     remaining -= 1;
   }
@@ -79,6 +80,7 @@ test.describe('Empty States', () => {
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
+      await expect(page.getByTestId('btn-new-item')).toBeVisible({ timeout: 10000 });
       await deleteAllItems(page);
 
       const emptyState = page.locator('.empty-state');
@@ -99,6 +101,7 @@ test.describe('Empty States', () => {
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
+      await expect(page.getByTestId('btn-new-item')).toBeVisible({ timeout: 10000 });
       await deleteAllItems(page);
 
       const emptyState = page.locator('.empty-state');
@@ -144,6 +147,7 @@ test.describe('Empty States', () => {
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
+      await expect(page.getByTestId('btn-new-item')).toBeVisible({ timeout: 10000 });
       await deleteAllItems(page);
 
       const itemName = `Article stk ${randomUUID()}`;
@@ -254,6 +258,7 @@ test.describe('Empty States', () => {
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
+      await expect(page.getByTestId('btn-new-item')).toBeVisible({ timeout: 10000 });
       await deleteAllItems(page);
 
       const emptyState = page.locator('.empty-state');
@@ -268,6 +273,7 @@ test.describe('Empty States', () => {
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
+      await expect(page.getByTestId('btn-new-item')).toBeVisible({ timeout: 10000 });
       await deleteAllItems(page);
 
       const emptyState = page.locator('.empty-state');
@@ -300,7 +306,7 @@ test.describe('Empty States', () => {
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
       const itemList = page.locator('.item-row');
-      await expect(itemList).toBeVisible();
+      await expect(itemList.first()).toBeVisible();
 
       await deleteAllItems(page);
 

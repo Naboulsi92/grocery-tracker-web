@@ -48,7 +48,7 @@ test.describe('Items CRUD', () => {
       });
       await page.getByTestId('btn-create-item').click();
 
-      await expect(page.getByRole('alert')).toBeVisible();
+      await expect(page.locator('.auth-error')).toBeVisible();
     });
 
     test('validates unit selection and display', async ({ page, account }) => {
@@ -321,7 +321,7 @@ test.describe('Items CRUD', () => {
       const itemRow = page.locator('.item-row').filter({ hasText: itemName });
       await itemRow.getByTestId(/^btn-delete-item-/).click();
 
-      await expect(page.getByRole('alert')).toBeVisible();
+      await expect(page.locator('.auth-error')).toBeVisible();
     });
   });
 

@@ -35,7 +35,7 @@ test.describe('Categories CRUD', () => {
       });
       await page.getByTestId('btn-create-category').click();
 
-      await expect(page.getByRole('alert')).toBeVisible();
+      await expect(page.locator('.auth-error')).toBeVisible();
     });
 
     test('validates duplicate category name', async ({ page, account }) => {
@@ -240,7 +240,7 @@ test.describe('Categories CRUD', () => {
       page.once('dialog', (dialog) => dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
 
-      await expect(page.getByRole('alert')).toBeVisible();
+      await expect(page.locator('.auth-error')).toBeVisible();
     });
 
     test('preserves category order after delete', async ({ page, account }) => {

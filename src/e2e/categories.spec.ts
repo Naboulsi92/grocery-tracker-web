@@ -182,11 +182,9 @@ test.describe('Categories CRUD', () => {
       await expect(cardsAfter.nth(1)).toContainText(cat2Edited);
       await expect(cardsAfter.nth(2)).toContainText(cat3);
 
-      page.once('dialog', (dialog) => dialog.accept());
+      page.on('dialog', (dialog) => void dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat1.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
-      page.once('dialog', (dialog) => dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat2Edited.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
-      page.once('dialog', (dialog) => dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat3.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
     });
   });
@@ -203,15 +201,11 @@ test.describe('Categories CRUD', () => {
       await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
-      let dialogShown = false;
-      page.on('dialog', async (dialog) => {
-        dialogShown = true;
-        expect(dialog.message()).toContain('Supprimer');
-        await dialog.accept();
-      });
-
+      const dialogPromise = page.waitForEvent('dialog');
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
-      expect(dialogShown).toBe(true);
+      const dialog = await dialogPromise;
+      expect(dialog.message()).toContain('Supprimer');
+      await dialog.accept();
       await expect(page.getByText(categoryName)).toHaveCount(0);
     });
 
@@ -274,7 +268,7 @@ test.describe('Categories CRUD', () => {
       await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(cat3)).toBeVisible({ timeout: 10000 });
 
-      page.once('dialog', (dialog) => dialog.accept());
+      page.on('dialog', (dialog) => void dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat2.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
 
       const customSection = page.locator('[data-testid="category-section-custom"]');
@@ -283,9 +277,7 @@ test.describe('Categories CRUD', () => {
       await expect(cardsAfter.nth(0)).toContainText(cat1);
       await expect(cardsAfter.nth(1)).toContainText(cat3);
 
-      page.once('dialog', (dialog) => dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat1}`) }).click();
-      page.once('dialog', (dialog) => dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat3}`) }).click();
     });
   });
@@ -388,11 +380,9 @@ test.describe('Categories CRUD', () => {
       await expect(cards.nth(1)).toContainText(cat2);
       await expect(cards.nth(2)).toContainText(cat3);
 
-      page.once('dialog', (dialog) => dialog.accept());
+      page.on('dialog', (dialog) => void dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat1}`) }).click();
-      page.once('dialog', (dialog) => dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat2}`) }).click();
-      page.once('dialog', (dialog) => dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat3}`) }).click();
     });
   });

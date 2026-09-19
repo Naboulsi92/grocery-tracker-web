@@ -55,8 +55,9 @@ test.describe('Empty States', () => {
       await expect(customCards).toHaveCount(1);
       await expect(customCards.first()).toContainText(categoryName);
 
-      page.once('dialog', (dialog) => dialog.accept());
+      const deleteCategoryDialog = page.waitForEvent('dialog');
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+      await (await deleteCategoryDialog).accept();
     });
 
     test('default categories cannot be deleted or renamed', async ({ page, account }) => {

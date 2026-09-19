@@ -153,11 +153,13 @@ test.describe('Items CRUD', () => {
       const itemGroupHeader = page.locator('h3').filter({ hasText: categoryName });
       await expect(itemGroupHeader).toBeVisible();
       
-      page.once('dialog', (dialog) => dialog.accept());
+      const deleteItemDialog = page.waitForEvent('dialog');
       await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
+      await (await deleteItemDialog).accept();
       await page.getByTestId('dashboard-card-categories').click();
-      page.once('dialog', (dialog) => dialog.accept());
+      const deleteCategoryDialog = page.waitForEvent('dialog');
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+      await (await deleteCategoryDialog).accept();
     });
 
     test('can edit low stock threshold (US 48)', async ({ page, account }) => {

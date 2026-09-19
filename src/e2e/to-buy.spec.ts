@@ -156,30 +156,26 @@ test.describe('To-Buy Page', () => {
   });
 
   test('shows loading state while data is being fetched', async ({ page }) => {
-    // TEMPORARY [DEBUG-tobuy] probe — keep for one CI cycle, then remove.
-    page.on('request', (request) => {
-      if (request.url().includes('/rest/v1/')) {
-        console.log('[DEBUG-tobuy-req]', request.method(), request.url());
-      }
+    // Hold every inventory response behind a gate so the loading UI stays up
+    // until the status assertion runs, regardless of dev-server boot timing.
+    // The gate is always released (try/finally) so a failing assertion cannot
+    // stall the test on the held requests.
+    let releaseInventory = () => {};
+    const inventoryGate = new Promise<void>((resolve) => {
+      releaseInventory = resolve;
     });
-    page.on('requestfailed', (request) => {
-      if (request.url().includes('/rest/v1/')) {
-        console.log('[DEBUG-tobuy-failed]', request.method(), request.url(), request.failure()?.errorText ?? 'unknown');
-      }
-    });
-    let tobuyRouteHits = 0;
     await page.route('**/rest/v1/items**', async (route) => {
-      tobuyRouteHits += 1;
-      console.log('[DEBUG-tobuy-route-hit]', tobuyRouteHits, route.request().method(), route.request().url());
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await inventoryGate;
       await route.continue();
     });
 
     await page.goto('/to-buy');
-    console.log('[DEBUG-tobuy-sw]', await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL ?? 'none'));
-    console.log('[DEBUG-tobuy-route-total]', tobuyRouteHits);
-    await expect(page.getByRole('status', { name: 'Chargement...' })).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole('heading', { name: 'À acheter' })).toBeVisible();
+    try {
+      await expect(page.getByRole('status', { name: 'Chargement...' })).toBeVisible({ timeout: 15000 });
+    } finally {
+      releaseInventory();
+    }
+    await expect(page.getByRole('heading', { name: 'À acheter' })).toBeVisible({ timeout: 15000 });
   });
 
   test('displays an icon for each item', async ({ page }) => {
@@ -274,40 +270,68 @@ test.describe('To-Buy Page', () => {
   });
 
   test('shows error message when data fetch fails', async ({ page }) => {
-    await page.route('**/rest/v1/items**', (route) => {
-      route.abort('failed');
-    });
-
-    await page.goto('/to-buy');
-
-    const errorAlert = page.locator('.auth-error');
-    await expect(errorAlert).toBeVisible();
-    await expect(errorAlert).toContainText(/fetch|erreur|error/i);
-  });
-
-  test('allows retry after failed data fetch', async ({ page }) => {
-    let failRequest = true;
-
-    await page.route('**/rest/v1/items**', (route) => {
-      if (failRequest) {
-        failRequest = false;
-        route.abort('failed');
+    // postgrest-js retries aborted GETs with 1s/2s/4s backoff, which pushes
+    // error surfacing past the test budget; a 500 exercises the same app
+    // error path (query error -> .auth-error + retry) deterministically.
+    await page.route('**/rest/v1/items**', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: '500',
+            message: 'Simulated fetch failure',
+            details: '',
+            hint: '',
+          }),
+        });
       } else {
-        route.continue();
+        await route.continue();
       }
     });
 
     await page.goto('/to-buy');
 
     const errorAlert = page.locator('.auth-error');
-    await expect(errorAlert).toBeVisible();
+    await expect(errorAlert).toBeVisible({ timeout: 15000 });
+    await expect(errorAlert).toContainText(/fetch|erreur|error/i);
+  });
+
+  test('allows retry after failed data fetch', async ({ page }) => {
+    // Fail every inventory request until the error is on screen (the page
+    // mounts concurrent fetches and only the latest one surfaces its error),
+    // then let the retry succeed.
+    let failRequest = true;
+
+    await page.route('**/rest/v1/items**', async (route) => {
+      if (route.request().method() === 'GET' && failRequest) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: '500',
+            message: 'Simulated fetch failure',
+            details: '',
+            hint: '',
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.goto('/to-buy');
+
+    const errorAlert = page.locator('.auth-error');
+    await expect(errorAlert).toBeVisible({ timeout: 15000 });
+    failRequest = false;
 
     const retryButton = page.getByRole('button', { name: 'Réessayer' });
     await expect(retryButton).toBeVisible();
     await retryButton.click();
 
-    await expect(errorAlert).not.toBeVisible();
-    await expect(page.getByRole('heading', { name: 'À acheter' })).toBeVisible();
+    await expect(errorAlert).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'À acheter' })).toBeVisible({ timeout: 15000 });
   });
 
   test('shows visual distinction for critically low items', async ({ page }) => {
@@ -338,16 +362,24 @@ test.describe('To-Buy Page', () => {
   test('meets accessibility standards for screen readers', async ({ page }) => {
     await createItemWithLowStock(householdId, 'Article accessibilité', 1, 3, undefined, 'pcs');
 
+    let releaseInventory = () => {};
+    const inventoryGate = new Promise<void>((resolve) => {
+      releaseInventory = resolve;
+    });
     await page.route('**/rest/v1/items**', async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await inventoryGate;
       await route.continue();
     });
 
     await page.goto('/to-buy');
 
-    await expect(page.getByRole('status', { name: 'Chargement...' })).toBeVisible({ timeout: 5000 });
+    try {
+      await expect(page.getByRole('status', { name: 'Chargement...' })).toBeVisible({ timeout: 15000 });
+    } finally {
+      releaseInventory();
+    }
 
-    await expect(page.getByRole('heading', { name: 'À acheter' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'À acheter' })).toBeVisible({ timeout: 15000 });
 
     const mainRegion = page.getByRole('main');
     await expect(mainRegion).toBeVisible();

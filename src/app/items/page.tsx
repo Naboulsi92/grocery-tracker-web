@@ -268,7 +268,7 @@ return (
             <h2 style={{ marginBottom: '1.25rem', fontSize: '1.125rem' }}>
               {editingId ? t('items.edit_title') : t('items.new')}
             </h2>
-            <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            <form onSubmit={handleSubmit} noValidate style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
               <div className="form-group">
                 <label htmlFor="item-name">{t('items.name')}</label>
                  <input id="item-name" type="text" data-testid="input-item-name" value={formName} onChange={(e) => { setFormName(e.target.value); setFieldNameError(''); }} required placeholder={t('items.name_placeholder')} aria-invalid={!!fieldNameError} aria-describedby="item-name-error" />

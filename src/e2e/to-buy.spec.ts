@@ -147,12 +147,12 @@ test.describe('To-Buy Page', () => {
   });
 
   test('displays low-stock items with correct quantities', async ({ page }) => {
-    await createItemWithLowStock(householdId, 'Pâtes', 2, 5, undefined, 'boîtes');
+    await createItemWithLowStock(householdId, 'Pâtes', 2, 5, undefined, 'unite');
 
     await page.goto('/to-buy');
     await expect(page.getByRole('heading', { name: 'À acheter' })).toBeVisible();
     await expect(page.getByText('Pâtes')).toBeVisible();
-    await expect(page.getByText('2/5 boîtes')).toBeVisible();
+    await expect(page.getByText('2/5 unite')).toBeVisible();
   });
 
   test('shows loading state while data is being fetched', async ({ page }) => {
@@ -180,7 +180,7 @@ test.describe('To-Buy Page', () => {
 
   test('displays an icon for each item', async ({ page }) => {
     const category = await createCategory(householdId, 'Fruits et Légumes');
-    await createItemWithLowStock(householdId, 'Pommes', 1, 3, category.id, 'pcs');
+    await createItemWithLowStock(householdId, 'Pommes', 1, 3, category.id, 'unite');
 
     await page.goto('/to-buy');
     await expect(page.getByText('Pommes')).toBeVisible();
@@ -188,7 +188,7 @@ test.describe('To-Buy Page', () => {
   });
 
   test('shows item even without a category', async ({ page }) => {
-    await createItemWithLowStock(householdId, 'Sans catégorie', 1, 3, undefined, 'pcs');
+    await createItemWithLowStock(householdId, 'Sans catégorie', 1, 3, undefined, 'unite');
 
     await page.goto('/to-buy');
     await expect(page.getByText('Sans catégorie')).toBeVisible();
@@ -196,11 +196,11 @@ test.describe('To-Buy Page', () => {
   });
 
   test('allows incrementing item quantities from to-buy list', async ({ page }) => {
-    const item = await createItemWithLowStock(householdId, 'Riz', 2, 5, undefined, 'pcs');
+    const item = await createItemWithLowStock(householdId, 'Riz', 2, 5, undefined, 'unite');
 
     await page.goto('/to-buy');
     await expect(page.getByText('Riz')).toBeVisible();
-    await expect(page.getByText('2/5 pcs')).toBeVisible();
+    await expect(page.getByText('2/5 unite')).toBeVisible();
 
     await page.getByTestId('tobuy-quantity-input').fill('1');
     await page.getByTestId('tobuy-check-button').click();
@@ -217,7 +217,7 @@ test.describe('To-Buy Page', () => {
   });
 
   test('marks item as in stock when quantity exceeds threshold', async ({ page }) => {
-    const item = await createItemWithLowStock(householdId, 'Beurre', 2, 3, undefined, 'pcs');
+    const item = await createItemWithLowStock(householdId, 'Beurre', 2, 3, undefined, 'unite');
 
     await page.goto('/to-buy');
     await expect(page.getByText('Beurre')).toBeVisible();
@@ -249,16 +249,16 @@ test.describe('To-Buy Page', () => {
   });
 
   test('displays current quantity vs threshold for each item', async ({ page }) => {
-    await createItemWithLowStock(householdId, 'Lait', 0, 2, undefined, 'L');
+    await createItemWithLowStock(householdId, 'Lait', 0, 2, undefined, 'l');
 
     await page.goto('/to-buy');
-    await expect(page.getByText('0/2 L')).toBeVisible();
+    await expect(page.getByText('0/2 l')).toBeVisible();
   });
 
   test('shows items sorted by name', async ({ page }) => {
-    await createItemWithLowStock(householdId, 'Item A1', 1, 3, undefined, 'pcs');
-    await createItemWithLowStock(householdId, 'Item A2', 1, 3, undefined, 'pcs');
-    await createItemWithLowStock(householdId, 'Item B1', 1, 3, undefined, 'pcs');
+    await createItemWithLowStock(householdId, 'Item A1', 1, 3, undefined, 'unite');
+    await createItemWithLowStock(householdId, 'Item A2', 1, 3, undefined, 'unite');
+    await createItemWithLowStock(householdId, 'Item B1', 1, 3, undefined, 'unite');
 
     await page.goto('/to-buy');
 
@@ -335,22 +335,22 @@ test.describe('To-Buy Page', () => {
   });
 
   test('shows visual distinction for critically low items', async ({ page }) => {
-    await createItemWithLowStock(householdId, 'Critique', 0, 5, undefined, 'pcs');
-    await createItemWithLowStock(householdId, 'Presque plein', 4, 5, undefined, 'pcs');
+    await createItemWithLowStock(householdId, 'Critique', 0, 5, undefined, 'unite');
+    await createItemWithLowStock(householdId, 'Presque plein', 4, 5, undefined, 'unite');
 
     await page.goto('/to-buy');
     await expect(page.getByText('Critique')).toBeVisible();
-    await expect(page.getByText('0/5 pcs')).toBeVisible();
+    await expect(page.getByText('0/5 unite')).toBeVisible();
     await expect(page.getByText('Presque plein')).toBeVisible();
-    await expect(page.getByText('4/5 pcs')).toBeVisible();
+    await expect(page.getByText('4/5 unite')).toBeVisible();
   });
 
   test('updates list when item quantities change via real-time subscription', async ({ page }) => {
-    const item = await createItemWithLowStock(householdId, 'Égouttoir', 2, 5, undefined, 'pcs');
+    const item = await createItemWithLowStock(householdId, 'Égouttoir', 2, 5, undefined, 'unite');
 
     await page.goto('/to-buy');
     await expect(page.getByText('Égouttoir')).toBeVisible();
-    await expect(page.getByText('2/5 pcs')).toBeVisible();
+    await expect(page.getByText('2/5 unite')).toBeVisible();
 
     const supabase = await adminClient();
     await supabase.from('items').update({ quantity: 6 }).eq('id', item.id);
@@ -360,7 +360,7 @@ test.describe('To-Buy Page', () => {
   });
 
   test('meets accessibility standards for screen readers', async ({ page }) => {
-    await createItemWithLowStock(householdId, 'Article accessibilité', 1, 3, undefined, 'pcs');
+    await createItemWithLowStock(householdId, 'Article accessibilité', 1, 3, undefined, 'unite');
 
     let releaseInventory = () => {};
     const inventoryGate = new Promise<void>((resolve) => {

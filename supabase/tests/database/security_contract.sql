@@ -1171,8 +1171,10 @@ begin
     raise exception 'history must stay out of supabase_realtime';
   end if;
   -- Grants : TO authenticated seul, sans UPDATE, sans écriture id/performed_at.
+  -- INSERT vérifié au niveau colonnes (has_any_column_privilege) : la migration
+  -- accorde INSERT colonnes uniquement, que has_table_privilege ignore.
   if not has_table_privilege('authenticated', 'public.history', 'SELECT')
-     or not has_table_privilege('authenticated', 'public.history', 'INSERT')
+     or not has_any_column_privilege('authenticated', 'public.history', 'INSERT')
      or not has_table_privilege('authenticated', 'public.history', 'DELETE')
      or has_table_privilege('authenticated', 'public.history', 'UPDATE')
      or has_table_privilege('anon', 'public.history', 'SELECT')

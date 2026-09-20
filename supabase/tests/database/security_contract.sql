@@ -12,10 +12,10 @@ do $$
 begin
   -- Realtime publication must be EXACTLY {categories, items}: inventory tables
   -- present, every other public table (incl. units/history) absent.
-  if (select coalesce(array_agg(tablename order by tablename), '{}'::text[])
+  if (select coalesce(array_agg(tablename::text order by tablename::text), '{}'::text[])
       from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public')
-     <> array['categories', 'items'] then
+     <> array['categories', 'items']::text[] then
     raise exception 'Realtime publication must be exactly {categories, items}';
   end if;
   if exists (

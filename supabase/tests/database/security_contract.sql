@@ -1121,6 +1121,8 @@ begin
 end;
 $$;
 
+reset role;
+
 -- Ticket #108 — History 20 + already_notified + INSERT membre (PRD §4.6/§4.7/§5, fix #105)
 -- Rotation AFTER INSERT (la 21e supprime la plus ancienne), 1 notif par
 -- franchissement avec reset au-dessus du seuil, INSERT history réservé aux

@@ -76,3 +76,53 @@ describe('joinHistoryActors', () => {
     ]);
   });
 });
+
+describe('history rotation display — 20 dernières uniquement (PRD §4.7 / ADR 0005)', () => {
+  type DatedEntry = { id: string; performed_at: string };
+
+  const dated = (index: number): DatedEntry => ({
+    id: `entry-${String(index).padStart(2, '0')}`,
+    performed_at: `2026-09-15T12:${String(index).padStart(2, '0')}:00Z`,
+  });
+
+  const keepNewest20 = (entries: DatedEntry[]): DatedEntry[] =>
+    [...entries]
+      .sort((a, b) =>
+        b.performed_at === a.performed_at
+          ? b.id.localeCompare(a.id)
+          : +new Date(b.performed_at) - +new Date(a.performed_at),
+      )
+      .slice(0, 20);
+
+  it('shows at most 20 entries even after a 21st action (P1-10)', () => {
+    const entries = Array.from({ length: 21 }, (_, i) => dated(i + 1));
+
+    const visible = keepNewest20(entries);
+
+    expect(visible).toHaveLength(20);
+    expect(visible.map(({ id }) => id)).not.toContain('entry-01');
+    expect(visible.map(({ id }) => id)).toContain('entry-21');
+  });
+
+  it('keeps display order newest-first (performed_at desc)', () => {
+    const entries = [dated(3), dated(1), dated(2)];
+
+    expect(keepNewest20(entries).map(({ id }) => id)).toEqual(['entry-03', 'entry-02', 'entry-01']);
+  });
+
+  it('joins actor names on the capped 20 without losing entries', () => {
+    const entries: HistoryRow[] = Array.from({ length: 21 }, (_, i) => ({
+      ...baseHistoryRow,
+      id: `entry-${String(i + 1).padStart(2, '0')}`,
+      performed_by: 'user-1',
+    }));
+    const profiles: ProfileName[] = [{ id: 'user-1', first_name: 'Camille', last_name: '' }];
+
+    const capped = entries.slice(-20);
+    const joined = joinHistoryActors(capped, profiles);
+
+    expect(joined).toHaveLength(20);
+    expect(joined[0]).toMatchObject({ actorName: 'Camille' });
+    expect(joined.map(({ id }) => id)).not.toContain('entry-01');
+  });
+});

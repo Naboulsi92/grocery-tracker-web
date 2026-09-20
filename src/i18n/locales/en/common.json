@@ -156,7 +156,7 @@
   "tobuy.confirm": "Confirm",
   "tobuy.threshold_not_met": "The threshold has not been met — the item stays on the to-buy list.",
   "history.title": "History",
-  "history.action_modification": "Modification",
+  "history.action_modification": "Edit",
   "history.action_suppression": "Deletion",
   "history.by": "By {name}",
   "history.empty_title": "No activity",

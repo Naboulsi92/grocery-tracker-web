@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import type { Page } from '@playwright/test';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
 import { deleteItemRow } from './helpers';
 import {
@@ -472,6 +474,243 @@ test.describe('Real-time Collaboration', () => {
 
       page.once('dialog', (dialog) => dialog.accept());
       await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
+    });
+  });
+
+  test.describe('History + Threshold Notifications (§8 P0-2/P0-3/P1-10)', () => {
+    async function adminClient() {
+      const supabaseURL = process.env.E2E_SUPABASE_URL;
+      const serviceRoleKey = process.env.E2E_SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseURL || !serviceRoleKey) {
+        throw new Error('Database access requires E2E_SUPABASE_URL and E2E_SUPABASE_SERVICE_ROLE_KEY');
+      }
+      return createSupabaseClient(supabaseURL, serviceRoleKey);
+    }
+
+    async function getUserIdByEmail(email: string): Promise<string> {
+      const admin = await adminClient();
+      const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (error) throw error;
+      const user = data.users.find((u) => u.email === email);
+      if (!user) throw new Error(`No user found with email ${email}`);
+      return user.id;
+    }
+
+    async function getHouseholdIdForUser(userId: string): Promise<string> {
+      const admin = await adminClient();
+      const { data, error } = await admin
+        .from('household_members')
+        .select('household_id')
+        .eq('user_id', userId)
+        .single();
+      if (error || !data) throw error ?? new Error(`No household for user ${userId}`);
+      return (data as { household_id: string }).household_id;
+    }
+
+    async function getMemberIds(householdId: string): Promise<string[]> {
+      const admin = await adminClient();
+      const { data, error } = await admin
+        .from('household_members')
+        .select('user_id')
+        .eq('household_id', householdId);
+      if (error) throw error;
+      return ((data ?? []) as { user_id: string }[]).map(({ user_id }) => user_id);
+    }
+
+    async function getPending(householdId: string) {
+      const admin = await adminClient();
+      const { data, error } = await admin
+        .from('pending_notifications')
+        .select('id, actor_id, target_user_id')
+        .eq('household_id', householdId);
+      if (error) throw error;
+      return (data ?? []) as { id: string; actor_id: string | null; target_user_id: string | null }[];
+    }
+
+    async function getItem(householdId: string, name: string) {
+      const admin = await adminClient();
+      const { data, error } = await admin
+        .from('items')
+        .select('id, quantity, low_stock_threshold, already_notified')
+        .eq('household_id', householdId)
+        .eq('name', name)
+        .single();
+      if (error || !data) throw error ?? new Error(`No item named ${name}`);
+      return data as { id: string; quantity: number; low_stock_threshold: number; already_notified: boolean };
+    }
+
+    async function createThresholdItem(page: Page, itemName: string) {
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(itemName);
+      await page.getByLabel('Quantité', { exact: true }).fill('5');
+      await page.getByLabel('Seuil stock bas').fill('2');
+      await page.getByTestId('btn-create-item').click();
+      await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+    }
+
+    test('P1-10 — 21st history action evicts the oldest, max 20 shown, 0 history_insert_failed', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      const historyWarnings: string[] = [];
+      page.on('console', (msg) => {
+        if (msg.type() === 'warning' && msg.text().includes('history_insert_failed')) {
+          historyWarnings.push(msg.text());
+        }
+      });
+
+      await createHousehold(page, account);
+      const admin = await adminClient();
+      const actorId = await getUserIdByEmail(account.email);
+      const householdId = await getHouseholdIdForUser(actorId);
+
+      await admin.from('history').delete().eq('household_id', householdId);
+      const suffix = randomUUID();
+      const base = Date.now();
+      for (let i = 1; i <= 21; i++) {
+        const { error } = await admin.from('history').insert({
+          household_id: householdId,
+          performed_by: actorId,
+          action_type: i % 2 === 0 ? 'suppression' : 'modification',
+          item_name: `Hist e2e ${suffix} ${i}`,
+          performed_at: new Date(base + i * 1000).toISOString(),
+        });
+        if (error) throw error;
+      }
+
+      await expect
+        .poll(
+          async () => {
+            const { data, error } = await admin
+              .from('history')
+              .select('id', { count: 'exact' })
+              .eq('household_id', householdId);
+            if (error) throw error;
+            return (data ?? []).length;
+          },
+          { timeout: 10000 },
+        )
+        .toBeLessThanOrEqual(20);
+
+      const { data: remaining } = await admin
+        .from('history')
+        .select('item_name')
+        .eq('household_id', householdId)
+        .order('performed_at', { ascending: true });
+      const names = ((remaining ?? []) as { item_name: string }[]).map(({ item_name }) => item_name);
+      expect(names).toHaveLength(20);
+      expect(names).not.toContain(`Hist e2e ${suffix} 1`);
+      expect(names).toContain(`Hist e2e ${suffix} 21`);
+
+      await page.goto('/history');
+      const entries = page.locator('[data-testid^="history-entry-"]');
+      await expect.poll(async () => entries.count(), { timeout: 15000 }).toBeLessThanOrEqual(20);
+      await expect(entries.first()).toBeVisible({ timeout: 10000 });
+
+      expect(historyWarnings).toEqual([]);
+    });
+
+    test('P0-2 — A crosses below threshold: only B is notified, A is not', async ({ page, account, browser }) => {
+      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      await createHousehold(page, account);
+      const admin = await adminClient();
+      const actorA = await getUserIdByEmail(account.email);
+      const householdId = await getHouseholdIdForUser(actorA);
+      await admin.from('pending_notifications').delete().eq('household_id', householdId);
+
+      const itemName = `Seuil p02 ${randomUUID()}`;
+      await createThresholdItem(page, itemName);
+
+      const memberContext = await browser.newContext();
+      const memberPage = await memberContext.newPage();
+      try {
+        await page.goto('/home');
+        await page.getByRole('link', { name: /Membres/ }).click();
+        await page.getByRole('button', { name: 'Créer une invitation' }).click();
+        const invitationToken = await page.locator('.invite-code-text').textContent();
+
+        const memberAccount = createAccount('e2e-rt-p02');
+        await signUp(memberPage, memberAccount);
+        await memberPage.getByLabel(/Code d.invitation complet/).fill(invitationToken ?? '');
+        await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+        await memberPage.waitForURL('/home', { timeout: 20000 });
+        const actorB = await getUserIdByEmail(memberAccount.email);
+
+        await page.goto('/items');
+        const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+        for (let i = 0; i < 3; i++) {
+          await itemRow.getByRole('button', { name: /Réduire la quantité/ }).click();
+        }
+        await expect(itemRow.locator('.qty-value')).toContainText('2', { timeout: 10000 });
+
+        await expect
+          .poll(async () => (await getPending(householdId)).length, { timeout: 15000 })
+          .toBe(1);
+        const pending = await getPending(householdId);
+        expect(pending[0].actor_id).toBe(actorA);
+
+        const memberIds = await getMemberIds(householdId);
+        expect(memberIds).toEqual(expect.arrayContaining([actorA, actorB]));
+        const recipients = memberIds.filter((id) => id !== pending[0].actor_id);
+        expect(recipients).toEqual([actorB]);
+        expect(recipients).not.toContain(actorA);
+
+        const item = await getItem(householdId, itemName);
+        expect(item.already_notified).toBe(true);
+
+        page.once('dialog', (dialog) => dialog.accept());
+        await itemRow.getByTestId(/^btn-delete-item-/).click();
+      } finally {
+        await memberContext.close();
+      }
+    });
+
+    test('P0-3 — down/up/down notifies once per crossing via already_notified', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      await createHousehold(page, account);
+      const admin = await adminClient();
+      const actorId = await getUserIdByEmail(account.email);
+      const householdId = await getHouseholdIdForUser(actorId);
+      await admin.from('pending_notifications').delete().eq('household_id', householdId);
+
+      const itemName = `Seuil p03 ${randomUUID()}`;
+      await createThresholdItem(page, itemName);
+
+      await page.goto('/items');
+      const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+
+      for (let i = 0; i < 4; i++) {
+        await itemRow.getByRole('button', { name: /Réduire la quantité/ }).click();
+      }
+      await expect(itemRow.locator('.qty-value')).toContainText('1', { timeout: 10000 });
+      await expect
+        .poll(async () => (await getPending(householdId)).length, { timeout: 15000 })
+        .toBe(1);
+      expect((await getItem(householdId, itemName)).already_notified).toBe(true);
+
+      await itemRow.getByRole('button', { name: /Réduire la quantité/ }).click();
+      await expect(itemRow.locator('.qty-value')).toContainText('0', { timeout: 10000 });
+      await page.waitForTimeout(1500);
+      expect(await getPending(householdId)).toHaveLength(1);
+
+      for (let i = 0; i < 5; i++) {
+        await itemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      }
+      await expect(itemRow.locator('.qty-value')).toContainText('5', { timeout: 10000 });
+      await expect
+        .poll(async () => (await getItem(householdId, itemName)).already_notified, { timeout: 15000 })
+        .toBe(false);
+      expect(await getPending(householdId)).toHaveLength(1);
+
+      for (let i = 0; i < 4; i++) {
+        await itemRow.getByRole('button', { name: /Réduire la quantité/ }).click();
+      }
+      await expect(itemRow.locator('.qty-value')).toContainText('1', { timeout: 10000 });
+      await expect
+        .poll(async () => (await getPending(householdId)).length, { timeout: 15000 })
+        .toBe(2);
+
+      page.once('dialog', (dialog) => dialog.accept());
+      await itemRow.getByTestId(/^btn-delete-item-/).click();
     });
   });
 });

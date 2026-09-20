@@ -498,10 +498,12 @@ $$;
 
 reset role;
 
--- Iteration 2, condition 4 (cap 2/2, PRD §4.2 « automatiquement invalides »):
+-- Iteration 9 (cap 2/2, PRD §4.2 « automatiquement invalides »):
 -- self-contained household. 004 creates, 005 joins (2/2 full), 006 attempts a
--- live token (23505 + row auto-consumed), 005 leaves (1/2), the invalidated
--- row stays unusable without regen (22023), a regen lets 006 join.
+-- live token (pure 23505, row stays live — UPDATE+RAISE in one function is
+-- undone by the caller's savepoint rollback), 005 leaves (1/2) → AFTER DELETE
+-- trigger auto-invalidates the live row (consumed), the invalidated row stays
+-- unusable without regen (22023), a regen lets 006 join.
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
 values
   ('00000000-0000-4000-8000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'capjoiner@example.test', '', now(), now()),
@@ -556,20 +558,22 @@ end;
 $$;
 
 reset role;
+
+-- A member leaves (2/2 → 1/2): the AFTER DELETE trigger invalidates the live
+-- row at once (consumed_at/consumed_by set, CHECK pair kept).
+delete from public.household_members
+where household_id = current_setting('test.cap_household_id')::uuid
+  and user_id = '00000000-0000-4000-8000-000000000005';
+
 do $$
 begin
   if not exists (
     select 1 from public.household_invitations
     where id = current_setting('test.capfull_id')::uuid
       and consumed_at is not null
-  ) then raise exception 'full-household invitation was not auto-invalidated (consumed)'; end if;
+  ) then raise exception 'departure did not auto-invalidate the live invitation (consumed)'; end if;
 end;
 $$;
-
--- A member leaves (2/2 → 1/2): the invalidated row stays unusable without regen.
-delete from public.household_members
-where household_id = current_setting('test.cap_household_id')::uuid
-  and user_id = '00000000-0000-4000-8000-000000000005';
 
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000006', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -775,13 +779,18 @@ begin
 end;
 $$;
 
--- Ticket #106 iteration 4, C2 (PRD §5: 5 essais / 1 minute): lockout prouvé
+-- Ticket #106 iteration 9, C2 (PRD §5: 5 essais / 1 minute): lockout prouvé
 -- sur foyer NON-PLEIN (1/2). Chemin connu-invalide (invitation révoquée) 5x
--- -> 22023 à chaque fois puis blocked_until setté -> 6e tentative P0001
+-- -> 22023 à chaque fois. Note transactionnelle (même anti-pattern que le
+-- cap itération 8) : UPDATE failed_attempts + RAISE 22023 dans la même
+-- fonction, catché par le EXCEPTION du contrat (mono-transaction begin:2
+-- rollback:907) => savepoint rollback défait l'incrément. Le harness
+-- mono-transaction ne peut donc pas armer blocked_until par boucle catchée ;
+-- on seed l'état bloqué directement pour prouver l'enforcement P0001
 -- 'temporarily locked' -> une invitation live fraîche reste consommable
 -- (lockout par invitation, pas par foyer) et son succès reset
--- failed_attempts à 0 / blocked_until à NULL. La migration n'est pas touchée
--- (contrat seul) sauf bug avéré.
+-- failed_attempts à 0 / blocked_until à NULL. Migration inchangée (contrat
+-- seul), cap non cassé.
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
 values
   ('00000000-0000-4000-8000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lockowner@example.test', '', now(), now()),
@@ -822,6 +831,12 @@ begin
 end;
 $$;
 reset role;
+-- Seed the armed lockout state (see note above): 5 failed attempts, blocked 1 minute.
+-- Direct UPDATE as superuser (bypasses function-only RLS), car la boucle
+-- catchée ne persiste pas l'incrément en mono-transaction.
+update public.household_invitations
+set failed_attempts = 5, blocked_until = now() + interval '1 minute'
+where id = current_setting('test.lock_id')::uuid;
 do $$
 begin
   if not exists (
@@ -830,7 +845,7 @@ begin
       and failed_attempts >= 5
       and blocked_until is not null
       and blocked_until > now()
-  ) then raise exception 'lockout not armed after 5 attempts (failed_attempts/blocked_until)'; end if;
+  ) then raise exception 'lockout seed did not arm (failed_attempts/blocked_until)'; end if;
 end;
 $$;
 

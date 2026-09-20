@@ -16,3 +16,4 @@
 \ir migrations/20260918000000_fix_cap_invalidation.sql
 \ir migrations/20260919000000_fork_seeds_units_validation.sql
 \ir migrations/20260920000000_history_notifs_rotation.sql
+\ir migrations/20260920120000_fix_already_notified_default.sql

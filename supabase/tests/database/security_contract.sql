@@ -1121,5 +1121,294 @@ begin
 end;
 $$;
 
+-- Ticket #108 — History 20 + already_notified + INSERT membre (PRD §4.6/§4.7/§5, fix #105)
+-- Rotation AFTER INSERT (la 21e supprime la plus ancienne), 1 notif par
+-- franchissement avec reset au-dessus du seuil, INSERT history réservé aux
+-- membres de leur foyer (grants + RLS — les policies seules ne suffisaient pas).
+do $$
+begin
+  -- action_type : modifs/suppressions uniquement — aucun achat.
+  if (select coalesce(array_agg(e.enumlabel order by e.enumlabel), '{}')::text[]
+      from pg_enum e join pg_type t on t.oid = e.enumtypid
+      where t.typname = 'action_type_enum')
+     <> array['modification', 'suppression'] then
+    raise exception 'history action_type must be exactly {modification, suppression}';
+  end if;
+  -- Aucune colonne avant/après : le contrat reste auteur+action+article+horodatage.
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'history'
+      and column_name not in ('id', 'household_id', 'performed_by', 'action_type', 'item_name', 'performed_at')
+  ) then
+    raise exception 'history must carry no before/after columns';
+  end if;
+  -- RLS active, 3 policies membres TO authenticated seul, aucun chemin UPDATE (log immuable).
+  if not (select rowsecurity from pg_tables where schemaname = 'public' and tablename = 'history') then
+    raise exception 'history RLS must stay enabled';
+  end if;
+  if (select count(*) from pg_policies where schemaname = 'public' and tablename = 'history') <> 3 then
+    raise exception 'history must carry exactly 3 member policies';
+  end if;
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'history'
+      and ('public' = any (roles) or 'anon' = any (roles) or cmd = 'UPDATE')
+  ) then
+    raise exception 'history policies must be member-only with no UPDATE path';
+  end if;
+  -- Trigger AFTER INSERT rotation présent et actif sur history.
+  if not exists (
+    select 1 from pg_trigger
+    where tgname = 'history_cap_trigger' and tgrelid = 'public.history'::regclass and tgenabled = 'O'
+  ) then
+    raise exception 'history_cap_trigger must exist and be enabled';
+  end if;
+  -- history hors realtime (la publication exactement {categories, items} est assertée plus haut).
+  if exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'history'
+  ) then
+    raise exception 'history must stay out of supabase_realtime';
+  end if;
+  -- Grants : TO authenticated seul, sans UPDATE, sans écriture id/performed_at.
+  if not has_table_privilege('authenticated', 'public.history', 'SELECT')
+     or not has_table_privilege('authenticated', 'public.history', 'INSERT')
+     or not has_table_privilege('authenticated', 'public.history', 'DELETE')
+     or has_table_privilege('authenticated', 'public.history', 'UPDATE')
+     or has_table_privilege('anon', 'public.history', 'SELECT')
+     or has_table_privilege('anon', 'public.history', 'INSERT')
+     or has_table_privilege('public', 'public.history', 'SELECT')
+     or has_table_privilege('public', 'public.history', 'INSERT') then
+    raise exception 'history table grants must be SELECT/INSERT/DELETE to authenticated only';
+  end if;
+  if has_column_privilege('authenticated', 'public.history', 'id', 'INSERT')
+     or has_column_privilege('authenticated', 'public.history', 'performed_at', 'INSERT')
+     or not has_column_privilege('authenticated', 'public.history', 'household_id', 'INSERT')
+     or not has_column_privilege('authenticated', 'public.history', 'performed_by', 'INSERT')
+     or not has_column_privilege('authenticated', 'public.history', 'action_type', 'INSERT')
+     or not has_column_privilege('authenticated', 'public.history', 'item_name', 'INSERT') then
+    raise exception 'history column grants violate the append-only contract';
+  end if;
+  -- Fonction trigger interne non exécutable par les clients.
+  if has_function_privilege('authenticated', 'public.cap_history()', 'EXECUTE') then
+    raise exception 'trigger function cap_history is client-executable';
+  end if;
+  -- already_notified : colonne serveur NOT NULL défaut false, non inscriptible par les clients.
+  if (select is_nullable from information_schema.columns
+      where table_schema = 'public' and table_name = 'items' and column_name = 'already_notified') <> 'NO' then
+    raise exception 'items.already_notified must be NOT NULL';
+  end if;
+  if (select column_default from information_schema.columns
+      where table_schema = 'public' and table_name = 'items' and column_name = 'already_notified') is distinct from 'false' then
+    raise exception 'items.already_notified default must be false';
+  end if;
+  if has_column_privilege('authenticated', 'public.items', 'already_notified', 'INSERT')
+     or has_column_privilege('authenticated', 'public.items', 'already_notified', 'UPDATE') then
+    raise exception 'already_notified must stay server-controlled';
+  end if;
+  if not exists (
+    select 1 from pg_trigger
+    where tgname = 'notify_threshold_crossing' and tgrelid = 'public.items'::regclass
+  ) or not exists (
+    select 1 from pg_trigger
+    where tgname = 'notify_threshold_crossing_on_insert' and tgrelid = 'public.items'::regclass
+  ) then
+    raise exception 'threshold-crossing triggers must exist';
+  end if;
+end;
+$$;
+
+-- Fix #105 : un membre insère et lit l'historique de son foyer (0 warning 42501).
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+insert into public.history (household_id, performed_by, action_type, item_name)
+values (current_setting('test.household_id')::uuid, '00000000-0000-4000-8000-000000000002', 'modification', 'Lait');
+do $$
+begin
+  if not exists (
+    select 1 from public.history
+    where household_id = current_setting('test.household_id')::uuid and item_name = 'Lait'
+  ) then raise exception 'member could not read own household history'; end if;
+  -- Log immuable : UPDATE refusé (aucun grant, aucune policy).
+  begin
+    update public.history set item_name = 'Forge' where item_name = 'Lait';
+    raise exception 'history update unexpectedly succeeded';
+  exception when insufficient_privilege then null;
+  end;
+  -- Horodatage généré non inscriptible.
+  begin
+    insert into public.history (household_id, performed_by, action_type, item_name, performed_at)
+    values (current_setting('test.household_id')::uuid, '00000000-0000-4000-8000-000000000002', 'modification', 'Date', now());
+    raise exception 'history performed_at override unexpectedly succeeded';
+  exception when insufficient_privilege then null;
+  end;
+  -- Achat : l'enum refuse tout autre type d'action.
+  begin
+    insert into public.history (household_id, performed_by, action_type, item_name)
+    values (current_setting('test.household_id')::uuid, '00000000-0000-4000-8000-000000000002', 'achat', 'Lait');
+    raise exception 'history purchase type unexpectedly accepted';
+  exception when invalid_text_representation then null;
+  end;
+end;
+$$;
+
+-- Outsider : ni écriture ni lecture de l'historique d'un autre foyer.
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000003', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+declare denied boolean := false;
+begin
+  begin
+    insert into public.history (household_id, performed_by, action_type, item_name)
+    values (current_setting('test.household_id')::uuid, '00000000-0000-4000-8000-000000000003', 'modification', 'Intrus');
+  exception when sqlstate '42501' then denied := true;
+  end;
+  if not denied then raise exception 'outsider inserted foreign history'; end if;
+  if exists (select 1 from public.history where household_id = current_setting('test.household_id')::uuid) then
+    raise exception 'cross-household history leak';
+  end if;
+end;
+$$;
+
+-- Anon : aucune écriture d'historique.
+reset role;
+set local role anon;
+do $$
+declare denied boolean := false;
+begin
+  begin
+    insert into public.history (household_id, performed_by, action_type, item_name)
+    values (current_setting('test.household_id')::uuid, null, 'modification', 'Anon');
+  exception when sqlstate '42501' then denied := true;
+  end;
+  if not denied then raise exception 'anon inserted history'; end if;
+end;
+$$;
+
+-- Rotation §8 P1-10 : 21 inserts horodatés -> 20 gardées, la plus ancienne (H01) purgée.
+-- En superuser (horodatage explicite déterministe) : le trigger purge quel que soit le rôle.
+reset role;
+do $$
+declare
+  v_hid uuid := current_setting('test.household_id')::uuid;
+  i int;
+begin
+  delete from public.history where household_id = v_hid;
+  for i in 1..21 loop
+    insert into public.history (household_id, performed_by, action_type, item_name, performed_at)
+    values (v_hid, '00000000-0000-4000-8000-000000000001',
+      (case when i % 2 = 0 then 'suppression' else 'modification' end)::public.action_type_enum,
+      'H' || lpad(i::text, 2, '0'), now() - (21 - i) * interval '1 minute');
+  end loop;
+  if (select count(*) from public.history where household_id = v_hid) <> 20 then
+    raise exception 'history rotation must keep 20 rows';
+  end if;
+  if exists (select 1 from public.history where household_id = v_hid and item_name = 'H01') then
+    raise exception 'history rotation did not drop the oldest row';
+  end if;
+  if not exists (select 1 from public.history where household_id = v_hid and item_name = 'H21') then
+    raise exception 'history rotation dropped the newest row';
+  end if;
+end;
+$$;
+
+-- §8 P0-3 : baisser/remonter/rebaisser = 1 notif par passage (already_notified).
+-- Sonde membro 002 : seuil 5, qté 10 -> -6 (notif 1) -> -1 (rien) -> +5 (reset) -> -4 (notif 2).
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+values (current_setting('test.household_id')::uuid, current_setting('test.item_category_id')::uuid, 'Probe notif', 10, 'unite', 5)
+returning id as probe_item_id \gset
+select set_config('test.probe_item_id', :'probe_item_id', true);
+do $$
+begin
+  if (select already_notified from public.items where id = current_setting('test.probe_item_id')::uuid) then
+    raise exception 'probe above threshold must start un-notified';
+  end if;
+end;
+$$;
+select quantity, already_notified from public.adjust_item_quantity(:'probe_item_id'::uuid, -6) \gset probe_down1_
+select set_config('test.probe_down1_quantity', :'probe_down1_quantity', true);
+select set_config('test.probe_down1_notified', :'probe_down1_already_notified', true);
+select count(*) as pn from public.pending_notifications where item_id = :'probe_item_id'::uuid \gset probe_pn1_
+select set_config('test.probe_pn1', :'probe_pn1_pn', true);
+select actor_id as actor from public.pending_notifications where item_id = :'probe_item_id'::uuid order by created_at limit 1 \gset probe_actor_
+select set_config('test.probe_actor', :'probe_actor_actor', true);
+select quantity, already_notified from public.adjust_item_quantity(:'probe_item_id'::uuid, -1) \gset probe_down2_
+select count(*) as pn from public.pending_notifications where item_id = :'probe_item_id'::uuid \gset probe_pn2_
+select set_config('test.probe_pn2', :'probe_pn2_pn', true);
+select quantity, already_notified from public.adjust_item_quantity(:'probe_item_id'::uuid, 5) \gset probe_up_
+select set_config('test.probe_up_quantity', :'probe_up_quantity', true);
+select set_config('test.probe_up_notified', :'probe_up_already_notified', true);
+select quantity, already_notified from public.adjust_item_quantity(:'probe_item_id'::uuid, -4) \gset probe_down3_
+select count(*) as pn from public.pending_notifications where item_id = :'probe_item_id'::uuid \gset probe_pn3_
+select set_config('test.probe_pn3', :'probe_pn3_pn', true);
+do $$
+begin
+  -- P0-2 : l'acteur du passage est enregistré (l'edge notifie l'autre membre, jamais l'acteur).
+  if current_setting('test.probe_actor')::uuid <> '00000000-0000-4000-8000-000000000002' then
+    raise exception 'threshold crossing must record its actor';
+  end if;
+  -- P0-3 : 1 notif au premier passage, aucune tant que ça reste sous le seuil, 1 au re-passage.
+  if current_setting('test.probe_down1_quantity')::numeric <> 4
+     or not current_setting('test.probe_down1_notified')::boolean
+     or current_setting('test.probe_pn1')::bigint <> 1 then
+    raise exception 'first threshold crossing must notify once';
+  end if;
+  if current_setting('test.probe_pn2')::bigint <> 1 then
+    raise exception 'staying below threshold must not re-notify';
+  end if;
+  if current_setting('test.probe_up_quantity')::numeric <> 8
+     or current_setting('test.probe_up_notified')::boolean then
+    raise exception 'restock above threshold must reset already_notified';
+  end if;
+  if current_setting('test.probe_pn3')::bigint <> 2 then
+    raise exception 'second threshold crossing must notify exactly once';
+  end if;
+end;
+$$;
+
+-- INSERT sous le seuil : notifié en foyer à 2 (un autre membre à prévenir) ...
+insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+values (current_setting('test.household_id')::uuid, current_setting('test.item_category_id')::uuid, 'Probe bas duo', 2, 'unite', 5)
+returning id as probe_duo_id \gset
+select set_config('test.probe_duo_id', :'probe_duo_id', true);
+do $$
+begin
+  if not (select already_notified from public.items where id = current_setting('test.probe_duo_id')::uuid) then
+    raise exception 'below-threshold insert in a 2-member household must notify';
+  end if;
+  if (select count(*) from public.pending_notifications where item_id = current_setting('test.probe_duo_id')::uuid) <> 1 then
+    raise exception 'below-threshold insert must queue exactly one notification';
+  end if;
+end;
+$$;
+
+-- ... ignoré en foyer solo (pas d'autre membre à prévenir, garde seed).
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000003', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+values (current_setting('test.outsider_household_id')::uuid, current_setting('test.outsider_category_id')::uuid, 'Probe bas solo', 1, 'unite', 5)
+returning id as probe_solo_id \gset
+select set_config('test.probe_solo_id', :'probe_solo_id', true);
+do $$
+begin
+  if (select already_notified from public.items where id = current_setting('test.probe_solo_id')::uuid) then
+    raise exception 'below-threshold insert in a single-member household must not notify';
+  end if;
+  if (select count(*) from public.pending_notifications where item_id = current_setting('test.probe_solo_id')::uuid) <> 0 then
+    raise exception 'single-member insert must queue no notification';
+  end if;
+end;
+$$;
+
 reset role;
 rollback;

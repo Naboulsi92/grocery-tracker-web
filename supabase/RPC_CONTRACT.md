@@ -50,6 +50,33 @@ PostgREST argument names are exact. Supabase JS calls therefore use objects such
   (`items` insert inclut `template_id` ; catalogues en lecture seule).
   Pas d'enum → pas de `notify pgrst` requis pour cette migration.
 
+### History + seuil — rotation 20 et already_notified (#108, PRD §4.6/§4.7/§5)
+
+- `history` : `id`, `household_id`, `performed_by`, `action_type`
+  (`modification`/`suppression` uniquement — jamais d'achat), `item_name`,
+  `performed_at`. Aucune colonne avant/après : chaque entrée expose
+  auteur+action+article+horodatage (relatif côté app).
+- Rotation : trigger `history_cap_trigger` (`AFTER INSERT`, fonction
+  `public.cap_history()`, non exécutable par les clients) — la 21e action du
+  foyer supprime la plus ancienne, 20 lignes gardées par foyer.
+- Accès membres du foyer uniquement : 3 policies `TO authenticated`
+  (`history_select/insert/delete_member` via `private.is_household_member`) ;
+  pas de policy ni de grant `UPDATE` (log immuable en append-only).
+  Grants `TO authenticated` seul : `SELECT` + `DELETE` + `INSERT
+  (household_id, performed_by, action_type, item_name)` — `id`/`performed_at`
+  générés serveur. Zéro grant `anon`/`PUBLIC`. Corrige #105 (`history_insert_failed 42501` :
+  les policies existaient mais aucun grant n'était posé).
+- `items.already_notified` : `NOT NULL DEFAULT false`, server-controlled
+  (absent des grants `INSERT`/`UPDATE` clients). Franchissement sous le seuil →
+  `true` + 1 ligne `pending_notifications` (acteur enregistré : l'edge notifie
+  l'autre membre, jamais l'acteur — §8 P0-2) ; remontée au-dessus du seuil →
+  `false` (le re-passage re-notifie — §8 P0-3). Création sous le seuil notifiée
+  seulement s'il existe un autre membre (garde seed : le fork `create_household`
+  pose `already_notified=true`). Triggers `notify_threshold_crossing`
+  (`BEFORE UPDATE OF quantity`) + `notify_threshold_crossing_on_insert`, non
+  exécutables par les clients.
+- `history` exclu de `supabase_realtime` (publication exactement `{categories, items}`).
+
 ### Household equality — `owner` derogation (accepted, #106 C3)
 
 - Proof: `grep` over the convergence migration and the live catalog shows zero

@@ -16,6 +16,7 @@ import { translateMessage } from '@/lib/i18n';
 import ThemeToggle from '@/components/ThemeToggle';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useResyncOnReconnect } from '@/hooks/useResyncOnReconnect';
 import {
   DndContext,
   closestCenter,
@@ -198,6 +199,9 @@ export default function CategoriesPage() {
     }
   }, [householdId, supabase]);
   const loadCategories = useEffectEvent(fetchCategories);
+
+  // Resync background silencieuse à la reconnexion (PRD §4.12 + §5).
+  useResyncOnReconnect(fetchCategories);
 
   useEffect(() => {
     if (!householdId) return;

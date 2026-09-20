@@ -1414,5 +1414,160 @@ begin
 end;
 $$;
 
+-- Ticket #109 — Offline LWW silencieux (PRD §4.12/§5) : updated_at arbitre,
+-- dernier gagne sans notification, RLS inchangée.
+do $$
+begin
+  -- Schéma : updated_at NOT NULL DEFAULT now(), server-controlled.
+  if (select is_nullable from information_schema.columns
+      where table_schema = 'public' and table_name = 'items' and column_name = 'updated_at') <> 'NO' then
+    raise exception 'items.updated_at must be NOT NULL';
+  end if;
+  if (select column_default from information_schema.columns
+      where table_schema = 'public' and table_name = 'items' and column_name = 'updated_at') is distinct from 'now()' then
+    raise exception 'items.updated_at default must be now()';
+  end if;
+  if has_column_privilege('authenticated', 'public.items', 'updated_at', 'INSERT')
+     or has_column_privilege('authenticated', 'public.items', 'updated_at', 'UPDATE') then
+    raise exception 'updated_at must stay server-controlled';
+  end if;
+  -- Touch trigger présent et actif sur items.
+  if not exists (
+    select 1 from pg_trigger
+    where tgname = 'trigger_update_last_modified' and tgrelid = 'public.items'::regclass and tgenabled = 'O'
+  ) then
+    raise exception 'trigger_update_last_modified must exist and be enabled';
+  end if;
+  -- Fonction trigger interne non exécutable par les clients.
+  if has_function_privilege('authenticated', 'public.update_last_modified()', 'EXECUTE') then
+    raise exception 'trigger function update_last_modified is client-executable';
+  end if;
+  -- Index resync (foyer, récence) pour le reload intégral à la reconnexion.
+  if not exists (
+    select 1 from pg_indexes
+    where schemaname = 'public' and tablename = 'items' and indexname = 'items_household_updated_idx'
+  ) then
+    raise exception 'items_household_updated_idx must exist';
+  end if;
+  -- RLS inchangée : exactement les 4 policies membres, TO authenticated seul.
+  if (select count(*) from pg_policies where schemaname = 'public' and tablename = 'items') <> 4 then
+    raise exception 'items must carry exactly 4 member policies';
+  end if;
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'items'
+      and ('public' = any (roles) or 'anon' = any (roles))
+  ) then
+    raise exception 'items policies must stay TO authenticated only';
+  end if;
+end;
+$$;
+
+-- Probe LWW : 2 writers du même foyer, dernier gagne silencieux.
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000001', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+values (current_setting('test.household_id')::uuid, current_setting('test.item_category_id')::uuid, 'LWW probe', 5, 'unite', 5)
+returning id as lww_item_id \gset
+select set_config('test.lww_item_id', :'lww_item_id', true);
+select updated_at as lww_t0 from public.items where id = :'lww_item_id'::uuid \gset
+select set_config('test.lww_t0', :'lww_t0', true);
+-- updated_at forgé refusé (server-controlled : colonne hors grants INSERT).
+do $$
+begin
+  begin
+    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold, updated_at)
+    values (current_setting('test.household_id')::uuid, current_setting('test.item_category_id')::uuid, 'LWW forged', 1, 'unite', 5, now() - interval '1 day');
+    raise exception 'forged updated_at insert unexpectedly succeeded';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+-- Writer A (001) puis writer B (002) : aucune erreur, B écrase A silencieusement.
+update public.items set name = 'Writer A' where id = current_setting('test.lww_item_id')::uuid;
+select updated_at as lww_t1 from public.items where id = current_setting('test.lww_item_id')::uuid \gset
+select set_config('test.lww_t1', :'lww_t1', true);
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+update public.items set name = 'Writer B' where id = current_setting('test.lww_item_id')::uuid;
+select updated_at as lww_t2 from public.items where id = current_setting('test.lww_item_id')::uuid \gset
+select set_config('test.lww_t2', :'lww_t2', true);
+-- updated_at forgé en UPDATE refusé lui aussi.
+do $$
+begin
+  begin
+    update public.items set updated_at = now() - interval '1 day' where id = current_setting('test.lww_item_id')::uuid;
+    raise exception 'forged updated_at update unexpectedly succeeded';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+-- Voie RPC (quantité) : les deux writers rejouent sans erreur, updated_at touché.
+select quantity, updated_at from public.adjust_item_quantity(current_setting('test.lww_item_id')::uuid, 2) \gset lww_rpc1_
+select set_config('test.lww_rpc1_quantity', :'lww_rpc1_quantity', true);
+select set_config('test.lww_rpc1_updated', :'lww_rpc1_updated_at', true);
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000001', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select quantity, updated_at from public.adjust_item_quantity(current_setting('test.lww_item_id')::uuid, -1) \gset lww_rpc2_
+select set_config('test.lww_rpc2_quantity', :'lww_rpc2_quantity', true);
+select set_config('test.lww_rpc2_updated', :'lww_rpc2_updated_at', true);
+do $$
+begin
+  -- Dernier gagne silencieux : le nom de B est l'état visible, sans erreur levée.
+  if not exists (
+    select 1 from public.items
+    where id = current_setting('test.lww_item_id')::uuid
+      and name = 'Writer B'
+  ) then raise exception 'LWW did not keep the last writer silently'; end if;
+  -- Touch trigger : chaque écriture enregistre son acteur (ici le dernier replay RPC par 001).
+  if not exists (
+    select 1 from public.items
+    where id = current_setting('test.lww_item_id')::uuid
+      and last_modified_by = '00000000-0000-4000-8000-000000000001'
+  ) then raise exception 'touch trigger did not record the last writer'; end if;
+  -- Touch trigger : updated_at renseigné et monotone (contrat mono-transaction :
+  -- now() = début de transaction, donc >= et non > strict).
+  if current_setting('test.lww_t1')::timestamptz < current_setting('test.lww_t0')::timestamptz
+     or current_setting('test.lww_t2')::timestamptz < current_setting('test.lww_t1')::timestamptz
+     or current_setting('test.lww_rpc2_updated')::timestamptz < current_setting('test.lww_t2')::timestamptz then
+    raise exception 'updated_at must be touched monotonically on every write';
+  end if;
+  -- Voie RPC rejouée sans conflit : 5 + 2 - 1 = 6.
+  if current_setting('test.lww_rpc2_quantity')::numeric <> 6 then
+    raise exception 'sequential RPC replays did not converge';
+  end if;
+end;
+$$;
+
+-- Isolation inchangée : outsider sans effet, anon refusé.
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000003', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+begin
+  update public.items set name = 'Intrus' where id = current_setting('test.lww_item_id')::uuid;
+  if found then raise exception 'cross-household LWW leak'; end if;
+end;
+$$;
+reset role;
+set local role anon;
+do $$
+declare denied boolean := false;
+begin
+  begin
+    update public.items set name = 'Anon' where id = current_setting('test.lww_item_id')::uuid;
+  exception when sqlstate '42501' then denied := true;
+  end;
+  if not denied then raise exception 'anon updated an item'; end if;
+end;
+$$;
+
 reset role;
 rollback;

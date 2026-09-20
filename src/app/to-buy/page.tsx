@@ -16,6 +16,7 @@ import { validateQuantity } from '@/lib/validation';
 import { getUnitStep } from '@/types/units';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useResyncOnReconnect } from '@/hooks/useResyncOnReconnect';
 import { translateMessage } from '@/lib/i18n';
 
 export default function ToBuyPage() {
@@ -75,6 +76,9 @@ export default function ToBuyPage() {
     }
   }, [householdId, supabase]);
   const loadItems = useEffectEvent(fetchItems);
+
+  // Resync background silencieuse à la reconnexion (PRD §4.12 + §5).
+  useResyncOnReconnect(fetchItems);
 
   useEffect(() => {
     if (!householdId) return;

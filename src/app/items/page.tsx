@@ -14,6 +14,7 @@ import { getErrorMessage, groupItems, joinInventory, type Category, type Invento
 import { createItem, updateItem, updateItemQuantity, deleteItem } from '@/lib/itemOperations';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useResyncOnReconnect } from '@/hooks/useResyncOnReconnect';
 import { validateName, validateQuantity, validateThreshold, validateUnit } from '@/lib/validation';
 import { translateMessage } from '@/lib/i18n';
 import { UNITS, getUnitStep, isUnit, type Unit } from '@/types/units';
@@ -71,6 +72,9 @@ export default function ItemsPage() {
     }
   }, [householdId, supabase]);
   const loadData = useEffectEvent(fetchData);
+
+  // Resync background silencieuse à la reconnexion (PRD §4.12 + §5).
+  useResyncOnReconnect(fetchData);
 
   useEffect(() => {
     if (!householdId) return;

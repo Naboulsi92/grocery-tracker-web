@@ -72,6 +72,13 @@ begin
     'category_positions', 'default_categories', 'item_templates',
     'pending_notifications', 'units'
   ] loop
+    -- units dropped in v1.1 §8: has_table_privilege errors when the table is
+    -- gone (relation public.units does not exist), so skip absent tables.
+    -- Generic guard keeps the contract green on converged chains while still
+    -- asserting zero anon/PUBLIC grants wherever the table exists (pre-v1.1).
+    if to_regclass('public.' || convergence_table) is null then
+      continue;
+    end if;
     foreach convergence_priv in array array['SELECT', 'INSERT', 'UPDATE', 'DELETE'] loop
       if has_table_privilege('anon', 'public.' || convergence_table, convergence_priv) then
         raise exception 'anon keeps % on public.%', convergence_priv, convergence_table;

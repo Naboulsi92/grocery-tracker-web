@@ -77,9 +77,8 @@ export default function ToBuyPage() {
   }, [householdId, supabase]);
   const loadItems = useEffectEvent(fetchItems);
 
-  // PRD §4.12 + §5 : reconnexion → resync background silencieuse (fetch
-  // intégral, sans reload page), après vidage de la file si micro-coupure.
-  useResyncOnReconnect(() => { void loadItems(); });
+  // Resync background silencieuse à la reconnexion (PRD §4.12 + §5).
+  useResyncOnReconnect(fetchItems);
 
   useEffect(() => {
     if (!householdId) return;

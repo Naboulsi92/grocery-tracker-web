@@ -200,9 +200,8 @@ export default function CategoriesPage() {
   }, [householdId, supabase]);
   const loadCategories = useEffectEvent(fetchCategories);
 
-  // PRD §4.12 + §5 : reconnexion → resync background silencieuse (fetch
-  // intégral, sans reload page), après vidage de la file si micro-coupure.
-  useResyncOnReconnect(() => { void loadCategories(); });
+  // Resync background silencieuse à la reconnexion (PRD §4.12 + §5).
+  useResyncOnReconnect(fetchCategories);
 
   useEffect(() => {
     if (!householdId) return;

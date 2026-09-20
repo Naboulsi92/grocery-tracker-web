@@ -12,9 +12,12 @@ import { subscribe, getSnapshot, startOfflineQueue } from '@/lib/offlineQueue';
 //      couvre la micro-coupure : on resynchronise APRÈS le replay pour
 //      afficher l'état post-replay, pas celui d'avant.
 // LWW reste totalement silencieux (ADR 0006) : aucun conflit n'est signalé.
-export function useResyncOnReconnect(onResync: () => void): void {
+export function useResyncOnReconnect(onResync: () => void | Promise<void>): void {
   const callbackRef = useRef(onResync);
-  callbackRef.current = onResync;
+
+  useEffect(() => {
+    callbackRef.current = onResync;
+  });
 
   useEffect(() => {
     // Garantit que la file IndexedDB se vide même sur les pages sans
@@ -24,7 +27,12 @@ export function useResyncOnReconnect(onResync: () => void): void {
     let wasActive = getSnapshot().isSyncing || getSnapshot().pendingCount > 0;
 
     const handleOnline = () => {
-      callbackRef.current();
+      // File non vide : le replay en cours va la vider, et la transition
+      // actif → inactif ci-dessous resynchronisera après le replay.
+      const snapshot = getSnapshot();
+      if (!snapshot.isSyncing && snapshot.pendingCount === 0) {
+        void callbackRef.current();
+      }
     };
     window.addEventListener('online', handleOnline);
 
@@ -32,7 +40,7 @@ export function useResyncOnReconnect(onResync: () => void): void {
       const snapshot = getSnapshot();
       const isActive = snapshot.isSyncing || snapshot.pendingCount > 0;
       if (wasActive && !isActive) {
-        callbackRef.current();
+        void callbackRef.current();
       }
       wasActive = isActive;
     });

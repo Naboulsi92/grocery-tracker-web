@@ -98,4 +98,85 @@ test.describe('Offline read-only mode (PRD §8 #11)', () => {
     await expect(page.getByTestId('syncing-indicator')).toHaveCount(0);
     await expect(await pendingQueueCount(page)).toBe(0);
   });
+
+  test('items page: offline banner shows the exact read-only text', async ({ page, account }) => {
+    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    await createHousehold(page, account);
+
+    const itemName = `Article bandeau ${randomUUID().slice(0, 8)}`;
+    await page.getByTestId('dashboard-card-items').click();
+    await page.getByTestId('btn-new-item').click();
+    await page.getByTestId('input-item-name').fill(itemName);
+    await page.getByTestId('btn-create-item').click();
+    await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+
+    await page.context().setOffline(true);
+
+    // Exact banner text (fr/common.json offline.banner) — PRD §4.12 lecture seule.
+    await expect(page.getByTestId('offline-banner')).toHaveText('Hors connexion — lecture seule');
+
+    // Consultation stays possible while every action is blocked.
+    const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+    await expect(itemRow).toBeVisible();
+    await expect(page.getByTestId('btn-new-item')).toBeDisabled();
+    await expect(await pendingQueueCount(page)).toBe(0);
+
+    await page.context().setOffline(false);
+    await expect(page.getByTestId('offline-banner')).toHaveCount(0);
+  });
+
+  test('micro-coupure in-flight: queued in IndexedDB, survives reload, replayed after reconnexion sans reload (PRD §4.12 + §5)', async ({
+    page,
+    account,
+  }) => {
+    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    await createHousehold(page, account);
+
+    const itemName = `Article resync ${randomUUID().slice(0, 8)}`;
+    await page.getByTestId('dashboard-card-items').click();
+    await page.getByTestId('btn-new-item').click();
+    await page.getByTestId('input-item-name').fill(itemName);
+    await page.getByTestId('btn-create-item').click();
+    await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+
+    const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+    await expect(itemRow.locator('.qty-value')).toContainText('1', { timeout: 10000 });
+
+    // Simulate a micro-coupure hitting an in-flight write: abort only the
+    // quantity RPC so page loads/reads keep working. supabase-js surfaces the
+    // aborted fetch as a connectivity error (status 0) and itemOperations
+    // parks the action in the IndexedDB queue (PRD §4.12).
+    const rpcPattern = '**/rest/v1/rpc/adjust_item_quantity**';
+    await page.route(rpcPattern, (route) => route.abort('failed'));
+
+    await itemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+
+    // Enfilée IndexedDB.
+    await expect.poll(() => pendingQueueCount(page), { timeout: 15000 }).toBe(1);
+
+    // Survit au refresh: reload while the RPC is still aborted (reads are
+    // unaffected). The queue processor retries in background with backoff
+    // (unit-covered in offlineQueue.test.ts) but the pending action stays.
+    await page.reload();
+    await expect(page.getByText(itemName)).toBeVisible({ timeout: 15000 });
+    await expect.poll(() => pendingQueueCount(page), { timeout: 15000 }).toBe(1);
+
+    // Restore the network for the replay.
+    await page.unroute(rpcPattern);
+
+    // Prolonged cut → read-only mode, then reconnexion.
+    const urlBeforeResync = page.url();
+    await page.context().setOffline(true);
+    await expect(page.getByTestId('offline-banner')).toHaveText('Hors connexion — lecture seule');
+
+    await page.context().setOffline(false);
+    await expect(page.getByTestId('offline-banner')).toHaveCount(0);
+
+    // File vidée puis resync background sans reload page (§5 reload intégral
+    // via realtime/fetch, pas de rattrapage flux seul) : la quantité rejouée
+    // apparaît et l'URL est inchangée (aucun reload déclenché).
+    await expect.poll(() => pendingQueueCount(page), { timeout: 20000 }).toBe(0);
+    await expect(itemRow.locator('.qty-value')).toContainText('2', { timeout: 20000 });
+    expect(page.url()).toBe(urlBeforeResync);
+  });
 });

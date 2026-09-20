@@ -17,3 +17,4 @@
 \ir migrations/20260919000000_fork_seeds_units_validation.sql
 \ir migrations/20260920000000_history_notifs_rotation.sql
 \ir migrations/20260920120000_fix_already_notified_default.sql
+\ir migrations/20260921000000_offline_lww.sql

@@ -77,6 +77,27 @@ PostgREST argument names are exact. Supabase JS calls therefore use objects such
   exécutables par les clients.
 - `history` exclu de `supabase_realtime` (publication exactement `{categories, items}`).
 
+### Offline resync — LWW silencieux sur `items.updated_at` (#109, PRD §4.12/§5)
+
+- `items.updated_at` : `NOT NULL DEFAULT now()`, server-controlled (absent des
+  grants `INSERT`/`UPDATE` clients, comme `already_notified` et
+  `last_modified_*`). Arbitre last-write-wins : la valeur la plus récente fait
+  foi, sans verrouillage optimiste en V1.
+- Touch trigger `trigger_update_last_modified` (`BEFORE INSERT OR UPDATE` via
+  `public.update_last_modified()`, non exécutable par les clients) : chaque
+  écriture — `UPDATE` direct comme `UPDATE` interne de `adjust_item_quantity` —
+  pose `last_modified_at`/`last_modified_by` + `updated_at = now()`.
+- Index `items_household_updated_idx` sur `(household_id, updated_at DESC)` :
+  sert le reload intégral de l'inventaire à la reconnexion (PRD §5 — recharger
+  tout l'état, pas seulement rattraper le flux) et la resync silencieuse
+  background (§4.12).
+- RLS inchangée : les 4 policies membres `items_*` restent l'unique gate ;
+  grants `TO authenticated` seul, zéro grant `anon`/`PUBLIC`.
+- Conflit simultané : 2 writers du même foyer rejouent sans erreur, le dernier
+  écrase silencieusement (l'écrasé n'est pas informé — §4.12). Voir
+  `supabase/migrations/20260921000000_offline_lww.sql` ; asserts contrat LWW
+  dans `supabase/tests/database/security_contract.sql` (§ Ticket #109).
+
 ### Household equality — `owner` derogation (accepted, #106 C3)
 
 - Proof: `grep` over the convergence migration and the live catalog shows zero

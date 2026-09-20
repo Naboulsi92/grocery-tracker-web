@@ -16,6 +16,7 @@ import { translateMessage } from '@/lib/i18n';
 import ThemeToggle from '@/components/ThemeToggle';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useResyncOnReconnect } from '@/hooks/useResyncOnReconnect';
 import {
   DndContext,
   closestCenter,
@@ -198,6 +199,10 @@ export default function CategoriesPage() {
     }
   }, [householdId, supabase]);
   const loadCategories = useEffectEvent(fetchCategories);
+
+  // PRD §4.12 + §5 : reconnexion → resync background silencieuse (fetch
+  // intégral, sans reload page), après vidage de la file si micro-coupure.
+  useResyncOnReconnect(() => { void loadCategories(); });
 
   useEffect(() => {
     if (!householdId) return;

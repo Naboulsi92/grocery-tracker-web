@@ -9,6 +9,7 @@ import { useHousehold } from '@/hooks/useHousehold';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { useResyncOnReconnect } from '@/hooks/useResyncOnReconnect';
 import { getErrorMessage } from '@/lib/inventory';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { fetchHouseholdHistory, formatRelativeTime, type HistoryEntry } from '@/lib/history';
@@ -55,6 +56,10 @@ export default function HistoryPage() {
     }
   }, [householdId, supabase, language]);
   const loadHistory = useEffectEvent(fetchHistory);
+
+  // PRD §4.12 + §5 : reconnexion → resync background silencieuse (fetch
+  // intégral, sans reload page), après vidage de la file si micro-coupure.
+  useResyncOnReconnect(() => { void loadHistory(); });
 
   useEffect(() => {
     if (!householdId) return;

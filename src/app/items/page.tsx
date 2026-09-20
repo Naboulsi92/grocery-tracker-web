@@ -14,8 +14,9 @@ import { getErrorMessage, groupItems, joinInventory, type Category, type Invento
 import { createItem, updateItem, updateItemQuantity, deleteItem } from '@/lib/itemOperations';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import { validateName, validateQuantity, validateThreshold } from '@/lib/validation';
+import { validateName, validateQuantity, validateThreshold, validateUnit } from '@/lib/validation';
 import { translateMessage } from '@/lib/i18n';
+import { UNITS, getUnitStep, isUnit, type Unit } from '@/types/units';
 
 export default function ItemsPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -25,13 +26,14 @@ export default function ItemsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
   const [formQuantity, setFormQuantity] = useState('1');
-  const [formUnit, setFormUnit] = useState('unite');
+  const [formUnit, setFormUnit] = useState<Unit>('unite');
   const [formCategoryId, setFormCategoryId] = useState('');
   const [formThreshold, setFormThreshold] = useState('1');
   const [error, setError] = useState('');
   const [fieldNameError, setFieldNameError] = useState('');
   const [fieldQuantityError, setFieldQuantityError] = useState('');
   const [fieldThresholdError, setFieldThresholdError] = useState('');
+  const [fieldUnitError, setFieldUnitError] = useState('');
   const [mutating, setMutating] = useState<string | null>(null);
   const { householdId } = useAuth();
   const { isOnline } = useOnlineStatus();
@@ -101,8 +103,12 @@ async function handleSubmit(e: React.FormEvent) {
   setFieldNameError('');
   setFieldQuantityError('');
   setFieldThresholdError('');
+  setFieldUnitError('');
 
   if (!householdId || !formName.trim() || !formUnit || mutating || !isOnline) return;
+
+  const unitErr = validateUnit(formUnit);
+  if (unitErr) { setFieldUnitError(unitErr); return; }
 
   const nameErr = validateName(formName);
   if (nameErr) { setFieldNameError(nameErr); return; }
@@ -195,12 +201,13 @@ async function handleSubmit(e: React.FormEvent) {
     setFieldNameError('');
     setFieldQuantityError('');
     setFieldThresholdError('');
+    setFieldUnitError('');
   }
 
   function startEdit(item: InventoryItem) {
     setFormName(item.name);
     setFormQuantity(item.quantity.toString());
-    setFormUnit(item.unit);
+    setFormUnit(isUnit(item.unit) ? item.unit : 'unite');
     setFormCategoryId(item.category_id || '');
     setFormThreshold(item.low_stock_threshold.toString());
     setEditingId(item.id);
@@ -278,30 +285,35 @@ return (
               </div>
               <div className="form-group">
                 <label htmlFor="item-quantity">{t('items.quantity')}</label>
-                <input id="item-quantity" type="number" value={formQuantity} onChange={(e) => { setFormQuantity(e.target.value); setFieldQuantityError(''); }} min="0" step="1" aria-invalid={!!fieldQuantityError} aria-describedby="item-quantity-error" />
+                <input id="item-quantity" type="number" value={formQuantity} onChange={(e) => { setFormQuantity(e.target.value); setFieldQuantityError(''); }} min="0" step={getUnitStep(formUnit)} aria-invalid={!!fieldQuantityError} aria-describedby="item-quantity-error" />
                 {fieldQuantityError && <p className="field-error" role="alert" id="item-quantity-error" data-testid="error-quantity-negative">{translateMessage(language, fieldQuantityError)}</p>}
               </div>
               <div className="form-group">
                 <label htmlFor="item-unit">{t('items.unit')}</label>
-                <select id="item-unit" value={formUnit} onChange={(e) => {
-                  if (e.target.value !== formUnit) {
+                <select id="item-unit" data-testid="input-item-unit" value={formUnit} onChange={(e) => {
+                  const nextUnit = e.target.value;
+                  if (!isUnit(nextUnit)) {
+                    setFieldUnitError('validation.unit.invalid');
+                    return;
+                  }
+                  if (nextUnit !== formUnit) {
                     setFormQuantity('');
                     setFormThreshold('');
                     setFieldQuantityError('');
                     setFieldThresholdError('');
+                    setFieldUnitError('');
                   }
-                  setFormUnit(e.target.value);
-                }} required>
-                  <option value="unite">{t('items.unit_unite')}</option>
-                  <option value="kg">{t('items.unit_kg')}</option>
-                  <option value="g">{t('items.unit_g')}</option>
-                  <option value="l">{t('items.unit_l')}</option>
-                  <option value="ml">{t('items.unit_ml')}</option>
+                  setFormUnit(nextUnit);
+                }} required aria-invalid={!!fieldUnitError} aria-describedby="item-unit-error">
+                  {UNITS.map((unit) => (
+                    <option key={unit} value={unit}>{t(`items.unit_${unit}`)}</option>
+                  ))}
                 </select>
+                {fieldUnitError && <p className="field-error" role="alert" id="item-unit-error" data-testid="error-unit-invalid">{translateMessage(language, fieldUnitError)}</p>}
               </div>
               <div className="form-group">
                 <label htmlFor="item-threshold">{t('items.threshold')}</label>
-                <input id="item-threshold" type="number" value={formThreshold} onChange={(e) => { setFormThreshold(e.target.value); setFieldThresholdError(''); }} min="1" step="1" aria-invalid={!!fieldThresholdError} aria-describedby="item-threshold-error" />
+                <input id="item-threshold" type="number" value={formThreshold} onChange={(e) => { setFormThreshold(e.target.value); setFieldThresholdError(''); }} min="1" step={getUnitStep(formUnit)} aria-invalid={!!fieldThresholdError} aria-describedby="item-threshold-error" />
                 {fieldThresholdError && <p className="field-error" role="alert" id="item-threshold-error" data-testid="error-threshold-required">{translateMessage(language, fieldThresholdError)}</p>}
               </div>
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
@@ -353,6 +365,7 @@ return (
 
 function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, t }: { item: InventoryItem; index: number; disabled: boolean; onUpdate: (id: string, delta: number) => void; onEdit: (item: InventoryItem) => void; onDelete: (id: string) => void; t: (key: string, vars?: Record<string, string | number>) => string }) {
   const isLowStock = item.quantity <= item.low_stock_threshold;
+  const step = getUnitStep(item.unit);
 
   return (
     <div className={`item-row animate-fade-in ${isLowStock ? 'low-stock' : ''}`} data-testid={`item-row-${item.name.toLowerCase()}`} style={{ animationDelay: `${index * 20}ms` }}>
@@ -362,9 +375,9 @@ function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, t }: { ite
       </div>
       <div className="item-controls">
         <div className="quantity-control">
-          <button onClick={() => onUpdate(item.id, -1)} className="qty-btn" disabled={disabled || item.quantity <= 0} aria-label={t('items.decrease_aria', { name: item.name })}>−</button>
+          <button onClick={() => onUpdate(item.id, -step)} className="qty-btn" disabled={disabled || item.quantity <= 0} aria-label={t('items.decrease_aria', { name: item.name })}>−</button>
           <span className="qty-value" aria-live="polite">{item.quantity} {item.unit}</span>
-          <button onClick={() => onUpdate(item.id, 1)} className="qty-btn" disabled={disabled} aria-label={t('items.increase_aria', { name: item.name })}>+</button>
+          <button onClick={() => onUpdate(item.id, step)} className="qty-btn" disabled={disabled} aria-label={t('items.increase_aria', { name: item.name })}>+</button>
         </div>
         <button onClick={() => onEdit(item)} className="action-btn" disabled={disabled} aria-label={t('items.edit_aria', { name: item.name })}>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

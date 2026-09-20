@@ -271,6 +271,7 @@
   "validation.name.too_long": "The name must not exceed 50 characters.",
   "validation.quantity.positive": "The quantity must be a positive whole number.",
   "validation.threshold.required": "The threshold must be a whole number strictly greater than zero.",
+  "validation.unit.invalid": "Choose a unit from kg, g, l, ml, unit.",
   "validation.first_name.required": "First name is required.",
   "validation.first_name.required_letter": "The first name must contain at least one letter.",
   "validation.first_name.too_long": "The first name must not exceed 50 characters.",

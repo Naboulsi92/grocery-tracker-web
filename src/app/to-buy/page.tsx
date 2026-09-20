@@ -12,6 +12,8 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { SyncingIndicator } from '@/components/SyncingIndicator';
 import { getErrorMessage, getLowStockItems, joinInventory, type InventoryItem } from '@/lib/inventory';
 import { updateItemQuantity } from '@/lib/itemOperations';
+import { validateQuantity } from '@/lib/validation';
+import { getUnitStep } from '@/types/units';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { translateMessage } from '@/lib/i18n';
@@ -101,8 +103,10 @@ export default function ToBuyPage() {
 
   async function handleConfirmQuantity(id: string) {
     const raw = quantityInputs[id];
+    if (!raw || mutatingId || !isOnline) return;
+    if (validateQuantity(raw) !== null) return;
     const delta = Number(raw);
-    if (!raw || !Number.isFinite(delta) || delta <= 0 || mutatingId || !isOnline) return;
+    if (delta <= 0) return;
 
     const currentItem = items.find((item) => item.id === id);
     if (!currentItem) return;
@@ -200,7 +204,7 @@ export default function ToBuyPage() {
                       <input
                         type="number"
                         min={1}
-                        step={1}
+                        step={getUnitStep(item.unit)}
                         inputMode="numeric"
                         className="to-buy-qty-input"
                         placeholder={t('tobuy.qty_placeholder')}

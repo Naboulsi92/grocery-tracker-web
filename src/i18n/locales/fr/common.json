@@ -271,6 +271,7 @@
   "validation.name.too_long": "Le nom ne doit pas dépasser 50 caractères.",
   "validation.quantity.positive": "La quantité doit être un nombre entier positif.",
   "validation.threshold.required": "Le seuil doit être un nombre entier strictement supérieur à zéro.",
+  "validation.unit.invalid": "Choisissez une unité parmi kg, g, l, ml, unité.",
   "validation.first_name.required": "Le prénom est requis.",
   "validation.first_name.required_letter": "Le prénom doit contenir au moins une lettre.",
   "validation.first_name.too_long": "Le prénom ne doit pas dépasser 50 caractères.",

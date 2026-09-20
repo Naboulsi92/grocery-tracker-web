@@ -378,9 +378,193 @@ test.describe('Items CRUD', () => {
       
       await expect(itemRow.locator('.badge')).toHaveCount(0);
       await expect(itemRow).not.toHaveClass(/low-stock/);
-      
+
       page.once('dialog', (dialog) => dialog.accept());
       await itemRow.getByTestId(/^btn-delete-item-/).click();
+    });
+  });
+
+  test.describe('Fork Isolation (P0-5, #107)', () => {
+    test('renaming seeded Lait in household A does not affect household B', async ({
+      page,
+      account,
+      browser,
+    }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-items').click();
+      // Fork seed: each new household owns its private copy of the 10 templates.
+      await expect(page.getByText('Lait', { exact: true })).toBeVisible({ timeout: 10000 });
+
+      const renamedLait = `Lait renomme ${randomUUID().slice(0, 8)}`;
+      const laitRow = page.locator('.item-row').filter({ hasText: 'Lait' }).first();
+      await laitRow.getByRole('button', { name: /Modifier l'article/ }).click();
+      await page.getByTestId('input-item-name').fill(renamedLait);
+      await page.getByTestId('btn-create-item').click();
+      await expect(page.getByText(renamedLait)).toBeVisible();
+
+      // Second, fully isolated household: must still show the pristine fork.
+      const secondContext = await browser.newContext();
+      const secondPage = await secondContext.newPage();
+      const secondAccount = createAccount('e2e-fork-b');
+      await createHousehold(secondPage, secondAccount);
+      await secondPage.getByTestId('dashboard-card-items').click();
+      await expect(secondPage.getByText('Lait', { exact: true })).toBeVisible({ timeout: 10000 });
+      await expect(secondPage.getByText(renamedLait)).toHaveCount(0);
+      await secondContext.close();
+
+      await deleteItemRow(page, page.locator('.item-row').filter({ hasText: renamedLait }));
+    });
+  });
+
+  test.describe('Field Validation (P1-7, #107)', () => {
+    test('rejects a name without any letter', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill('12345');
+      await page.getByTestId('btn-create-item').click();
+
+      await expect(page.getByTestId('error-name-required-letter')).toBeVisible();
+    });
+
+    test('rejects a name longer than 50 characters', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(`A${'a'.repeat(50)}`);
+      await page.getByTestId('btn-create-item').click();
+
+      await expect(page.getByTestId('error-name-too-long')).toBeVisible();
+    });
+
+    test('rejects a case-insensitive duplicate name', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      const baseName = `Doublon ${randomUUID().slice(0, 8)}`;
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(baseName);
+      await page.getByTestId('btn-create-item').click();
+      await expect(page.getByText(baseName)).toBeVisible({ timeout: 10000 });
+
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(baseName.toLowerCase());
+      await page.getByTestId('btn-create-item').click();
+
+      await expect(page.getByTestId('error-name-duplicate')).toBeVisible();
+
+      await deleteItemRow(page, page.locator('.item-row').filter({ hasText: baseName }));
+    });
+
+    test('rejects a negative quantity', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(`Article neg ${randomUUID().slice(0, 8)}`);
+      await page.getByLabel('Quantité', { exact: true }).fill('-1');
+      await page.getByTestId('btn-create-item').click();
+
+      await expect(page.getByTestId('error-quantity-negative')).toBeVisible();
+    });
+
+    test('rejects a decimal quantity', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(`Article dec ${randomUUID().slice(0, 8)}`);
+      await page.getByLabel('Quantité', { exact: true }).fill('1.5');
+      await page.getByTestId('btn-create-item').click();
+
+      await expect(page.getByTestId('error-quantity-negative')).toBeVisible();
+    });
+
+    test('rejects a zero threshold', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(`Article seuil ${randomUUID().slice(0, 8)}`);
+      await page.getByLabel('Seuil stock bas').fill('0');
+      await page.getByTestId('btn-create-item').click();
+
+      await expect(page.getByTestId('error-threshold-required')).toBeVisible();
+    });
+  });
+
+  test.describe('Unit Change (P1-8, #107)', () => {
+    test('changing unit clears quantity and threshold', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByLabel('Quantité', { exact: true }).fill('5');
+      await page.getByLabel('Seuil stock bas').fill('3');
+
+      // Scope C note: #item-unit has no kebab data-testid yet (Scope A/B should
+      // add data-testid="input-item-unit"); this selector accepts either form.
+      const unitSelect = page.locator('[data-testid="input-item-unit"], #item-unit');
+      await unitSelect.selectOption('kg');
+
+      await expect(page.getByLabel('Quantité', { exact: true })).toHaveValue('');
+      await expect(page.getByLabel('Seuil stock bas')).toHaveValue('');
+    });
+
+    test('unit select offers exactly the 5 closed PRD values', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+
+      const unitSelect = page.locator('[data-testid="input-item-unit"], #item-unit');
+      const values = await unitSelect
+        .locator('option')
+        .evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value).sort());
+      expect(values).toEqual(['g', 'kg', 'l', 'ml', 'unite']);
+    });
+  });
+
+  test.describe('Seed Items (P1-13, #107)', () => {
+    test('new household owns the 10 forked seed items at quantity 0', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-items').click();
+      const rows = page.locator('.item-row');
+      await expect(rows).toHaveCount(10, { timeout: 10000 });
+
+      // Forked rows snapshot the French template names (EN names live in the
+      // item_templates.name_en seed column, verified at DB level — Scope A).
+      for (const name of [
+        'Lait',
+        'Pain',
+        'Œufs',
+        'Tomates',
+        'Pommes',
+        'Poulet',
+        'Pâtes',
+        'Café',
+        'Eau',
+        'Papier toilette',
+      ]) {
+        await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+      }
+
+      const laitRow = rows.filter({ hasText: 'Lait' }).first();
+      await expect(laitRow.locator('.qty-value')).toContainText('0');
     });
   });
 });

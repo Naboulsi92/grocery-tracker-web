@@ -6,7 +6,7 @@ All RPCs require an authenticated Supabase session. Client roles cannot insert i
 
 | Function | Arguments | Return | Authorization and behavior |
 |---|---|---|---|
-| `create_household` | `p_name text` | `uuid` | Creates the household, the caller's membership (stored `owner` for backwards compat, conferring no privilege — PRD §11 equality: every action is member-gated), and ten default categories atomically. Fails if the caller already belongs to a household. |
+| `create_household` | `p_name text` | `uuid` | Creates the household, the caller's membership (stored `owner` for backwards compat, conferring no privilege — PRD §11 equality: every action is member-gated), ten default categories, and ten forked items (qty 0, threshold=suggested, `template_id` indicative, `already_notified=true`) atomically. Forked rows are per-household copies — renaming `Lait` in foyer A never affects foyer B. Fails if the caller already belongs to a household. |
 | `create_household_invitation` | `p_household_id uuid`, `p_expires_in interval = '24 hours'` | table `(invitation_id uuid, token text, expires_at timestamptz)` | Any household member. Lifetime must be positive and at most 24 hours, strict (PRD §4.2/§5 — anything above is rejected with `22023`; no 30-day tolerance). Creating a new invitation retires any prior live invitation for the household. The raw URL-safe token is returned once; only its SHA-256 digest is stored. |
 | `revoke_household_invitation` | `p_invitation_id uuid` | `boolean` | Any household member. Returns `true` only when an active invitation was revoked. Idempotent retries return `false`. |
 | `consume_household_invitation` | `p_token text` | `uuid` | Locks and consumes one valid, unexpired, unrevoked token, creates a `member` membership, and returns the household ID atomically. Fails without consuming the token if the caller already belongs to any household. If the household already has 2 members (PRD §4.2 cap 2, §8 P0-6), every known token fails with `23505 'household is full'` — with priority over `22023` validity errors and the `P0001` lockout — and a still-live invitation is auto-invalidated at once (`consumed`, PRD « automatiquement invalides »), so it stays unusable after a departure without regen. Unknown tokens stay `22023`, lockout stays `P0001` (non-full households only). |
@@ -23,6 +23,32 @@ PostgREST argument names are exact. Supabase JS calls therefore use objects such
 - An item category must belong to the same household as the item.
 - Household equality (PRD §11): any household member can rename the household and issue or revoke invitations.
 - `household_invitations` has no direct client grants. Backend code must never expose `token_hash`.
+
+### Fork ITEM_TEMPLATES + seeds + unites + validations (#107 scope A, PRD §4.3/§4.4/§5/§7)
+
+- Seeds durs bilingues FR/EN : 10 `default_categories` (positions 1..10) + 10 `item_templates`
+  (Lait/Milk, Pain/Bread, Œufs/Eggs, Tomates/Tomatoes, Pommes/Apples, Poulet/Chicken,
+  Pâtes/Pasta, Café/Coffee, Eau/Water, Papier toilette/Toilet paper), vérifiés
+  `SELECT count(*) = 10`. Re-jouables (`WHERE NOT EXISTS`) ; voir `supabase/seeds/01_default_catalog.sql`.
+- Fork à la création : `create_household` copie les 10 templates vers `items`
+  (qté 0, `low_stock_threshold = suggested_threshold`, `unit = template.unit`,
+  `template_id` à titre indicatif uniquement, sans effet fonctionnel, `already_notified=true`
+  pour ne pas générer de notif de seed). Aucune ligne partagée entre foyers.
+- Unités fermées : `CHECK (unit IN ('kg','g','l','ml','unite'))` sur `items` + `item_templates`
+  (validation applicative : liste déroulante, hors scope DB ici).
+- Unicités insensibles casse : `UNIQUE (household_id, lower(name))` sur `items` (tous)
+  + `categories` custom (`WHERE is_default = false`). Doublon `Lait`/`LAIT` → `23505`.
+- `ON DELETE RESTRICT` : `items_category_household_fkey` composite
+  `(category_id, household_id)`. Supprimer une catégorie non vide échoue (`23001`/`23503`) ;
+  l'UI affiche « Déplacez ou supprimez d'abord les N articles » (N compté côté app).
+- Seuils : `CHECK (low_stock_threshold > 0)` + entier (`trunc`), idem
+  `suggested_threshold > 0` côté templates. Seuil 0/négatif/décimal → `23514`.
+- Noms : `CHECK (char_length(btrim(name)) BETWEEN 1 AND 50 AND name ~ '[A-Za-zÀ-ÿŒœ]')`
+  sur `items`, `categories`, `item_templates` (fr/en), `default_categories` (fr/en).
+  Vide/espaces/sans-lettre/>50 → `23514`. Quantités : `>=0` (existant) + entières (`trunc`).
+- Grants : `TO authenticated` seul sur fonctions et tables concernées
+  (`items` insert inclut `template_id` ; catalogues en lecture seule).
+  Pas d'enum → pas de `notify pgrst` requis pour cette migration.
 
 ### Household equality — `owner` derogation (accepted, #106 C3)
 

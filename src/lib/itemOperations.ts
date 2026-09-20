@@ -3,6 +3,7 @@ import type { Database } from '@/types/database';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { logItemHistory } from './history';
 import { enqueueAction, type OfflineAction } from './offlineQueue';
+import type { Unit } from '@/types/units';
 
 type ItemInsert = Database['public']['Tables']['items']['Insert'];
 type ItemUpdate = Database['public']['Tables']['items']['Update'];
@@ -70,7 +71,7 @@ export async function createItem(
   data: {
     name: string;
     quantity?: number;
-    unit: string;
+    unit: Unit;
     category_id?: string | null;
     low_stock_threshold?: number;
   },
@@ -122,7 +123,7 @@ export async function updateItem(
   householdId: string,
   data: {
     name?: string;
-    unit?: string;
+    unit?: Unit;
     category_id?: string | null;
     low_stock_threshold?: number;
   },

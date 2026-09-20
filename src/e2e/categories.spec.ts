@@ -388,4 +388,123 @@ test.describe('Categories CRUD', () => {
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat3}`) }).click();
     });
   });
+
+  test.describe('Seed Categories Bilingual (P1-13, #107)', () => {
+    test('new household lists the 10 default seed categories with French names', async ({
+      page,
+      account,
+    }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-categories').click();
+
+      const defaultSection = page.locator('[data-testid="category-section-default"]');
+      await expect(defaultSection).toBeVisible();
+      await expect(defaultSection.locator('.category-card')).toHaveCount(10);
+
+      // Default rows snapshot the French seed names (EN names live in the
+      // default_categories.name_en seed column, verified at DB level — Scope A).
+      for (const name of [
+        'Fruits',
+        'Légumes',
+        'Produits laitiers',
+        'Viandes et poissons',
+        'Féculents',
+        'Épicerie',
+        'Boissons',
+        'Surgelés',
+        'Hygiène',
+        'Entretien',
+      ]) {
+        await expect(defaultSection.getByText(name, { exact: true })).toBeVisible();
+      }
+    });
+  });
+
+  test.describe('Category Field Validation (P1-7, #107)', () => {
+    test('rejects a category name without any letter', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-categories').click();
+      await page.getByTestId('btn-new-category').click();
+      await page.getByTestId('input-category-name').fill('12345');
+      await page.getByTestId('btn-create-category').click();
+
+      await expect(page.getByTestId('error-name-required-letter')).toBeVisible();
+    });
+
+    test('rejects a case-insensitive duplicate category name', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      const baseName = `Catdup ${randomUUID().slice(0, 8)}`;
+      await page.getByTestId('dashboard-card-categories').click();
+      await page.getByTestId('btn-new-category').click();
+      await page.getByTestId('input-category-name').fill(baseName);
+      await page.getByTestId('btn-create-category').click();
+      await expect(page.getByText(baseName)).toBeVisible({ timeout: 10000 });
+
+      await page.getByTestId('btn-new-category').click();
+      await page.getByTestId('input-category-name').fill(baseName.toLowerCase());
+      await page.getByTestId('btn-create-category').click();
+
+      await expect(page.getByTestId('error-name-duplicate')).toBeVisible();
+
+      page.once('dialog', (dialog) => dialog.accept());
+      await page
+        .getByRole('button', { name: new RegExp(`Supprimer la catégorie ${baseName}`) })
+        .click();
+    });
+  });
+
+  test.describe('Delete Blocked When Not Empty (#107)', () => {
+    test('shows the move-or-delete message instead of deleting', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      const categoryName = `Catégorie pleine ${randomUUID().slice(0, 8)}`;
+      await page.getByTestId('dashboard-card-categories').click();
+      await page.getByTestId('btn-new-category').click();
+      await page.getByTestId('input-category-name').fill(categoryName);
+      await page.getByTestId('btn-create-category').click();
+      await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
+
+      const itemName = `Article range ${randomUUID().slice(0, 8)}`;
+      await page.goto('/home');
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(itemName);
+      await page.locator('#item-category').selectOption({ label: categoryName });
+      await page.getByTestId('btn-create-item').click();
+      await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+
+      await page.goto('/home');
+      await page.getByTestId('dashboard-card-categories').click();
+      await page
+        .getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) })
+        .click();
+
+      await expect(page.getByTestId('category-delete-blocked-message')).toBeVisible();
+      await expect(page.getByTestId('error-category-not-empty')).toContainText(
+        'Déplacez ou supprimez',
+      );
+      await expect(page.getByText(categoryName)).toBeVisible();
+
+      await page.goto('/home');
+      await page.getByTestId('dashboard-card-items').click();
+      const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+      page.once('dialog', (dialog) => dialog.accept());
+      await itemRow.getByTestId(/^btn-delete-item-/).click();
+
+      await page.goto('/home');
+      await page.getByTestId('dashboard-card-categories').click();
+      page.once('dialog', (dialog) => dialog.accept());
+      await page
+        .getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) })
+        .click();
+      await expect(page.getByText(categoryName)).toHaveCount(0);
+    });
+  });
 });

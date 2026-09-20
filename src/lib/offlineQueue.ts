@@ -1,4 +1,5 @@
 import { createItem, updateItem, updateItemQuantity, deleteItem } from './itemOperations';
+import type { Unit } from '@/types/units';
 
 export type OfflineAction = {
   id?: number;
@@ -191,7 +192,7 @@ async function replayAction(action: OfflineAction): Promise<void> {
         {
           name: p.name as string,
           quantity: p.quantity as number | undefined,
-          unit: p.unit as string,
+          unit: p.unit as Unit,
           category_id: (p.category_id as string | null) ?? null,
           low_stock_threshold: (p.low_stock_threshold as number | undefined) ?? undefined,
         },
@@ -218,7 +219,7 @@ async function replayAction(action: OfflineAction): Promise<void> {
         p.householdId as string,
         {
           name: p.name as string | undefined,
-          unit: p.unit as string | undefined,
+          unit: p.unit as Unit | undefined,
           category_id: (p.category_id as string | null | undefined) as string | null | undefined,
           low_stock_threshold: p.low_stock_threshold as number | undefined,
         },

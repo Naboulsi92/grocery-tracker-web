@@ -903,6 +903,209 @@ $$;
 
 reset role;
 
+-- Ticket #107 scope A — Fork ITEM_TEMPLATES + seeds + unites + validations (PRD §4.3/§4.4/§5/§7)
+-- Seeds bilingues durs, fork isole, CHECK unit/seuil/nom, unicites CI, RESTRICT.
+do $$
+begin
+  -- 1. Seeds : 10 categories + 10 templates, FR/EN, positions 1..10, unites fermees, seuils >0
+  if (select count(*) from public.default_categories) <> 10 then
+    raise exception 'seeds default_categories must be 10, got %', (select count(*) from public.default_categories);
+  end if;
+  if (select count(*) from public.item_templates) <> 10 then
+    raise exception 'seeds item_templates must be 10, got %', (select count(*) from public.item_templates);
+  end if;
+  if exists (select 1 from public.default_categories where nullif(btrim(name_fr), '') is null or nullif(btrim(name_en), '') is null) then
+    raise exception 'default_categories must be bilingual FR/EN';
+  end if;
+  if exists (select 1 from public.item_templates where nullif(btrim(name_fr), '') is null or nullif(btrim(name_en), '') is null) then
+    raise exception 'item_templates must be bilingual FR/EN';
+  end if;
+  if (select count(*) from (select distinct "position" from public.default_categories) p) <> 10 then
+    raise exception 'default_categories positions must be 10 distinct values';
+  end if;
+  if exists (select 1 from public.item_templates where unit not in ('kg', 'g', 'l', 'ml', 'unite')) then
+    raise exception 'item_templates units must be closed (kg/g/l/ml/unite)';
+  end if;
+  if exists (select 1 from public.item_templates where suggested_threshold <= 0) then
+    raise exception 'item_templates thresholds must be >0';
+  end if;
+  if exists (select 1 from public.item_templates it left join public.default_categories dc on dc.id = it.category_key where dc.id is null) then
+    raise exception 'item_templates category_key must reference default_categories';
+  end if;
+end;
+$$;
+
+-- 2. Fork : qte 0, seuil=suggested, template_id indicatif, isolation inter-foyers (P0-5)
+do $$
+declare
+  v_forked_test int;
+  v_forked_outsider int;
+begin
+  select count(*) into v_forked_test from public.items
+  where household_id = current_setting('test.household_id')::uuid and template_id is not null;
+  if v_forked_test <> 10 then
+    raise exception 'fork must create 10 items with template_id, got %', v_forked_test;
+  end if;
+  select count(*) into v_forked_outsider from public.items
+  where household_id = current_setting('test.outsider_household_id')::uuid and template_id is not null;
+  if v_forked_outsider <> 10 then
+    raise exception 'outsider fork must create 10 items with template_id, got %', v_forked_outsider;
+  end if;
+  if exists (
+    select 1 from public.items i join public.item_templates t on t.id = i.template_id
+    where i.household_id = current_setting('test.household_id')::uuid
+      and (i.quantity <> 0 or i.low_stock_threshold <> t.suggested_threshold or i.unit <> t.unit)
+  ) then
+    raise exception 'forked items must be qty 0, threshold=suggested, unit=template';
+  end if;
+  -- Isolation : renomme Lait foyer A, foyer B intact
+  update public.items set name = 'Lait renomme'
+  where household_id = current_setting('test.household_id')::uuid and lower(name) = lower('Lait');
+  if not found then raise exception 'fork Lait copy missing in test household'; end if;
+  if not exists (
+    select 1 from public.items
+    where household_id = current_setting('test.outsider_household_id')::uuid and name = 'Lait'
+  ) then
+    raise exception 'fork isolation broken: outsider Lait altered by test-household rename';
+  end if;
+  if exists (
+    select 1 from public.items
+    where household_id = current_setting('test.outsider_household_id')::uuid and name = 'Lait renomme'
+  ) then
+    raise exception 'fork isolation broken: rename leaked to outsider household';
+  end if;
+  -- Restaure pour la suite du contrat (rollback final de toute facon)
+  update public.items set name = 'Lait'
+  where household_id = current_setting('test.household_id')::uuid and name = 'Lait renomme';
+end;
+$$;
+
+-- 3. CHECK unit fermees + seuil >0 + entier + nom (P1-7)
+do $$
+declare
+  v_hid uuid := current_setting('test.household_id')::uuid;
+  v_cid uuid := current_setting('test.item_category_id')::uuid;
+begin
+  begin
+    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+    values (v_hid, v_cid, 'Check unit invalide', 1, 'pack', 1);
+    raise exception 'invalid unit pack unexpectedly accepted';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+    values (v_hid, v_cid, 'Check seuil zero', 1, 'unite', 0);
+    raise exception 'threshold 0 unexpectedly accepted';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+    values (v_hid, v_cid, 'Check seuil negatif', 1, 'unite', -2);
+    raise exception 'negative threshold unexpectedly accepted';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+    values (v_hid, v_cid, 'Check qte decimale', 1.5, 'unite', 1);
+    raise exception 'decimal quantity unexpectedly accepted';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+    values (v_hid, v_cid, '', 1, 'unite', 1);
+    raise exception 'empty name unexpectedly accepted';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+    values (v_hid, v_cid, '12345', 1, 'unite', 1);
+    raise exception 'no-letter name unexpectedly accepted';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+    values (v_hid, v_cid, repeat('A', 51), 1, 'unite', 1);
+    raise exception 'over-50 name unexpectedly accepted';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.categories (household_id, name, is_default)
+    values (v_hid, '   ', false);
+    raise exception 'blank category name unexpectedly accepted';
+  exception when check_violation then null;
+  end;
+end;
+$$;
+
+-- 4. Unicites CI (household_id, lower(name)) : items + categories custom (P1-7)
+do $$
+declare
+  v_hid uuid := current_setting('test.household_id')::uuid;
+  v_cid uuid := current_setting('test.item_category_id')::uuid;
+  v_dup_cat uuid;
+begin
+  begin
+    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+    values (v_hid, v_cid, 'LAIT', 1, 'l', 1);
+    raise exception 'duplicate item LAIT/lait unexpectedly accepted';
+  exception when unique_violation then null;
+  end;
+  insert into public.categories (household_id, name, is_default)
+  values (v_hid, 'Custom dup', false) returning id into v_dup_cat;
+  begin
+    insert into public.categories (household_id, name, is_default)
+    values (v_hid, 'CUSTOM DUP', false);
+    raise exception 'duplicate custom category unexpectedly accepted';
+  exception when unique_violation then null;
+  end;
+  delete from public.categories where id = v_dup_cat;
+end;
+$$;
+
+-- 5. ON DELETE RESTRICT categorie non-vide + message applicatif (PRD §5/§7)
+-- DB : RESTRICT (23001) ou FK (23503) selon version ; app : "Déplacez ou supprimez d'abord les N articles".
+do $$
+declare
+  v_hid uuid := current_setting('test.household_id')::uuid;
+  v_cid uuid := current_setting('test.item_category_id')::uuid;
+  v_empty uuid;
+  v_n int;
+begin
+  if (select confdeltype from pg_constraint where conname = 'items_category_household_fkey') <> 'r' then
+    raise exception 'items_category_household_fkey must be ON DELETE RESTRICT';
+  end if;
+  select count(*) into v_n from public.items where category_id = v_cid;
+  if v_n = 0 then raise exception 'restrict fixture needs a non-empty category'; end if;
+  begin
+    delete from public.categories where id = v_cid;
+    raise exception 'non-empty category deletion unexpectedly succeeded';
+  exception when restrict_violation or foreign_key_violation then null;
+  end;
+  insert into public.categories (household_id, name, is_default)
+  values (v_hid, 'Vide a supprimer', false) returning id into v_empty;
+  delete from public.categories where id = v_empty;
+  if not found then raise exception 'empty custom category was not deletable'; end if;
+end;
+$$;
+
+-- 6. Catalogues : TO authenticated seul, lecture seule (0 ecriture client)
+do $$
+begin
+  if not has_table_privilege('authenticated', 'public.default_categories', 'SELECT')
+    or has_table_privilege('authenticated', 'public.default_categories', 'INSERT')
+    or has_table_privilege('authenticated', 'public.default_categories', 'UPDATE')
+    or has_table_privilege('authenticated', 'public.default_categories', 'DELETE') then
+    raise exception 'default_categories must be read-only for authenticated';
+  end if;
+  if not has_table_privilege('authenticated', 'public.item_templates', 'SELECT')
+    or has_table_privilege('authenticated', 'public.item_templates', 'INSERT')
+    or has_table_privilege('authenticated', 'public.item_templates', 'UPDATE')
+    or has_table_privilege('authenticated', 'public.item_templates', 'DELETE') then
+    raise exception 'item_templates must be read-only for authenticated';
+  end if;
+end;
+$$;
+
 -- Debate C1: anonymous users cannot insert categories (nor anything else)
 reset role;
 set local role anon;

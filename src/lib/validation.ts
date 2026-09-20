@@ -1,3 +1,5 @@
+import { isUnit } from '@/types/units';
+
 const MAX_NAME_LENGTH = 50;
 
 export const LETTER_PATTERN = /[A-Za-zÀ-ÖØ-öø-ÿ\u0152\u0153]/;
@@ -14,6 +16,15 @@ export const QuantityErrors = {
 export const ThresholdErrors = {
   REQUIRED: 'validation.threshold.required',
 } as const;
+
+export const UnitErrors = {
+  INVALID: 'validation.unit.invalid',
+} as const;
+
+export function validateUnit(value: string): string | null {
+  if (!isUnit(value)) return UnitErrors.INVALID;
+  return null;
+}
 
 export function validateName(name: string): string | null {
   const trimmed = name.trim();

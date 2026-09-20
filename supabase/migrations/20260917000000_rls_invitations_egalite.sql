@@ -46,7 +46,17 @@ drop policy if exists "Users can view categories in their households" on public.
 drop policy if exists "Users can manage categories in their households" on public.categories;
 drop policy if exists "Users can view items in their households" on public.items;
 drop policy if exists "Users can manage items in their households" on public.items;
-drop policy if exists "Authenticated users can view units" on public.units;
+-- units table was dropped in v1.1 §8 (20260915): DROP POLICY IF EXISTS still
+-- errors when the table itself is gone (ERROR relation public.units does not
+-- exist), so guard with to_regclass + EXECUTE (generic pg_policies purge below
+-- already covers any PUBLIC/anon remnant if the table still exists elsewhere).
+do $$
+begin
+  if to_regclass('public.units') is not null then
+    execute 'drop policy if exists "Authenticated users can view units" on public.units';
+  end if;
+end;
+$$;
 drop policy if exists "Users can manage their own push subscriptions" on public.push_subscriptions;
 -- Owner-only policy superseded by the member-gated one (v1.1 §24); re-drop for
 -- prod convergence in case the secure-household migration never applied.
@@ -104,7 +114,15 @@ revoke all on table public.category_positions from anon;
 revoke all on table public.default_categories from anon;
 revoke all on table public.item_templates from anon;
 revoke all on table public.pending_notifications from anon;
-revoke all on table public.units from anon;
+-- Same guard as above: REVOKE errors when the table is gone; generic
+-- REVOKE FROM PUBLIC above already covers convergence when it exists.
+do $$
+begin
+  if to_regclass('public.units') is not null then
+    execute 'revoke all on table public.units from anon';
+  end if;
+end;
+$$;
 
 -- ── 4. Retirer owner (PRD §11): helper + index, both unreferenced ────────────
 -- All policies/RPCs gate on private.is_household_member (equality). The helper

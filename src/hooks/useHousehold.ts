@@ -160,7 +160,7 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
   const leave = useCallback(async (userId: string) => {
     if (!userId) return { error: householdActionError('leave', null) };
     setError('');
-    const { error: leaveError } = await leaveHousehold(supabase, userId);
+    const { error: leaveError } = await leaveHousehold(supabase);
     if (leaveError) {
       setError(leaveError);
       return { error: leaveError };

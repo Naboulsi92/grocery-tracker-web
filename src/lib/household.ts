@@ -83,7 +83,6 @@ export function householdActionError(
  */
 export async function leaveHousehold(
   supabase: SupabaseClient<Database>,
-  _userId: string,
 ): Promise<{ error: string | null }> {
   const { error } = await supabase.rpc('leave_household');
 

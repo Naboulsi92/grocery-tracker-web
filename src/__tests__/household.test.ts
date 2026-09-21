@@ -71,7 +71,6 @@ describe('household leave dialog contract (PRD §4.8 — #110 P1-9)', () => {
   it('renders the same exact hint in the section and in the confirmation dialog (shared key)', () => {
     // src/app/household/page.tsx renders t('household.leave_hint') both in the
     // leave section and inside the leave confirmation dialog.
-    expect(translate('fr', 'household.leave_hint')).toBe(translate('fr', 'household.leave_hint'));
     expect(translate('fr', 'household.leave_hint')).toBe(EXACT_FR_HINT);
   });
 
@@ -107,13 +106,13 @@ describe('household leave action contract (PRD §4.8 — #110 P1-9)', () => {
 
   it('leaves via the leave_household RPC (no direct DELETE grant — 42501 otherwise)', async () => {
     const { supabase, calls } = createLeaveRpcStub();
-    await expect(leaveHousehold(supabase, 'user-leaver')).resolves.toEqual({ error: null });
+    await expect(leaveHousehold(supabase)).resolves.toEqual({ error: null });
     expect(calls).toEqual([{ fn: 'leave_household' }]);
   });
 
   it('maps a leave failure to a recoverable message without leaking internals', () => {
     const { supabase } = createLeaveRpcStub({ message: 'relation secret_table does not exist', code: '42P01' });
-    return expect(leaveHousehold(supabase, 'user-leaver')).resolves.toEqual({
+    return expect(leaveHousehold(supabase)).resolves.toEqual({
       error: 'errors.household.leave_failed',
     });
   });

@@ -183,7 +183,7 @@ export default function AccountPage() {
     setDeleteError('');
     // Best-effort : même si le départ échoue (ex. déjà sans foyer), le
     // soft-delete doit être posé pour garantir la sortie + la purge 7j.
-    await leaveHousehold(supabase, user.id);
+    await leaveHousehold(supabase);
     const { error } = await requestAccountDeletion(supabase, user.id);
     if (error) {
       setDeleteError(error);

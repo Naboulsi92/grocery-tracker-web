@@ -1826,28 +1826,24 @@ set local role authenticated;
 do $$
 declare
   v_uid uuid;
-  v_policy_count int;
-  v_has_update boolean;
-  v_has_update_col boolean;
-  v_row_super boolean;
+  v_select_count int;
+  v_update_display_count int;
+  v_update_deleted_count int;
 begin
   v_uid := (select auth.uid());
-  raise notice 'DIAG uid=% sub=%', v_uid, current_setting('request.jwt.claim.sub', true);
-  select count(*) into v_policy_count from pg_policies where schemaname='public' and tablename='profiles';
-  raise notice 'DIAG profiles_policy_count=%', v_policy_count;
-  select has_table_privilege('authenticated', 'public.profiles', 'UPDATE') into v_has_update;
-  raise notice 'DIAG authenticated_has_table_update=%', v_has_update;
-  select has_column_privilege('authenticated', 'public.profiles', 'deleted_at', 'UPDATE') into v_has_update_col;
-  raise notice 'DIAG authenticated_has_col_update_deleted_at=%', v_has_update_col;
-  -- Row existence as seen by superuser would bypass RLS; here as authenticated SELECT may filter, but UPDATE USING is what matters.
-  -- Log pg_policies details for UPDATE.
-  raise notice 'DIAG update_policies=%', (select string_agg(policyname || ':' || coalesce(qual,'') || '/' || coalesce(with_check,''), ' | ') from pg_policies where schemaname='public' and tablename='profiles' and cmd='UPDATE');
-end;
-$$;
-do $$
-begin
+  raise notice 'DIAG2 uid=%', v_uid;
+  -- SELECT as authenticated (should be 0 for houseless due to can_view_profile, proving app fetchProfile bug)
+  select count(*) into v_select_count from public.profiles where id = '00000000-0000-4000-8000-000000000014';
+  raise notice 'DIAG2 select_count_as_authenticated=%', v_select_count;
+  -- Try updating display_name as 014 (same RLS, different column) to isolate column vs houseless
+  update public.profiles set display_name = 'Diag' where id = '00000000-0000-4000-8000-000000000014';
+  get diagnostics v_update_display_count = row_count;
+  raise notice 'DIAG2 update_display_name_rowcount=%', v_update_display_count;
+  -- Try updating deleted_at (the failing case) with row_count logging instead of FOUND
   update public.profiles set deleted_at = null where id = '00000000-0000-4000-8000-000000000014';
-  if not found then raise exception 'grace-period account could not clear deleted_at'; end if;
+  get diagnostics v_update_deleted_count = row_count;
+  raise notice 'DIAG2 update_deleted_at_rowcount=%', v_update_deleted_count;
+  if v_update_deleted_count = 0 then raise exception 'grace-period account could not clear deleted_at'; end if;
 end;
 $$;
 reset role;

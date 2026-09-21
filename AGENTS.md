@@ -218,15 +218,7 @@ This is the loop that worked on tickets #60/#67 and should be reused for every i
     - `supabase_generate_typescript_types` — Sync types
     - Prefer MCP over local `supabase` CLI for remote projects
 
-28. **Vercel MCP** — Use for deployment/preview operations:
-    - `vercel_list_projects` / `vercel_get_project` — Project info
-    - `vercel_list_deployments` — Deployment history
-    - `vercel_get_deployment` / `vercel_get_deployment_build_logs` — Debug builds
-    - `vercel_get_runtime_logs` / `vercel_get_runtime_errors` — Production debugging
-    - `vercel_create_git_project` — Link repo for auto-deploy
-    - `vercel_web_fetch_vercel_url` — Access protected preview URLs
-
-29. **Context7** — Use for up-to-date library documentation:
+28. **Context7** — Use for up-to-date library documentation:
     - Always call `context7_resolve-library-id` first
     - Then `context7_query-docs` with specific questions
     - Use for: Next.js, Supabase, Vercel, React, Tailwind, etc.

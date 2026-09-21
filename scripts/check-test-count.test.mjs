@@ -8,8 +8,8 @@ describe('check-test-count', () => {
     assert.equal(MIN_TESTS, 280);
   });
 
-  test('accepte le volume actuel (28 suites / 313 tests)', () => {
-    assert.deepEqual(checkCounts({ suites: 28, tests: 313 }), []);
+  test('accepte le volume actuel (30 suites / 358 tests)', () => {
+    assert.deepEqual(checkCounts({ suites: 30, tests: 358 }), []);
   });
 
   test('accepte exactement les seuils', () => {

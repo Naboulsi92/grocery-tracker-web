@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import ThemeToggle from '@/components/ThemeToggle';
 import { createClient } from '@/utils/supabase/client';
 import { translateMessage } from '@/lib/i18n';
@@ -93,13 +94,13 @@ export default function HouseholdPage() {
     setShowRegenConfirm(false);
   };
 
+  // PRD §4.8 : quitter = delete household_members via actions.leave (vide
+  // l'état local → 0 lecture inventaire, RLS refusant ensuite toute lecture
+  // serveur). L'autre membre garde tout intact sans limite de durée.
   const handleLeaveHousehold = async () => {
     if (!user?.id || !householdId) return;
     setLeaving(true);
-    const { error: leaveError } = await supabase
-      .from('household_members')
-      .delete()
-      .eq('user_id', user.id);
+    const { error: leaveError } = await actions.leave(user.id);
     setLeaving(false);
     if (leaveError) {
       setShowLeaveConfirm(false);
@@ -345,30 +346,20 @@ export default function HouseholdPage() {
         </div>
       )}
 
-      {/* Leave Household Confirmation Modal */}
+      {/* Leave Household Confirmation Modal — PRD §4.8 texte exact + Confirmer/Annuler */}
       {showLeaveConfirm && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="leave-dialog-title" onClick={() => setShowLeaveConfirm(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 id="leave-dialog-title">{t('household.leave_confirm_title')}</h3>
-            <p className="text-muted" style={{ margin: '0.75rem 0 1.5rem' }}>
-              {t('household.leave_hint')}
-            </p>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowLeaveConfirm(false)}>
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={() => void handleLeaveHousehold()}
-                disabled={leaving}
-                data-testid="leave-household-confirm"
-              >
-                {leaving ? t('household.deleting') : t('common.confirm')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={t('household.leave_confirm_title')}
+          message={t('household.leave_hint')}
+          confirmLabel={t('common.confirm')}
+          cancelLabel={t('common.cancel')}
+          confirmTestId="leave-household-confirm"
+          pending={leaving}
+          pendingLabel={t('household.leaving')}
+          tone="danger"
+          onConfirm={() => void handleLeaveHousehold()}
+          onCancel={() => setShowLeaveConfirm(false)}
+        />
       )}
 
       <style>{`

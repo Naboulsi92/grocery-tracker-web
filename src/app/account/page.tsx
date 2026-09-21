@@ -10,7 +10,9 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import ThemeToggle from '@/components/ThemeToggle';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { createClient } from '@/utils/supabase/client';
+import { leaveHousehold } from '@/lib/household';
 import {
   changePassword,
   fetchProfile,
@@ -59,10 +61,9 @@ export default function AccountPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  // Restore-on-login is wired here for now: AuthContext is outside this ticket's
-  // file ownership, so signing in again within the 7-day retention window is only
-  // reconciled once the user opens /account. A future pass should move the restore
-  // call into AuthContext's session resolution so any signed-in user is restored.
+  // PRD §4.9 : reconnexion <7j → deleted_at NULL + compte restauré.
+  // Restauration primaire dans AuthContext (toute session) ; ici en fallback
+  // pour afficher le bandeau "compte réactivé" sur /account.
   useEffect(() => {
     let active = true;
     const userId = user?.id;
@@ -173,18 +174,24 @@ export default function AccountPage() {
     await signOut();
   };
 
+  // PRD §4.9 : suppression = quitter (l'autre membre garde l'inventaire,
+  // 0 lecture après départ) + soft-delete profiles.deleted_at (rétention 7j
+  // RGPD, annulation par reconnexion <7j via AuthContext, purge cron >7j).
   const handleDeleteAccount = async () => {
     if (!user) return;
     setDeleting(true);
     setDeleteError('');
+    // Best-effort : même si le départ échoue (ex. déjà sans foyer), le
+    // soft-delete doit être posé pour garantir la sortie + la purge 7j.
+    await leaveHousehold(supabase, user.id);
     const { error } = await requestAccountDeletion(supabase, user.id);
     if (error) {
       setDeleteError(error);
       setDeleting(false);
       return;
     }
-    // Soft-delete recorded (7-day retention, permanent deletion is a later
-    // server-side ticket); AuthContext transitions the private route to /login.
+    // Soft-delete recorded (7-day retention, permanent deletion by the
+    // member-gdpr-sweep cron); AuthContext transitions the private route to /login.
     await signOut();
   };
 
@@ -407,79 +414,19 @@ export default function AccountPage() {
       </main>
 
       {showDeleteConfirm && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="account-delete-dialog-title"
-          onClick={() => setShowDeleteConfirm(false)}
-        >
-          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
-            <h3 id="account-delete-dialog-title">{t('account.delete_title')}</h3>
-            <p className="text-muted" style={{ margin: '0.75rem 0 1.5rem' }}>
-              {t('account.delete_hint')}
-            </p>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={deleting}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                data-testid="account-delete-confirm"
-                className="btn btn-danger"
-                onClick={() => void handleDeleteAccount()}
-                disabled={deleting}
-              >
-                {deleting ? t('account.deleting') : t('account.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={t('account.delete_title')}
+          message={t('account.delete_hint')}
+          confirmLabel={t('account.delete')}
+          cancelLabel={t('common.cancel')}
+          confirmTestId="account-delete-confirm"
+          pending={deleting}
+          pendingLabel={t('account.deleting')}
+          tone="danger"
+          onConfirm={() => void handleDeleteAccount()}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
       )}
-
-      <style>{`
-        .modal-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 100;
-          padding: 1rem;
-        }
-        .modal-content {
-          background: var(--color-surface);
-          border: 1px solid var(--color-border-subtle);
-          border-radius: var(--radius-md);
-          padding: 1.5rem;
-          max-width: 400px;
-          width: 100%;
-          box-shadow: var(--shadow-lg);
-        }
-        .modal-content h3 {
-          font-size: 1.125rem;
-        }
-        .btn-danger {
-          background: var(--color-danger);
-          color: #fff;
-        }
-        .btn-danger:hover {
-          opacity: 0.9;
-          transform: translateY(-1px);
-          box-shadow: var(--shadow-md);
-        }
-        .btn-danger:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          transform: none;
-        }
-      `}</style>
     </div>
   );
 }

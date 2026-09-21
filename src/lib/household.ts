@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { translate, type Language } from '@/lib/i18n';
 
@@ -35,7 +36,7 @@ export function mergeHouseholdMembers(
 }
 
 export function householdActionError(
-  action: 'create' | 'join' | 'load' | 'invite' | 'revoke' | 'copy',
+  action: 'create' | 'join' | 'load' | 'invite' | 'revoke' | 'copy' | 'leave',
   error: { message?: string; code?: string } | null | undefined,
 ): string {
   console.warn('client_operation_failed', {
@@ -64,7 +65,28 @@ export function householdActionError(
     invite: 'errors.household.invite_failed',
     revoke: 'errors.household.revoke_failed',
     copy: 'errors.household.copy_failed',
+    leave: 'errors.household.leave_failed',
   } as const;
 
   return fallback[action];
+}
+
+/**
+ * Quitter le foyer (PRD §4.8) : supprime la ligne household_members du
+ * demandeur. L'autre membre garde tout intact sans limite de durée
+ * (rétention indéfinie, aucune suppression côté inventaire).
+ * L'appelant doit ensuite invalider l'état local (0 lecture inventaire)
+ * puis signer out / rediriger.
+ */
+export async function leaveHousehold(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('household_members')
+    .delete()
+    .eq('user_id', userId);
+
+  if (error) return { error: householdActionError('leave', error) };
+  return { error: null };
 }

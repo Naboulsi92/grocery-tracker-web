@@ -17,6 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Check cron secret configured
+        run: |
+          if [ -z "${{ secrets.SUPABASE_CRON_SECRET }}" ]; then
+            echo "::error::SUPABASE_CRON_SECRET is not configured — member-gdpr-sweep requires CRON_SECRET (fail-closed 401)"
+            exit 1
+          fi
       - name: Invoke member-gdpr-sweep edge function
         run: |
           set -euo pipefail

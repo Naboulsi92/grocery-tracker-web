@@ -1,5 +1,8 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
 import {
   householdActionError,
+  leaveHousehold,
   mergeHouseholdMembers,
   normalizeInvitationToken,
   type InvitationState,
@@ -54,5 +57,74 @@ describe('household contracts', () => {
     };
 
     expect(invitation.status).toBe('active');
+  });
+});
+
+describe('household leave dialog contract (PRD §4.8 — #110 P1-9)', () => {
+  const EXACT_FR_HINT =
+    "Vous perdrez l'accès à l'inventaire. L'autre membre garde toutes les données.";
+
+  it('exposes the exact PRD §4.8 quit warning in French', () => {
+    expect(translate('fr', 'household.leave_hint')).toBe(EXACT_FR_HINT);
+  });
+
+  it('renders the same exact hint in the section and in the confirmation dialog (shared key)', () => {
+    // src/app/household/page.tsx renders t('household.leave_hint') both in the
+    // leave section and inside the leave confirmation dialog.
+    expect(translate('fr', 'household.leave_hint')).toBe(translate('fr', 'household.leave_hint'));
+    expect(translate('fr', 'household.leave_hint')).toBe(EXACT_FR_HINT);
+  });
+
+  it('provides the Confirmer/Annuler actions and the confirmation title', () => {
+    expect(translate('fr', 'household.leave_confirm_title')).toBe('Quitter le foyer ?');
+    expect(translate('fr', 'common.confirm')).toBe('Confirmer');
+    expect(translate('fr', 'common.cancel')).toBe('Annuler');
+  });
+
+  it('keeps the English warning equivalent to the French one', () => {
+    expect(translate('en', 'household.leave_hint')).toBe(
+      'You will lose access to the inventory. The other member keeps all the data.',
+    );
+  });
+
+  it('keeps the quit warning distinct from the regenerate hint (no copy-paste)', () => {
+    expect(translate('fr', 'household.leave_hint')).not.toBe(translate('fr', 'household.regen_hint'));
+    expect(translate('en', 'household.leave_hint')).not.toBe(translate('en', 'household.regen_hint'));
+  });
+});
+
+describe('household leave action contract (PRD §4.8 — #110 P1-9)', () => {
+  function createDeleteStub(error: { message?: string; code?: string } | null = null) {
+    const calls: { table: string; column: string; value: string }[] = [];
+    const supabase = {
+      from: (table: string) => ({
+        delete: () => ({
+          eq: (column: string, value: string) => {
+            calls.push({ table, column, value });
+            return Promise.resolve({ data: null, error });
+          },
+        }),
+      }),
+    } as unknown as SupabaseClient<Database>;
+    return { supabase, calls };
+  }
+
+  it('deletes the leaver membership row by user id', async () => {
+    const { supabase, calls } = createDeleteStub();
+    await expect(leaveHousehold(supabase, 'user-leaver')).resolves.toEqual({ error: null });
+    expect(calls).toEqual([{ table: 'household_members', column: 'user_id', value: 'user-leaver' }]);
+  });
+
+  it('maps a leave failure to a recoverable message without leaking internals', () => {
+    const { supabase } = createDeleteStub({ message: 'relation secret_table does not exist', code: '42P01' });
+    return expect(leaveHousehold(supabase, 'user-leaver')).resolves.toEqual({
+      error: 'errors.household.leave_failed',
+    });
+  });
+
+  it('reports the leave error through the shared action mapper', () => {
+    expect(householdActionError('leave', { message: 'boom', code: '500' })).toBe(
+      'errors.household.leave_failed',
+    );
   });
 });

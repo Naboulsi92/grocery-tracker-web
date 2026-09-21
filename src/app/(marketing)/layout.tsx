@@ -3,7 +3,11 @@ import { Footer } from '@/components/marketing/Footer';
 import Script from 'next/script';
 import { ScrollTracker } from '@/components/marketing/ScrollTracker';
 import { PageViewTracker } from '@/components/marketing/PageViewTracker';
+import { getSiteUrl, getSiteHostname } from '@/lib/site-url';
 import './marketing.css';
+
+const siteUrl = getSiteUrl();
+const siteHostname = getSiteHostname();
 
 export const metadata = {
   title: 'Grocery List App - Collaborative Shopping for Households',
@@ -12,7 +16,7 @@ export const metadata = {
     title: 'Grocery List App - Collaborative Shopping for Households',
     description: "Never forget what to buy again. Share grocery lists, manage quantities, and coordinate shopping with your household in real-time.",
     type: 'website',
-    url: 'https://grocerylist.app',
+    url: '/',
     images: [
       {
         url: '/og-image.png',
@@ -29,7 +33,7 @@ export const metadata = {
     images: ['/og-image.png'],
   },
   alternates: {
-    canonical: 'https://grocerylist.app',
+    canonical: '/',
   },
 };
 
@@ -37,9 +41,9 @@ const structuredData = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'Grocery List App',
-  url: 'https://grocerylist.app',
+  url: siteUrl,
   description: "Collaborative shopping platform for households to share grocery lists and coordinate shopping in real-time.",
-  logo: 'https://grocerylist.app/logo.png',
+  logo: `${siteUrl}/logo.png`,
 };
 
 export default function MarketingLayout({
@@ -51,7 +55,7 @@ export default function MarketingLayout({
     <div className="flex flex-col min-h-screen">
       <Script
         defer
-        data-domain="grocerylist.app"
+        data-domain={siteHostname}
         src="https://plausible.io/js/script.js"
         strategy="lazyOnload"
       />

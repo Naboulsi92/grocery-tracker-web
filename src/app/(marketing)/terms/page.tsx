@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: 'Terms of Use - Grocery List App',
   description: 'Terms of use for the Grocery List App. Read the terms governing your use of the service.',
   alternates: {
-    canonical: 'https://grocerylist.app/terms',
+    canonical: '/terms',
   },
 };
 

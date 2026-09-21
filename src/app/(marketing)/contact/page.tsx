@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: 'Contact - Grocery List App',
   description: 'Get in touch with the Grocery List App team for questions, feedback, or support.',
   alternates: {
-    canonical: 'https://grocerylist.app/contact',
+    canonical: '/contact',
   },
 };
 

@@ -153,7 +153,11 @@ test.describe('Mobile Responsiveness', () => {
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
 
-      const modal = page.locator('[role="dialog"], .modal, [class*="modal"]');
+      // Exclude the Next.js dev error overlay (`data-nextjs-dialog`): it is a
+      // hidden `[role="dialog"]` present in `next dev` (exposed by the CSP
+      // `unsafe-eval` breakage) and is not an app modal. App modals use
+      // `.modal-overlay` / `.modal-content`.
+      const modal = page.locator('.modal-overlay, .modal-content, [role="dialog"]:not([data-nextjs-dialog])');
       if (await modal.count() > 0) {
         await expect(modal.first()).toBeVisible();
         const modalBox = await modal.first().boundingBox();

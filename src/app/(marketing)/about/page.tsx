@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: 'About - Grocery List App',
   description: 'Learn more about the Grocery List App, a collaborative grocery inventory management platform for households.',
   alternates: {
-    canonical: 'https://grocerylist.app/about',
+    canonical: '/about',
   },
 };
 

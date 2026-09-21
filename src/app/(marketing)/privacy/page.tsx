@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: 'Privacy Policy - Grocery List App',
   description: 'Privacy policy for the Grocery List App. Learn how we collect, use, and protect your data.',
   alternates: {
-    canonical: 'https://grocerylist.app/privacy',
+    canonical: '/privacy',
   },
 };
 

@@ -4,8 +4,10 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
+import { getSiteUrl } from '@/lib/site-url';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   title: "Liste de courses",
   description: "Application de suivi de courses partagée",
 };

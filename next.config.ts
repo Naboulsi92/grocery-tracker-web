@@ -11,14 +11,24 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
  * - `script-src 'unsafe-inline'`: required by the two inline theme/lang
  *   bootstraps in `src/app/layout.tsx` and by Next.js runtime inlining.
  *   Follow-up: move to nonces (see audit H3).
+ * - `script-src 'unsafe-eval'` (development only): React dev mode needs
+ *   `eval()` for callstack reconstruction. E2E runs `next dev`, so without
+ *   it every render logs "eval() is not supported" and the Next.js dev
+ *   error overlay (`[data-nextjs-dialog]`) pollutes the DOM, breaking
+ *   `mobile-responsiveness.spec.ts:146`. Production stays strict.
  * - `style-src 'unsafe-inline'`: required by Tailwind-in-JS style injection.
  * - `connect-src`: Supabase (https + wss realtime, `*.supabase.co`) +
  *   Plausible + local `supabase start` origins for development.
  * - `frame-ancestors 'none'` mirrors `X-Frame-Options: DENY`.
  */
+const isDev = process.env.NODE_ENV !== 'production';
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://plausible.io"
+  : "script-src 'self' 'unsafe-inline' https://plausible.io";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://plausible.io",
+  scriptSrc,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",

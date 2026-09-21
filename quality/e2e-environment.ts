@@ -10,7 +10,7 @@ export type E2EEnvironment = {
 type Environment = Readonly<Record<string, string | undefined>>;
 
 export function resolveE2EEnvironment(env: Environment): E2EEnvironment {
-  const baseURL = env.E2E_BASE_URL || 'http://127.0.0.1:3000';
+  const baseURL = env.E2E_BASE_URL || 'http://localhost:3000';
   let url: URL;
 
   try {

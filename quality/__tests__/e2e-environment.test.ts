@@ -3,7 +3,7 @@ import { resolveE2EEnvironment } from '../e2e-environment';
 describe('resolveE2EEnvironment', () => {
   it('defaults to a local target with writes disabled', () => {
     expect(resolveE2EEnvironment({})).toEqual({
-      baseURL: 'http://127.0.0.1:3000',
+      baseURL: 'http://localhost:3000',
       isLocal: true,
       writesAllowed: false,
     });

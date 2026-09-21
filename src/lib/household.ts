@@ -72,20 +72,20 @@ export function householdActionError(
 }
 
 /**
- * Quitter le foyer (PRD §4.8) : supprime la ligne household_members du
- * demandeur. L'autre membre garde tout intact sans limite de durée
- * (rétention indéfinie, aucune suppression côté inventaire).
+ * Quitter le foyer (PRD §4.8) : RPC leave_household SECURITY DEFINER.
+ * household_members n'a aucun grant DELETE client ni policy DELETE — un
+ * delete direct échoue en 42501. La RPC supprime la seule appartenance de
+ * l'appelant (aucun paramètre : impossible de retirer l'autre membre).
+ * L'autre membre garde tout intact sans limite de durée (rétention
+ * indéfinie, aucune suppression côté inventaire).
  * L'appelant doit ensuite invalider l'état local (0 lecture inventaire)
  * puis signer out / rediriger.
  */
 export async function leaveHousehold(
   supabase: SupabaseClient<Database>,
-  userId: string,
+  _userId: string,
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from('household_members')
-    .delete()
-    .eq('user_id', userId);
+  const { error } = await supabase.rpc('leave_household');
 
   if (error) return { error: householdActionError('leave', error) };
   return { error: null };

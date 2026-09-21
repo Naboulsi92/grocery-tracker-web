@@ -15,7 +15,7 @@ import type { Database } from '@/types/database';
 type HouseholdUpdate = Database['public']['Tables']['households']['Update'];
 
 export default function HouseholdPage() {
-  const { user, householdId, signOut } = useAuth();
+  const { user, householdId } = useAuth();
   const { t, language } = useI18n();
   const { household, members, invitation, loading, error, actions } = useHousehold(householdId ?? '', { language });
 
@@ -94,9 +94,13 @@ export default function HouseholdPage() {
     setShowRegenConfirm(false);
   };
 
-  // PRD §4.8 : quitter = delete household_members via actions.leave (vide
-  // l'état local → 0 lecture inventaire, RLS refusant ensuite toute lecture
-  // serveur). L'autre membre garde tout intact sans limite de durée.
+  // PRD §4.8 : quitter via RPC leave_household (le delete direct est 42501 :
+  // aucun grant DELETE client). On vide l'état local → 0 lecture inventaire,
+  // RLS refusant ensuite toute lecture serveur. L'autre membre garde tout
+  // intact sans limite de durée. Pas de signOut ici : PrivateRoute
+  // redirigerait vers /login et masquerait l'écran post-leave
+  // (« Vous avez quitté le foyer ») attendu par l'e2e ; l'utilisateur reste
+  // authentifié sans foyer (prochaine navigation → /join-household).
   const handleLeaveHousehold = async () => {
     if (!user?.id || !householdId) return;
     setLeaving(true);
@@ -106,7 +110,7 @@ export default function HouseholdPage() {
       setShowLeaveConfirm(false);
       return;
     }
-    await signOut();
+    setShowLeaveConfirm(false);
     setLeftHousehold(true);
   };
 

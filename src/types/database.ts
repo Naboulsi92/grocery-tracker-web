@@ -116,6 +116,7 @@ export type Database = {
       create_household: { Args: { p_name: string }; Returns: string };
       create_household_invitation: { Args: { p_expires_in?: string; p_household_id: string }; Returns: { expires_at: string; invitation_id: string; token: string }[] };
       revoke_household_invitation: { Args: { p_invitation_id: string }; Returns: boolean };
+      leave_household: { Args: Record<string, never>; Returns: boolean };
     };
     Enums: { action_type_enum: 'modification' | 'suppression'; household_role: 'owner' | 'member' };
     CompositeTypes: Record<string, never>;

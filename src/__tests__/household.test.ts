@@ -94,29 +94,25 @@ describe('household leave dialog contract (PRD §4.8 — #110 P1-9)', () => {
 });
 
 describe('household leave action contract (PRD §4.8 — #110 P1-9)', () => {
-  function createDeleteStub(error: { message?: string; code?: string } | null = null) {
-    const calls: { table: string; column: string; value: string }[] = [];
+  function createLeaveRpcStub(error: { message?: string; code?: string } | null = null) {
+    const calls: { fn: string }[] = [];
     const supabase = {
-      from: (table: string) => ({
-        delete: () => ({
-          eq: (column: string, value: string) => {
-            calls.push({ table, column, value });
-            return Promise.resolve({ data: null, error });
-          },
-        }),
-      }),
+      rpc: (fn: string) => {
+        calls.push({ fn });
+        return Promise.resolve({ data: error ? null : true, error });
+      },
     } as unknown as SupabaseClient<Database>;
     return { supabase, calls };
   }
 
-  it('deletes the leaver membership row by user id', async () => {
-    const { supabase, calls } = createDeleteStub();
+  it('leaves via the leave_household RPC (no direct DELETE grant — 42501 otherwise)', async () => {
+    const { supabase, calls } = createLeaveRpcStub();
     await expect(leaveHousehold(supabase, 'user-leaver')).resolves.toEqual({ error: null });
-    expect(calls).toEqual([{ table: 'household_members', column: 'user_id', value: 'user-leaver' }]);
+    expect(calls).toEqual([{ fn: 'leave_household' }]);
   });
 
   it('maps a leave failure to a recoverable message without leaking internals', () => {
-    const { supabase } = createDeleteStub({ message: 'relation secret_table does not exist', code: '42P01' });
+    const { supabase } = createLeaveRpcStub({ message: 'relation secret_table does not exist', code: '42P01' });
     return expect(leaveHousehold(supabase, 'user-leaver')).resolves.toEqual({
       error: 'errors.household.leave_failed',
     });

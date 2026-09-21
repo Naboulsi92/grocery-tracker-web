@@ -1576,17 +1576,19 @@ $$;
 -- templates/défauts intacts ; sweep >7j purge (service_role seul), <7j retenu ;
 -- TO authenticated seul, anon refusé.
 reset role;
+-- Lifecycle fixtures use fresh ids 011-014 (007/008 already taken by the
+-- lockout fixtures above; household_members.user_id is unique single-household).
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
 values
-  ('00000000-0000-4000-8000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'leaver@example.test', '', now(), now()),
-  ('00000000-0000-4000-8000-000000000008', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'joiner@example.test', '', now(), now()),
-  ('00000000-0000-4000-8000-000000000009', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'purged@example.test', '', now(), now()),
-  ('00000000-0000-4000-8000-000000000010', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'retained@example.test', '', now(), now());
+  ('00000000-0000-4000-8000-000000000011', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'leaver@example.test', '', now(), now()),
+  ('00000000-0000-4000-8000-000000000012', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'joiner@example.test', '', now(), now()),
+  ('00000000-0000-4000-8000-000000000013', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'purged@example.test', '', now(), now()),
+  ('00000000-0000-4000-8000-000000000014', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'retained@example.test', '', now(), now());
 do $$
 begin
   if (select count(*) from public.profiles where id::text in (
-    '00000000-0000-4000-8000-000000000007', '00000000-0000-4000-8000-000000000008',
-    '00000000-0000-4000-8000-000000000009', '00000000-0000-4000-8000-000000000010')) <> 4 then
+    '00000000-0000-4000-8000-000000000011', '00000000-0000-4000-8000-000000000012',
+    '00000000-0000-4000-8000-000000000013', '00000000-0000-4000-8000-000000000014')) <> 4 then
     raise exception 'signup must create lifecycle profiles';
   end if;
   -- profiles.deleted_at : colonne de rétention RGPD, nullable (grâce restorable).
@@ -1598,8 +1600,8 @@ begin
 end;
 $$;
 
--- 007 creates the lifecycle household (fork 10 categories + 10 items).
-select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000007', true);
+-- 011 creates the lifecycle household (fork 10 categories + 10 items).
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 select public.create_household('Lifecycle household') as lifecycle_household_id \gset
@@ -1608,8 +1610,8 @@ reset role;
 select set_config('test.lifecycle_household_id', :'lifecycle_household_id', true);
 select set_config('test.lc_token', :'lc_token', true);
 
--- 008 joins via the live invitation.
-select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000008', true);
+-- 012 joins via the live invitation.
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000012', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 select public.consume_household_invitation(current_setting('test.lc_token')) as lc_joined_id \gset
@@ -1623,8 +1625,8 @@ begin
 end;
 $$;
 
--- 007 seeds household-owned rows covered by the 0-member cascade.
-select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000007', true);
+-- 011 seeds household-owned rows covered by the 0-member cascade.
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 insert into public.categories (household_id, name, is_default)
@@ -1633,7 +1635,7 @@ returning id as lc_custom_cat_id \gset
 insert into public.items (household_id, category_id, name, quantity, unit)
 values (current_setting('test.lifecycle_household_id')::uuid, :'lc_custom_cat_id'::uuid, 'Lifecycle item', 1, 'unite');
 insert into public.history (household_id, performed_by, action_type, item_name)
-values (current_setting('test.lifecycle_household_id')::uuid, '00000000-0000-4000-8000-000000000007', 'modification', 'Lifecycle item');
+values (current_setting('test.lifecycle_household_id')::uuid, '00000000-0000-4000-8000-000000000011', 'modification', 'Lifecycle item');
 reset role;
 
 -- anon cannot leave (TO authenticated seul).
@@ -1650,8 +1652,8 @@ end;
 $$;
 reset role;
 
--- 008 leaves: true, then idempotent false. 007 untouched (jamais retirable).
-select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000008', true);
+-- 012 leaves: true, then idempotent false. 011 untouched (jamais retirable).
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000012', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 select public.leave_household() as lc_left1 \gset
@@ -1664,18 +1666,18 @@ begin
   if not current_setting('test.lc_left1')::boolean then raise exception 'first leave_household must return true'; end if;
   if current_setting('test.lc_left2')::boolean then raise exception 'second leave_household must return false (idempotent)'; end if;
   if exists (
-    select 1 from public.household_members where user_id = '00000000-0000-4000-8000-000000000008'
+    select 1 from public.household_members where user_id = '00000000-0000-4000-8000-000000000012'
   ) then raise exception 'leaver membership was not removed'; end if;
   if not exists (
     select 1 from public.household_members
     where household_id = current_setting('test.lifecycle_household_id')::uuid
-      and user_id = '00000000-0000-4000-8000-000000000007'
+      and user_id = '00000000-0000-4000-8000-000000000011'
   ) then raise exception 'leave removed the wrong member'; end if;
 end;
 $$;
 
 -- Leaver loses inventory + household access; the other member keeps everything.
-select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000008', true);
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000012', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 do $$
@@ -1689,7 +1691,7 @@ begin
 end;
 $$;
 reset role;
-select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000007', true);
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 do $$
@@ -1706,15 +1708,15 @@ begin
     where household_id = current_setting('test.lifecycle_household_id')::uuid and item_name = 'Lifecycle item'
   ) then raise exception 'remaining member lost history'; end if;
   -- Le partant n'est plus visible (plus de foyer partagé).
-  if exists (select 1 from public.profiles where id = '00000000-0000-4000-8000-000000000008') then
+  if exists (select 1 from public.profiles where id = '00000000-0000-4000-8000-000000000012') then
     raise exception 'leaver profile still visible to the remaining member';
   end if;
 end;
 $$;
 reset role;
 
--- 007 leaves last: 0 membre → cascade custom/items/history, foyer supprimé.
-select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000007', true);
+-- 011 leaves last: 0 membre → cascade custom/items/history, foyer supprimé.
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 select public.leave_household() as lc_left_last \gset
@@ -1764,12 +1766,12 @@ begin
 end;
 $$;
 
--- Soft-delete fixtures: 009 au-delà de 7j (purgé), 010 dans la grâce (retenu).
-update public.profiles set deleted_at = now() - interval '8 days' where id = '00000000-0000-4000-8000-000000000009';
-update public.profiles set deleted_at = now() - interval '1 day' where id = '00000000-0000-4000-8000-000000000010';
+-- Soft-delete fixtures: 013 au-delà de 7j (purgé), 014 dans la grâce (retenu).
+update public.profiles set deleted_at = now() - interval '8 days' where id = '00000000-0000-4000-8000-000000000013';
+update public.profiles set deleted_at = now() - interval '1 day' where id = '00000000-0000-4000-8000-000000000014';
 
 -- authenticated ne peut pas purger (service_role seul).
-select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000007', true);
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 do $$
@@ -1784,7 +1786,7 @@ end;
 $$;
 reset role;
 
--- Sweep >7j : purge 009, retient 010, idempotent (2e passage → 0).
+-- Sweep >7j : purge 013, retient 014, idempotent (2e passage → 0).
 select public.sweep_fully_deleted_members() as lc_sweep1 \gset
 select set_config('test.lc_sweep1', :'lc_sweep1', true);
 do $$
@@ -1792,18 +1794,18 @@ begin
   if current_setting('test.lc_sweep1')::int <> 1 then
     raise exception 'sweep must purge exactly the >7j account, got %', current_setting('test.lc_sweep1');
   end if;
-  if exists (select 1 from auth.users where id = '00000000-0000-4000-8000-000000000009') then
+  if exists (select 1 from auth.users where id = '00000000-0000-4000-8000-000000000013') then
     raise exception 'sweep did not delete the >7j auth user';
   end if;
-  if exists (select 1 from public.profiles where id = '00000000-0000-4000-8000-000000000009') then
+  if exists (select 1 from public.profiles where id = '00000000-0000-4000-8000-000000000013') then
     raise exception 'sweep left an orphan >7j profile';
   end if;
   if not exists (
-    select 1 from auth.users where id = '00000000-0000-4000-8000-000000000010'
+    select 1 from auth.users where id = '00000000-0000-4000-8000-000000000014'
   ) then raise exception 'sweep purged an account inside the 7-day grace'; end if;
   if not exists (
     select 1 from public.profiles
-    where id = '00000000-0000-4000-8000-000000000010' and deleted_at is not null
+    where id = '00000000-0000-4000-8000-000000000014' and deleted_at is not null
   ) then raise exception 'sweep cleared a grace-period deleted_at'; end if;
 end;
 $$;
@@ -1818,19 +1820,19 @@ end;
 $$;
 
 -- Annulation par reconnexion <7j : l'utilisateur remet deleted_at à NULL.
-select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000010', true);
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000014', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 do $$
 begin
-  update public.profiles set deleted_at = null where id = '00000000-0000-4000-8000-000000000010';
+  update public.profiles set deleted_at = null where id = '00000000-0000-4000-8000-000000000014';
   if not found then raise exception 'grace-period account could not clear deleted_at'; end if;
 end;
 $$;
 reset role;
 do $$
 begin
-  if exists (select 1 from public.profiles where id = '00000000-0000-4000-8000-000000000010' and deleted_at is not null) then
+  if exists (select 1 from public.profiles where id = '00000000-0000-4000-8000-000000000014' and deleted_at is not null) then
     raise exception 'account restoration did not clear deleted_at';
   end if;
 end;

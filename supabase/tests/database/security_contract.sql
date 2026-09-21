@@ -1820,6 +1820,19 @@ end;
 $$;
 
 -- Annulation par reconnexion <7j : l'utilisateur remet deleted_at à NULL.
+-- Superuser pre-check: row must exist and be updatable (bypasses RLS).
+do $$
+declare v_exists int; v_upd int;
+begin
+  select count(*) into v_exists from public.profiles where id = '00000000-0000-4000-8000-000000000014';
+  raise notice 'DIAG3 super_select_count=%', v_exists;
+  update public.profiles set deleted_at = null where id = '00000000-0000-4000-8000-000000000014';
+  get diagnostics v_upd = row_count;
+  raise notice 'DIAG3 super_update_rowcount=%', v_upd;
+  -- Restore fixture for the authenticated test below (1 day ago, inside grace).
+  update public.profiles set deleted_at = now() - interval '1 day' where id = '00000000-0000-4000-8000-000000000014';
+end;
+$$;
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000014', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;

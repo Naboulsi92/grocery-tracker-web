@@ -1820,43 +1820,15 @@ end;
 $$;
 
 -- Annulation par reconnexion <7j : l'utilisateur remet deleted_at à NULL.
--- Superuser pre-check: row must exist and be updatable (bypasses RLS).
-do $$
-declare v_exists int; v_upd int;
-begin
-  select count(*) into v_exists from public.profiles where id = '00000000-0000-4000-8000-000000000014';
-  raise notice 'DIAG3 super_select_count=%', v_exists;
-  update public.profiles set deleted_at = null where id = '00000000-0000-4000-8000-000000000014';
-  get diagnostics v_upd = row_count;
-  raise notice 'DIAG3 super_update_rowcount=%', v_upd;
-  -- Restore fixture for the authenticated test below (1 day ago, inside grace).
-  update public.profiles set deleted_at = now() - interval '1 day' where id = '00000000-0000-4000-8000-000000000014';
-end;
-$$;
+-- Avec profiles_select_self (20260923), un sans-foyer se voit lui-même :
+-- SELECT + UPDATE direct à soi passent (RLS), sans RPC.
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000014', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 do $$
-declare
-  v_uid uuid;
-  v_select_count int;
-  v_update_display_count int;
-  v_update_deleted_count int;
 begin
-  v_uid := (select auth.uid());
-  raise notice 'DIAG2 uid=%', v_uid;
-  -- SELECT as authenticated (should be 0 for houseless due to can_view_profile, proving app fetchProfile bug)
-  select count(*) into v_select_count from public.profiles where id = '00000000-0000-4000-8000-000000000014';
-  raise notice 'DIAG2 select_count_as_authenticated=%', v_select_count;
-  -- Try updating display_name as 014 (same RLS, different column) to isolate column vs houseless
-  update public.profiles set display_name = 'Diag' where id = '00000000-0000-4000-8000-000000000014';
-  get diagnostics v_update_display_count = row_count;
-  raise notice 'DIAG2 update_display_name_rowcount=%', v_update_display_count;
-  -- Try updating deleted_at (the failing case) with row_count logging instead of FOUND
   update public.profiles set deleted_at = null where id = '00000000-0000-4000-8000-000000000014';
-  get diagnostics v_update_deleted_count = row_count;
-  raise notice 'DIAG2 update_deleted_at_rowcount=%', v_update_deleted_count;
-  if v_update_deleted_count = 0 then raise exception 'grace-period account could not clear deleted_at'; end if;
+  if not found then raise exception 'grace-period account could not clear deleted_at'; end if;
 end;
 $$;
 reset role;

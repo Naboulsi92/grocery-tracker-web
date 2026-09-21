@@ -1824,6 +1824,27 @@ select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000014
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 do $$
+declare
+  v_uid uuid;
+  v_policy_count int;
+  v_has_update boolean;
+  v_has_update_col boolean;
+  v_row_super boolean;
+begin
+  v_uid := (select auth.uid());
+  raise notice 'DIAG uid=% sub=%', v_uid, current_setting('request.jwt.claim.sub', true);
+  select count(*) into v_policy_count from pg_policies where schemaname='public' and tablename='profiles';
+  raise notice 'DIAG profiles_policy_count=%', v_policy_count;
+  select has_table_privilege('authenticated', 'public.profiles', 'UPDATE') into v_has_update;
+  raise notice 'DIAG authenticated_has_table_update=%', v_has_update;
+  select has_column_privilege('authenticated', 'public.profiles', 'deleted_at', 'UPDATE') into v_has_update_col;
+  raise notice 'DIAG authenticated_has_col_update_deleted_at=%', v_has_update_col;
+  -- Row existence as seen by superuser would bypass RLS; here as authenticated SELECT may filter, but UPDATE USING is what matters.
+  -- Log pg_policies details for UPDATE.
+  raise notice 'DIAG update_policies=%', (select string_agg(policyname || ':' || coalesce(qual,'') || '/' || coalesce(with_check,''), ' | ') from pg_policies where schemaname='public' and tablename='profiles' and cmd='UPDATE');
+end;
+$$;
+do $$
 begin
   update public.profiles set deleted_at = null where id = '00000000-0000-4000-8000-000000000014';
   if not found then raise exception 'grace-period account could not clear deleted_at'; end if;

@@ -11,6 +11,7 @@ All RPCs require an authenticated Supabase session. Client roles cannot insert i
 | `revoke_household_invitation` | `p_invitation_id uuid` | `boolean` | Any household member. Returns `true` only when an active invitation was revoked. Idempotent retries return `false`. |
 | `consume_household_invitation` | `p_token text` | `uuid` | Locks and consumes one valid, unexpired, unrevoked token, creates a `member` membership, and returns the household ID atomically. Fails without consuming the token if the caller already belongs to any household. If the household already has 2 members (PRD §4.2 cap 2, §8 P0-6), every known token fails with `23505 'household is full'` — with priority over `22023` validity errors and the `P0001` lockout — and a still-live invitation is auto-invalidated at once (`consumed`, PRD « automatiquement invalides »), so it stays unusable after a departure without regen. Unknown tokens stay `22023`, lockout stays `P0001` (non-full households only). |
 | `get_household_invitation` | `p_household_id uuid` | table `(invitation_id uuid, created_at timestamptz, expires_at timestamptz, revoked_at timestamptz, consumed_at timestamptz)` | Any household member — PRD §11 household equality. Returns the household's latest invitation metadata and never the token. The security contract asserts anon is denied and authenticated is granted EXECUTE. |
+| `leave_household` | — | `boolean` | Self-departure only (PRD §4.8): deletes the caller's own membership — structurally unable to remove the other member (no parameter). Returns `true` when a membership was removed, `false` when already outside (idempotent). The leaver loses inventory access (membership-gated RLS); the other member keeps everything indefinitely. Existing AFTER DELETE triggers apply (live-invitation invalidation, 0-member orphan cleanup). |
 | `adjust_item_quantity` | `p_item_id uuid`, `p_delta numeric` | `items` row | Household member only. Applies the delta in one SQL update, clamps at zero, records `auth.uid()`, and returns the authoritative row. Direct client updates of quantity are not granted. |
 
 PostgREST argument names are exact. Supabase JS calls therefore use objects such as `rpc('adjust_item_quantity', { p_item_id, p_delta: 1 })`. PostgreSQL `interval` values are passed as strings, for example `{ p_expires_in: '12 hours', p_household_id }` (24h max, strict).
@@ -97,6 +98,34 @@ PostgREST argument names are exact. Supabase JS calls therefore use objects such
   écrase silencieusement (l'écrasé n'est pas informé — §4.12). Voir
   `supabase/migrations/20260921000000_offline_lww.sql` ; asserts contrat LWW
   dans `supabase/tests/database/security_contract.sql` (§ Ticket #109).
+
+### Compte/foyer lifecycle — quitter, soft-delete 7j, cascade (#110, PRD §4.8/§4.9/§5)
+
+- Quitter (§4.8) : `leave_household()` supprime la seule appartenance de
+  l'appelant (aucun paramètre → l'autre membre est structurellement
+  non-retirable). `true` si départ effectif, `false` idempotent sinon. Le
+  partant perd tout accès (RLS par appartenance : inventaire, foyer, profils
+  co-membres) ; l'autre membre garde fork + custom + history sans limite de
+  durée. Grants `TO authenticated` seul, anon refusé (`42501`) ; fonction
+  trigger non exécutable par les clients.
+- Suppression RGPD (§4.9) : `profiles.deleted_at` nullable (soft-delete app,
+  reconnexion <7j → `NULL` = annulation, grant `update (deleted_at)` à soi
+  préservé). Purge cron au-delà de 7j strict
+  (`sweep_fully_deleted_members()`, `SECURITY DEFINER`, `service_role` seul,
+  idempotent : rejouer retourne 0). La suppression `auth.users` cascade les
+  memberships → le trigger orphelin purge le foyer devenu vide (chaîne
+  complète). Edge `member-gdpr-sweep` : `CRON_SECRET` obligatoire (401
+  fail-closed si absent/invalide), erreurs génériques (jamais
+  `error.message`, log serveur seul), cron quotidien via
+  `.github/workflows/gdpr-automation.yml` (garde secret fail-fast).
+- Orphelin 0-membre (§5) : `cleanup_empty_household` (`AFTER DELETE`,
+  `household_members`) — items d'abord (la FK composite catégorie est
+  `RESTRICT`), puis catégories du foyer (copies défaut incluses), puis
+  `delete households` qui cascade invitations/history/positions/notifications
+  (`ON DELETE CASCADE` sur chaque FK foyer, assert contrat). Le composite
+  `items_category_household_fkey` reste `RESTRICT` (catégorie non-vide
+  non-supprimable). `ITEM_TEMPLATES` + `default_categories` n'ont aucun FK
+  foyer → jamais affectés (10 + 10 intacts, assert contrat).
 
 ### Household equality — `owner` derogation (accepted, #106 C3)
 

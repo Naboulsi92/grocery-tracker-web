@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import type { Language } from '@/lib/i18n';
 import {
   householdActionError,
+  leaveHousehold,
   mergeHouseholdMembers,
   type HouseholdMember,
   type InvitationState,
@@ -31,6 +32,7 @@ interface UseHouseholdResult {
     createInvitation: () => Promise<void>;
     revokeInvitation: (invitationId: string) => Promise<void>;
     copyInviteCode: () => Promise<boolean>;
+    leave: (userId: string) => Promise<{ error: string | null }>;
     refresh: () => void;
   };
 }
@@ -152,6 +154,23 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
     }
   }, [invitation]);
 
+  // PRD §4.8 : après départ, 0 lecture inventaire — on vide l'état local
+  // immédiatement (avant même signOut/redirect), la RLS refusant ensuite
+  // toute lecture serveur.
+  const leave = useCallback(async (userId: string) => {
+    if (!userId) return { error: householdActionError('leave', null) };
+    setError('');
+    const { error: leaveError } = await leaveHousehold(supabase);
+    if (leaveError) {
+      setError(leaveError);
+      return { error: leaveError };
+    }
+    setHousehold(null);
+    setMembers([]);
+    setInvitation({ status: 'none' });
+    return { error: null };
+  }, [supabase]);
+
   return {
     household,
     members,
@@ -162,6 +181,7 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
       createInvitation,
       revokeInvitation,
       copyInviteCode: copyInviteCode,
+      leave,
       refresh,
     },
   };

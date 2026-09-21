@@ -116,6 +116,7 @@ begin
     'public.revoke_household_invitation(uuid)',
     'public.consume_household_invitation(text)',
     'public.get_household_invitation(uuid)',
+    'public.leave_household()',
     'public.adjust_item_quantity(uuid,numeric)'
   ] loop
     if has_function_privilege('anon', function_signature, 'EXECUTE') then
@@ -1566,6 +1567,276 @@ begin
   exception when sqlstate '42501' then denied := true;
   end;
   if not denied then raise exception 'anon updated an item'; end if;
+end;
+$$;
+
+-- Ticket #110 — Compte/foyer lifecycle : quitter, soft-delete 7j, cascade (PRD §4.8/§4.9/§5)
+-- leave_household : départ volontaire (le partant perd l'accès, l'autre garde
+-- tout indéfini), idempotent ; foyer à 0 membre → cascade custom/items/history,
+-- templates/défauts intacts ; sweep >7j purge (service_role seul), <7j retenu ;
+-- TO authenticated seul, anon refusé.
+reset role;
+-- Lifecycle fixtures use fresh ids 011-014 (007/008 already taken by the
+-- lockout fixtures above; household_members.user_id is unique single-household).
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+values
+  ('00000000-0000-4000-8000-000000000011', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'leaver@example.test', '', now(), now()),
+  ('00000000-0000-4000-8000-000000000012', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'joiner@example.test', '', now(), now()),
+  ('00000000-0000-4000-8000-000000000013', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'purged@example.test', '', now(), now()),
+  ('00000000-0000-4000-8000-000000000014', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'retained@example.test', '', now(), now());
+do $$
+begin
+  if (select count(*) from public.profiles where id::text in (
+    '00000000-0000-4000-8000-000000000011', '00000000-0000-4000-8000-000000000012',
+    '00000000-0000-4000-8000-000000000013', '00000000-0000-4000-8000-000000000014')) <> 4 then
+    raise exception 'signup must create lifecycle profiles';
+  end if;
+  -- profiles.deleted_at : colonne de rétention RGPD, nullable (grâce restorable).
+  if (select is_nullable from information_schema.columns
+      where table_schema = 'public' and table_name = 'profiles'
+        and column_name = 'deleted_at') <> 'YES' then
+    raise exception 'profiles.deleted_at must stay nullable (grace restorable)';
+  end if;
+end;
+$$;
+
+-- 011 creates the lifecycle household (fork 10 categories + 10 items).
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.create_household('Lifecycle household') as lifecycle_household_id \gset
+select * from public.create_household_invitation(:'lifecycle_household_id'::uuid, interval '1 day') \gset lc_
+reset role;
+select set_config('test.lifecycle_household_id', :'lifecycle_household_id', true);
+select set_config('test.lc_token', :'lc_token', true);
+
+-- 012 joins via the live invitation.
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000012', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.consume_household_invitation(current_setting('test.lc_token')) as lc_joined_id \gset
+reset role;
+select set_config('test.lc_joined_id', :'lc_joined_id', true);
+do $$
+begin
+  if current_setting('test.lc_joined_id')::uuid <> current_setting('test.lifecycle_household_id')::uuid then
+    raise exception 'lifecycle join reached the wrong household';
+  end if;
+end;
+$$;
+
+-- 011 seeds household-owned rows covered by the 0-member cascade.
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+insert into public.categories (household_id, name, is_default)
+values (current_setting('test.lifecycle_household_id')::uuid, 'Lifecycle custom', false)
+returning id as lc_custom_cat_id \gset
+insert into public.items (household_id, category_id, name, quantity, unit)
+values (current_setting('test.lifecycle_household_id')::uuid, :'lc_custom_cat_id'::uuid, 'Lifecycle item', 1, 'unite');
+insert into public.history (household_id, performed_by, action_type, item_name)
+values (current_setting('test.lifecycle_household_id')::uuid, '00000000-0000-4000-8000-000000000011', 'modification', 'Lifecycle item');
+reset role;
+
+-- anon cannot leave (TO authenticated seul).
+set local role anon;
+do $$
+declare denied boolean := false;
+begin
+  begin
+    perform public.leave_household();
+  exception when sqlstate '42501' then denied := true;
+  end;
+  if not denied then raise exception 'anon left a household'; end if;
+end;
+$$;
+reset role;
+
+-- 012 leaves: true, then idempotent false. 011 untouched (jamais retirable).
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000012', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.leave_household() as lc_left1 \gset
+select public.leave_household() as lc_left2 \gset
+reset role;
+select set_config('test.lc_left1', :'lc_left1', true);
+select set_config('test.lc_left2', :'lc_left2', true);
+do $$
+begin
+  if not current_setting('test.lc_left1')::boolean then raise exception 'first leave_household must return true'; end if;
+  if current_setting('test.lc_left2')::boolean then raise exception 'second leave_household must return false (idempotent)'; end if;
+  if exists (
+    select 1 from public.household_members where user_id = '00000000-0000-4000-8000-000000000012'
+  ) then raise exception 'leaver membership was not removed'; end if;
+  if not exists (
+    select 1 from public.household_members
+    where household_id = current_setting('test.lifecycle_household_id')::uuid
+      and user_id = '00000000-0000-4000-8000-000000000011'
+  ) then raise exception 'leave removed the wrong member'; end if;
+end;
+$$;
+
+-- Leaver loses inventory + household access; the other member keeps everything.
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000012', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+begin
+  if exists (select 1 from public.items where household_id = current_setting('test.lifecycle_household_id')::uuid) then
+    raise exception 'leaver kept inventory access';
+  end if;
+  if exists (select 1 from public.households where id = current_setting('test.lifecycle_household_id')::uuid) then
+    raise exception 'leaver kept household access';
+  end if;
+end;
+$$;
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+begin
+  -- Autre membre intact, sans limite de durée : fork + custom + history présents.
+  if (select count(*) from public.items where household_id = current_setting('test.lifecycle_household_id')::uuid) <> 11 then
+    raise exception 'remaining member lost forked or custom items';
+  end if;
+  if (select count(*) from public.categories where household_id = current_setting('test.lifecycle_household_id')::uuid) <> 11 then
+    raise exception 'remaining member lost categories';
+  end if;
+  if not exists (
+    select 1 from public.history
+    where household_id = current_setting('test.lifecycle_household_id')::uuid and item_name = 'Lifecycle item'
+  ) then raise exception 'remaining member lost history'; end if;
+  -- Le partant n'est plus visible (plus de foyer partagé).
+  if exists (select 1 from public.profiles where id = '00000000-0000-4000-8000-000000000012') then
+    raise exception 'leaver profile still visible to the remaining member';
+  end if;
+end;
+$$;
+reset role;
+
+-- 011 leaves last: 0 membre → cascade custom/items/history, foyer supprimé.
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.leave_household() as lc_left_last \gset
+reset role;
+select set_config('test.lc_left_last', :'lc_left_last', true);
+do $$
+begin
+  if not current_setting('test.lc_left_last')::boolean then raise exception 'last leave_household must return true'; end if;
+  if exists (select 1 from public.households where id = current_setting('test.lifecycle_household_id')::uuid) then
+    raise exception 'orphan household was not purged';
+  end if;
+  if exists (select 1 from public.items where household_id = current_setting('test.lifecycle_household_id')::uuid) then
+    raise exception 'orphan items were not cascaded';
+  end if;
+  if exists (select 1 from public.categories where household_id = current_setting('test.lifecycle_household_id')::uuid) then
+    raise exception 'orphan categories were not cascaded';
+  end if;
+  if exists (select 1 from public.history where household_id = current_setting('test.lifecycle_household_id')::uuid) then
+    raise exception 'orphan history was not cascaded';
+  end if;
+  if exists (select 1 from public.household_invitations where household_id = current_setting('test.lifecycle_household_id')::uuid) then
+    raise exception 'orphan invitations were not cascaded';
+  end if;
+  if exists (select 1 from public.pending_notifications where household_id = current_setting('test.lifecycle_household_id')::uuid) then
+    raise exception 'orphan pending notifications were not cascaded';
+  end if;
+  -- Templates + défauts intacts (aucun FK foyer).
+  if (select count(*) from public.default_categories) <> 10 then
+    raise exception 'default_categories were affected by the orphan purge';
+  end if;
+  if (select count(*) from public.item_templates) <> 10 then
+    raise exception 'item_templates were affected by the orphan purge';
+  end if;
+  -- FK foyer → ON DELETE CASCADE ; catégorie non-vide → RESTRICT préservé.
+  if exists (
+    select 1 from pg_constraint
+    where conrelid in ('public.items'::regclass, 'public.categories'::regclass, 'public.history'::regclass,
+                       'public.category_positions'::regclass, 'public.pending_notifications'::regclass,
+                       'public.household_invitations'::regclass, 'public.household_members'::regclass)
+      and contype = 'f' and confrelid = 'public.households'::regclass
+      and confdeltype <> 'c'
+  ) then raise exception 'household FKs must stay ON DELETE CASCADE'; end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'items_category_household_fkey' and confdeltype = 'r'
+  ) then raise exception 'non-empty category delete must stay RESTRICT'; end if;
+end;
+$$;
+
+-- Soft-delete fixtures: 013 au-delà de 7j (purgé), 014 dans la grâce (retenu).
+update public.profiles set deleted_at = now() - interval '8 days' where id = '00000000-0000-4000-8000-000000000013';
+update public.profiles set deleted_at = now() - interval '1 day' where id = '00000000-0000-4000-8000-000000000014';
+
+-- authenticated ne peut pas purger (service_role seul).
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+declare denied boolean := false;
+begin
+  begin
+    perform public.sweep_fully_deleted_members();
+  exception when insufficient_privilege then denied := true;
+  end;
+  if not denied then raise exception 'authenticated purged soft-deleted accounts'; end if;
+end;
+$$;
+reset role;
+
+-- Sweep >7j : purge 013, retient 014, idempotent (2e passage → 0).
+select public.sweep_fully_deleted_members() as lc_sweep1 \gset
+select set_config('test.lc_sweep1', :'lc_sweep1', true);
+do $$
+begin
+  if current_setting('test.lc_sweep1')::int <> 1 then
+    raise exception 'sweep must purge exactly the >7j account, got %', current_setting('test.lc_sweep1');
+  end if;
+  if exists (select 1 from auth.users where id = '00000000-0000-4000-8000-000000000013') then
+    raise exception 'sweep did not delete the >7j auth user';
+  end if;
+  if exists (select 1 from public.profiles where id = '00000000-0000-4000-8000-000000000013') then
+    raise exception 'sweep left an orphan >7j profile';
+  end if;
+  if not exists (
+    select 1 from auth.users where id = '00000000-0000-4000-8000-000000000014'
+  ) then raise exception 'sweep purged an account inside the 7-day grace'; end if;
+  if not exists (
+    select 1 from public.profiles
+    where id = '00000000-0000-4000-8000-000000000014' and deleted_at is not null
+  ) then raise exception 'sweep cleared a grace-period deleted_at'; end if;
+end;
+$$;
+select public.sweep_fully_deleted_members() as lc_sweep2 \gset
+select set_config('test.lc_sweep2', :'lc_sweep2', true);
+do $$
+begin
+  if current_setting('test.lc_sweep2')::int <> 0 then
+    raise exception 'sweep must be idempotent (second run returns 0)';
+  end if;
+end;
+$$;
+
+-- Annulation par reconnexion <7j : l'utilisateur remet deleted_at à NULL.
+-- Avec profiles_select_self (20260923), un sans-foyer se voit lui-même :
+-- SELECT + UPDATE direct à soi passent (RLS), sans RPC.
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000014', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+begin
+  update public.profiles set deleted_at = null where id = '00000000-0000-4000-8000-000000000014';
+  if not found then raise exception 'grace-period account could not clear deleted_at'; end if;
+end;
+$$;
+reset role;
+do $$
+begin
+  if exists (select 1 from public.profiles where id = '00000000-0000-4000-8000-000000000014' and deleted_at is not null) then
+    raise exception 'account restoration did not clear deleted_at';
+  end if;
 end;
 $$;
 

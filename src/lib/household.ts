@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { translate, type Language } from '@/lib/i18n';
 
@@ -35,7 +36,7 @@ export function mergeHouseholdMembers(
 }
 
 export function householdActionError(
-  action: 'create' | 'join' | 'load' | 'invite' | 'revoke' | 'copy',
+  action: 'create' | 'join' | 'load' | 'invite' | 'revoke' | 'copy' | 'leave',
   error: { message?: string; code?: string } | null | undefined,
 ): string {
   console.warn('client_operation_failed', {
@@ -64,7 +65,27 @@ export function householdActionError(
     invite: 'errors.household.invite_failed',
     revoke: 'errors.household.revoke_failed',
     copy: 'errors.household.copy_failed',
+    leave: 'errors.household.leave_failed',
   } as const;
 
   return fallback[action];
+}
+
+/**
+ * Quitter le foyer (PRD §4.8) : RPC leave_household SECURITY DEFINER.
+ * household_members n'a aucun grant DELETE client ni policy DELETE — un
+ * delete direct échoue en 42501. La RPC supprime la seule appartenance de
+ * l'appelant (aucun paramètre : impossible de retirer l'autre membre).
+ * L'autre membre garde tout intact sans limite de durée (rétention
+ * indéfinie, aucune suppression côté inventaire).
+ * L'appelant doit ensuite invalider l'état local (0 lecture inventaire)
+ * puis signer out / rediriger.
+ */
+export async function leaveHousehold(
+  supabase: SupabaseClient<Database>,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('leave_household');
+
+  if (error) return { error: householdActionError('leave', error) };
+  return { error: null };
 }

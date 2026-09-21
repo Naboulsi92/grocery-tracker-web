@@ -17,6 +17,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Check sweep secrets configured
+        run: |
+          if [ -z "${{ secrets.SUPABASE_URL }}" ]; then
+            echo "::error::SUPABASE_URL is not configured — member-gdpr-sweep target unknown (no hardcoded URL)"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SUPABASE_CRON_SECRET }}" ]; then
+            echo "::error::SUPABASE_CRON_SECRET is not configured — member-gdpr-sweep requires CRON_SECRET (fail-closed 401)"
+            exit 1
+          fi
       - name: Invoke member-gdpr-sweep edge function
         run: |
           set -euo pipefail
@@ -24,7 +34,7 @@ jobs:
           http_code="$(
             curl --fail-with-body --silent --show-error \
               --request POST \
-              --url "https://oizfmmnuoqkdqkguynfv.supabase.co/functions/v1/member-gdpr-sweep" \
+              --url "${{ secrets.SUPABASE_URL }}/functions/v1/member-gdpr-sweep" \
               --header "x-cron-secret: ${{ secrets.SUPABASE_CRON_SECRET }}" \
               --header "Content-Type: application/json" \
               --data '{}' \

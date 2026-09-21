@@ -180,11 +180,11 @@ This is the loop that worked on tickets #60/#67 and should be reused for every i
 
 5. **SQL / Supabase verification** — Supabase CLI and Docker are NOT available locally. The CI database job is the verification signal for SQL changes: it runs `psql -v ON_ERROR_STOP=1 -f supabase/tests/database/security_contract.sql`. A green database job on the PR = the security contract passes.
 
-6. **Known pre-existing CI failures on main** (tracked; do NOT attribute to new branches):
-   - #73 — secrets scan fails (email/password literals in `src/e2e/error-states.spec.ts:20-21`).
-   - #74 — 8 unit test failures (use-push-notifications, members-page, marketing/faq).
-   - #75 — E2E job fails (90/90 "No authenticated user" auth harness).
-   These are pre-existing on main and tracked in their own tickets: they do not block merges (rule #13 applies to NEW failures introduced by a branch).
+6. **CI status (honest since #116 — do NOT attribute old numbers to new branches):**
+   - #73 (secrets scan) — CLOSED. `npm run scan:secrets` → "Secret scan passed." (audit 2026-09-19 + local 2026-09-21). Allowlist of fake E2E values in `scripts/scan-secrets.mjs:23-39`, regression test `scripts/scan-secrets.test.mjs:17-23`. E2E literals are all fakes (`src/e2e/error-states.spec.ts:25-26,41-43,58-60,75-76`, `@example.com` / `wrongpassword123` / `Password123!`).
+   - #74 (8 unit failures) — CLOSED via `b65dee0` + `279f240`. Audit 2026-09-19: 18 suites/104 jest + 5 node = 109, 0 fail. Since #116 `npm test` = `jest --runInBand quality src && node --test scripts/*.test.mjs` covers the 8 orphan suites (`src/lib/__tests__` + `src/hooks/__tests__`): local 2026-09-21 = 28 suites / 313 tests, 0 fail. Guard `npm run test:guard` (`scripts/check-test-count.mjs`, wired in `web-quality.yml:48-49`) fails below ≥26 suites / ≥280 tests; `testPathIgnorePatterns` excludes `scripts/` from Jest (`jest.config.mjs:8`).
+   - #75 (E2E auth harness) — ACTIVE WORK SITE, not an accepted failure. `npx playwright test --list` = 233 tests / 16 files (2026-09-21; 214 at audit 2026-09-19). No reusable session: 0 `storageState`; each spec signs up via UI against local Supabase. Without backend the suite skips instead of testing: 202 `test.skip`, 49 `No/Not authenticated|No Supabase backend`, 38 `waitForTimeout` (all counts `src/e2e/*.spec.ts`). Harness `src/e2e/environment.ts` + `src/e2e/fixtures.ts` with loopback-only guard in `web-quality.yml` (refuses non-`127.0.0.1:54321`). P1 chantier per `audit-testing.md:86-89`: `authenticatedPage` fixture + `storageState` reuse, fail (not skip) when a write-spec lacks a backend, replace `waitForTimeout` with web-first assertions.
+   - Baselines 2026-09-21 (Windows, warm): `npm run typecheck` green (exit 0), `npm run scan:secrets` PASS, `npm run lint` (= `eslint src supabase scripts`, `package.json:9`) 0 errors / 18 warnings in ~14s (cold first run ~158s; unscoped `eslint` nu >120s per `audit-qualite.md:40-43`). Rule #13 applies to NEW failures introduced by a branch.
 
 ## 🛠️ MCP Tools & CLI Usage
 

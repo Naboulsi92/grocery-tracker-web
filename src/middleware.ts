@@ -2,11 +2,37 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Database } from '@/types/database';
 
-// Routes that should be accessible without authentication
-const PUBLIC_ROUTES = ['/', '/login', '/signup', '/join-household'];
+// Routes that stay accessible without authentication (whitelist).
+// Everything else is protected by default (deny-default): an anonymous
+// request to any non-public route is redirected to /login.
+const PUBLIC_ROUTES = [
+  '/',
+  '/login',
+  '/signup',
+  '/join-household',
+  // Marketing pages (route group (marketing))
+  '/about',
+  '/contact',
+  '/privacy',
+  '/terms',
+];
 
-// Routes that require authentication
-const PROTECTED_ROUTES = ['/home', '/items', '/categories', '/to-buy', '/members'];
+// Explicitly protected app routes (kept for documentation and to make the
+// intent obvious). Enforcement does NOT rely on this list alone: any route
+// not in PUBLIC_ROUTES requires a session (deny-default), so a newly added
+// private page stays protected even if forgotten here.
+const PROTECTED_ROUTES = [
+  '/home',
+  '/items',
+  '/categories',
+  '/to-buy',
+  '/members',
+  '/account',
+  '/history',
+  '/household',
+  '/settings',
+  '/settings/notifications',
+];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -27,8 +53,13 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Check if the route is protected
-  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'));
+  // Deny-default: every route not explicitly public requires authentication.
+  // The explicit list above documents the known private pages; the
+  // !isPublicRoute fallback closes the gap for any route forgotten there.
+  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+  const isProtectedRoute =
+    PROTECTED_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/')) ||
+    !isPublicRoute;
 
   let session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] = null;
 
@@ -67,11 +98,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // Allow public routes without authentication
-  if (PUBLIC_ROUTES.includes(pathname)) {
+  if (isPublicRoute) {
     return response;
   }
 
-  if (isProtectedRoute && !session) {
+  if (!session) {
     const loginUrl = new URL('/login', request.url);
     // Don't add redirectTo parameter to keep existing tests passing
     // Client-side redirects handle post-auth navigation
@@ -89,9 +120,12 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder files (images, etc.)
-     * - service worker
-     * - marketing page (/)
-     * - auth pages (/login, /signup, /join-household)
+     * - service worker (sw.js, workbox-*.js)
+     *
+     * NOTE: app routes — including '/' and the auth pages (/login, /signup,
+     * /join-household) — ARE matched on purpose so the middleware can refresh
+     * the Supabase session cookie on every navigation. Public/private access
+     * control happens inside the middleware via PUBLIC_ROUTES (deny-default).
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|css|woff|woff2)|sw\\.js|workbox-.*\\.js).*)',
   ],

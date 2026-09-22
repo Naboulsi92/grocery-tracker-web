@@ -4,6 +4,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { restoreAccountIfPending } from '@/lib/account';
+import { hasUserIdentityChanged, shouldReResolve, type AuthEvent } from '@/lib/session-resolution';
 
 export type PrivateAccess =
   | { status: 'loading' }
@@ -35,9 +36,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [access, setAccess] = useState<PrivateAccess>({ status: 'loading' });
   const [householdRequest, setHouseholdRequest] = useState(0);
   const resolutionId = useRef(0);
+  // Tracks the last resolved user + whether any resolution completed, so
+  // background auth events for the SAME user (hourly TOKEN_REFRESHED, tab
+  // return after a refresh, USER_UPDATED after a profile save) refresh the
+  // session state silently instead of flashing the auth gate. Identity
+  // changes (sign in/out, account switch) always fully re-resolve.
+  const userRef = useRef<User | null>(null);
+  const hasResolvedRef = useRef(false);
+  const accessRef = useRef<PrivateAccess>({ status: 'loading' });
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    accessRef.current = access;
+  }, [access]);
 
   const resolveSession = useEffectEvent(async (nextSession: Session | null, isActive: () => boolean) => {
     const currentResolution = ++resolutionId.current;
+    hasResolvedRef.current = true;
     const nextUser = nextSession?.user ?? null;
     setSession(nextSession);
     setUser(nextUser);
@@ -82,8 +100,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       void resolveSession(data.session, () => active);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      void resolveSession(nextSession, () => active);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      const nextUser = nextSession?.user ?? null;
+      const input = {
+        event: event as AuthEvent,
+        previousUser: userRef.current,
+        nextUser,
+        hasResolvedBefore: hasResolvedRef.current,
+      };
+      // A failed resolution (error screen) always retries on the next event
+      // so a transient failure can still self-heal on tab return.
+      const isRecoveryFromError = accessRef.current.status === 'error';
+      if (shouldReResolve(input) || hasUserIdentityChanged(userRef.current, nextUser) || isRecoveryFromError) {
+        void resolveSession(nextSession, () => active);
+      } else {
+        // Same-user background event (e.g. SIGNED_IN re-emit or
+        // TOKEN_REFRESHED on tab return): keep the fresh tokens in state
+        // without flashing the gate. Preserve the previous user object
+        // reference when the id is unchanged so downstream effects keyed
+        // on `user` (profile fetch, page queries) do not refire.
+        setSession(nextSession);
+        setUser((prev) => (prev?.id === nextUser?.id ? prev : nextUser));
+      }
     });
 
     return () => {

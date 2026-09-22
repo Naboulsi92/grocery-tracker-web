@@ -37,7 +37,12 @@ export function shouldReResolve(input: SessionResolutionInput): boolean {
 
   switch (event) {
     case 'SIGNED_IN':
-      return true;
+      // A genuine sign-in always changes identity (anonymous -> user) or
+      // follows a fresh page load (never resolved). Supabase also re-emits
+      // SIGNED_IN on every tab return while the stored session is still
+      // valid (recovery without refresh) — same user + already resolved
+      // must not flash the auth gate.
+      return userIdentityChanged || !hasResolvedBefore;
     case 'SIGNED_OUT':
       return true;
     case 'USER_UPDATED':

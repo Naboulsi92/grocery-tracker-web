@@ -26,13 +26,23 @@ describe('shouldReResolve', () => {
       expect(shouldReResolve({ ...baseInput, event: 'SIGNED_IN', nextUser: createUser('user-1') })).toBe(true);
     });
 
-    it('returns true even if user was already signed in (session recovery)', () => {
+    it('returns false on session-recovery re-emit for the same user (tab return)', () => {
       expect(shouldReResolve({
         ...baseInput,
         event: 'SIGNED_IN',
         previousUser: createUser('user-1'),
         nextUser: createUser('user-1'),
         hasResolvedBefore: true,
+      })).toBe(false);
+    });
+
+    it('returns true for the same user when never resolved before', () => {
+      expect(shouldReResolve({
+        ...baseInput,
+        event: 'SIGNED_IN',
+        previousUser: createUser('user-1'),
+        nextUser: createUser('user-1'),
+        hasResolvedBefore: false,
       })).toBe(true);
     });
   });
@@ -135,10 +145,10 @@ describe('shouldReResolve', () => {
         'user-1 -> user-2 (different)': { 'false': true, 'true': false },
       },
       SIGNED_IN: {
-        'null -> null': { 'false': true, 'true': true },
+        'null -> null': { 'false': true, 'true': false },
         'null -> user-1': { 'false': true, 'true': true },
         'user-1 -> null': { 'false': true, 'true': true },
-        'user-1 -> user-1 (same)': { 'false': true, 'true': true },
+        'user-1 -> user-1 (same)': { 'false': true, 'true': false },
         'user-1 -> user-2 (different)': { 'false': true, 'true': true },
       },
       SIGNED_OUT: {

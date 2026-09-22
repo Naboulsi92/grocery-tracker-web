@@ -1,5 +1,43 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { createAccount, createHousehold } from './fixtures';
+
+/**
+ * Simulates a real tab background/foreground cycle. Real browsers fire
+ * visibilitychange on `window` (this is what supabase-js listens to) with
+ * document.visibilityState actually changing — a document-only dispatch
+ * never reaches it, so it would exercise nothing.
+ */
+async function simulateTabReturn(page: Page) {
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    window.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    window.dispatchEvent(new Event('visibilitychange'));
+  });
+}
+
+/**
+ * Forces the next tab return to run a real token refresh: backdates the
+ * session expiry in the auth cookie (@supabase/ssr storage) so Supabase
+ * recovery calls /auth/v1/token and emits TOKEN_REFRESHED on return.
+ */
+async function expireSessionCookie(page: Page) {
+  const cookies = await page.context().cookies();
+  const sessionCookie = cookies.find((c) => c.name.includes('auth-token'));
+  if (!sessionCookie) return;
+  const prefix = sessionCookie.value.startsWith('base64-') ? 'base64-' : '';
+  const session = JSON.parse(
+    Buffer.from(sessionCookie.value.slice(prefix.length), 'base64').toString('utf8'),
+  );
+  session.expires_at = Math.floor(Date.now() / 1000) - 100;
+  await page.context().addCookies([{
+    ...sessionCookie,
+    value: prefix + Buffer.from(JSON.stringify(session)).toString('base64'),
+  }]);
+}
 
 test.describe('Tab return behavior', () => {
   test('returning to tab shows no spinner and preserves form state', async ({ page }) => {
@@ -23,11 +61,10 @@ test.describe('Tab return behavior', () => {
     // Verify form input is present
     await expect(page.getByTestId('input-category-name')).toHaveValue(categoryName);
 
-    // Simulate tab blur and focus by hiding/showing the page
-    // This triggers the visibilitychange event that Supabase listens to
-    await page.evaluate(() => {
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
+    // Force a real token refresh on return (expired session), then simulate
+    // a genuine tab blur/focus cycle reaching supabase-js.
+    await expireSessionCookie(page);
+    await simulateTabReturn(page);
 
     // Wait a bit for any potential re-resolution
     await page.waitForTimeout(500);
@@ -63,10 +100,8 @@ test.describe('Tab return behavior', () => {
       }
     });
 
-    // Simulate tab blur and focus
-    await page.evaluate(() => {
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
+    // Simulate tab blur and focus (window-level, as real browsers do)
+    await simulateTabReturn(page);
 
     // Wait for any potential requests
     await page.waitForTimeout(1000);

@@ -8,20 +8,24 @@ import {
 } from './environment';
 
 // dnd-kit keyboard drag: focus the handle, Space to lift, ArrowDown to move,
-// Space to drop. The over-target recompute after ArrowDown is async (React
-// state + collision detection), so the drop must wait for the live-region
-// announcement to change — dropping on the next tick lands on the stale
-// target (the dragged card itself) and the reorder silently no-ops.
-async function keyboardDragDownOne(page: Page, handle: Locator): Promise<void> {
-  const live = page.locator('[aria-live="assertive"]');
+// Space to drop. Lift and displacement are async (React state + collision
+// detection), so the drop must wait for them: dropping on the next tick
+// lands on the stale target (the dragged card itself) and the reorder
+// silently no-ops. Gates use aria-pressed + the active card's inline
+// transform, which are unique per card (no live-region ambiguity).
+async function keyboardDragDownOne(page: Page, cards: Locator, index: number): Promise<void> {
+  const handle = cards.nth(index).getByTestId('category-drag-handle');
+  const card = cards.nth(index);
   await handle.focus();
   await page.keyboard.press('Space');
-  await expect.poll(async () => live.innerText(), { timeout: 10000 }).not.toBe('');
-  const liftedAnnouncement = await live.innerText();
+  await expect(handle).toHaveAttribute('aria-pressed', 'true', { timeout: 10000 });
+  const restTransform = await card.evaluate((el) => (el as HTMLElement).style.transform || '');
   await page.keyboard.press('ArrowDown');
   await expect
-    .poll(async () => live.innerText(), { timeout: 10000 })
-    .not.toBe(liftedAnnouncement);
+    .poll(async () => card.evaluate((el) => (el as HTMLElement).style.transform || ''), {
+      timeout: 10000,
+    })
+    .not.toBe(restTransform);
   await page.keyboard.press('Space');
 }
 
@@ -542,7 +546,7 @@ test.describe('Categories CRUD', () => {
       // dnd-kit keyboard sorting: focus the drag handle, Space to lift,
       // ArrowDown to move, Space to drop (gated on the live announcement
       // so the drop lands after the over-target recompute).
-      await keyboardDragDownOne(page, cards.nth(0).getByTestId('category-drag-handle'));
+      await keyboardDragDownOne(page, cards, 0);
 
       await expect(cards.nth(0).locator('.category-name')).toHaveText(secondName);
       await expect(cards.nth(1).locator('.category-name')).toHaveText(firstName);
@@ -558,7 +562,7 @@ test.describe('Categories CRUD', () => {
       }
       const customCards = page.locator('[data-testid="category-section-custom"] .category-card');
       await expect(customCards).toHaveCount(2);
-      await keyboardDragDownOne(page, customCards.nth(0).getByTestId('category-drag-handle'));
+      await keyboardDragDownOne(page, customCards, 0);
       await expect(customCards.nth(0).locator('.category-name')).toHaveText(customB);
       await expect(customCards.nth(1).locator('.category-name')).toHaveText(customA);
 

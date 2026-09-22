@@ -9,15 +9,27 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const VISITS_KEY = 'pwa-banner-visits';
-const DISMISSALS_KEY = 'pwa-banner-dismissals';
+// Visit count at the last dismissal — the banner snoozes until 2 further
+// visits (PRD §4.13). Legacy key 'pwa-banner-dismissals' (dismissal counter
+// with permanent hide) is intentionally ignored: clients carrying it simply
+// become re-eligible, which matches the no-permanent-hide rule.
+const SNOOZED_AT_KEY = 'pwa-banner-snoozed-at';
+const INSTALLED_KEY = 'pwa-banner-installed';
 const PWA_BANNER_EVENT = 'pwa-banner-change';
 
 function getVisits(): number {
   return Number(localStorage.getItem(VISITS_KEY) ?? 0);
 }
 
-function getDismissals(): number {
-  return Number(localStorage.getItem(DISMISSALS_KEY) ?? 0);
+function getSnoozedAt(): number | null {
+  const raw = localStorage.getItem(SNOOZED_AT_KEY);
+  if (raw === null) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isInstalled(): boolean {
+  return localStorage.getItem(INSTALLED_KEY) === '1';
 }
 
 function getStandaloneSnapshot(): boolean {
@@ -33,7 +45,7 @@ function subscribeStandalone(onStoreChange: () => void): () => void {
 
 function subscribePwaBanner(onStoreChange: () => void) {
   const handleStorage = (event: StorageEvent) => {
-    if (event.key === VISITS_KEY || event.key === DISMISSALS_KEY) {
+    if (event.key === VISITS_KEY || event.key === SNOOZED_AT_KEY || event.key === INSTALLED_KEY) {
       onStoreChange();
     }
   };
@@ -48,15 +60,26 @@ function subscribePwaBanner(onStoreChange: () => void) {
 export function PwaInstallBanner() {
   const { t } = useI18n();
   const visits = useSyncExternalStore(subscribePwaBanner, getVisits, () => 0);
-  const dismissals = useSyncExternalStore(subscribePwaBanner, getDismissals, () => 0);
+  const snoozedAt = useSyncExternalStore(subscribePwaBanner, getSnoozedAt, () => null);
+  const installed = useSyncExternalStore(subscribePwaBanner, isInstalled, () => false);
   const standalone = useSyncExternalStore(subscribeStandalone, getStandaloneSnapshot, () => false);
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
   // Increment the visit count once per page load (client-side only).
+  // Note: React StrictMode remounts once in development (`next dev`, which
+  // E2E uses), so a dev load counts 2 visits; production counts exactly 1.
+  // Visit-arithmetic assertions live in unit tests (single mount each);
+  // E2E reads the counters instead of assuming increments.
   useEffect(() => {
     localStorage.setItem(VISITS_KEY, String(getVisits() + 1));
     window.dispatchEvent(new Event(PWA_BANNER_EVENT));
+  }, []);
+
+  const markInstalled = useCallback(() => {
+    localStorage.setItem(INSTALLED_KEY, '1');
+    window.dispatchEvent(new Event(PWA_BANNER_EVENT));
+    setInstallEvent(null);
   }, []);
 
   useEffect(() => {
@@ -65,7 +88,7 @@ export function PwaInstallBanner() {
       setInstallEvent(e as BeforeInstallPromptEvent);
     };
     const handleAppInstalled = () => {
-      setInstallEvent(null);
+      markInstalled();
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
@@ -75,34 +98,35 @@ export function PwaInstallBanner() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, []);
+  }, [markInstalled]);
 
   const handleInstall = useCallback(async () => {
     if (!installEvent) return;
     await installEvent.prompt();
     const { outcome } = await installEvent.userChoice;
     if (outcome === 'accepted') {
-      setInstallEvent(null);
+      markInstalled();
     }
-  }, [installEvent]);
+  }, [installEvent, markInstalled]);
 
   const handleDismiss = useCallback(() => {
-    localStorage.setItem(DISMISSALS_KEY, String(getDismissals() + 1));
+    localStorage.setItem(SNOOZED_AT_KEY, String(getVisits()));
     window.dispatchEvent(new Event(PWA_BANNER_EVENT));
     setDismissed(true);
   }, []);
 
-  // Already running as an installed PWA (standalone display mode).
-  if (standalone) return null;
+  // Already installed (persisted flag) or running as an installed PWA.
+  if (installed || standalone) return null;
 
   // Wait for the browser's beforeinstallprompt event before offering install.
   if (!installEvent) return null;
 
-  // Visit rule: the banner appears starting from the 2nd visit.
-  // Dismissal rule: it reappears on a future visit until the user has
-  // dismissed it 2 times total, after which it is hidden permanently.
-  // `dismissed` additionally hides it for the remainder of the current visit.
-  const show = visits >= 2 && dismissals < 2 && !dismissed;
+  // Visit rule (PRD §4.13) : the banner appears starting from the 2nd visit.
+  // Dismissal rule : a dismissal snoozes it until 2 further visits
+  // (visits >= snoozedAt + 2) — no permanent hide. `dismissed` additionally
+  // hides it for the remainder of the current visit.
+  const snoozed = snoozedAt !== null && visits < snoozedAt + 2;
+  const show = visits >= 2 && !snoozed && !dismissed;
 
   if (!show) return null;
 

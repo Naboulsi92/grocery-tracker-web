@@ -507,4 +507,32 @@ test.describe('Categories CRUD', () => {
       await expect(page.getByText(categoryName)).toHaveCount(0);
     });
   });
+
+  test.describe('Custom Order via Keyboard DnD (#113)', () => {
+    test('reorders categories with keyboard and persists after reload', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-categories').click();
+      const cards = page.locator('[data-testid="category-section-default"] .category-card');
+      await expect(cards).toHaveCount(10);
+
+      const firstName = (await cards.nth(0).locator('.category-name').innerText()).trim();
+      const secondName = (await cards.nth(1).locator('.category-name').innerText()).trim();
+
+      // dnd-kit keyboard sorting: focus the drag handle, Space to lift,
+      // ArrowDown to move, Space to drop.
+      await cards.nth(0).getByTestId('category-drag-handle').focus();
+      await page.keyboard.press('Space');
+      await page.keyboard.press('ArrowDown');
+      await page.keyboard.press('Space');
+
+      await expect(cards.nth(0).locator('.category-name')).toHaveText(secondName);
+      await expect(cards.nth(1).locator('.category-name')).toHaveText(firstName);
+
+      await page.reload();
+      await expect(cards.nth(0).locator('.category-name')).toHaveText(secondName);
+      await expect(cards.nth(1).locator('.category-name')).toHaveText(firstName);
+    });
+  });
 });

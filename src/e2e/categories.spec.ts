@@ -9,25 +9,28 @@ import {
 
 // Pointer drag one card down: the pointer position drives collision
 // directly, so ending over the next card's center lands the drop there
-// deterministically. Gated on the active card's displacement so the drop
-// never fires before the drag is armed (distance-5 activation).
+// deterministically. Lift, active displacement AND the neighbor shift are
+// gated: the drop must wait for the over-target commit (the sorting
+// strategy translates the covered neighbor in the same commit), otherwise
+// it lands on the stale target and the reorder silently no-ops.
 async function pointerDragDownOne(page: Page, cards: Locator, index: number): Promise<void> {
+  const transformOf = (locator: Locator): Promise<string> =>
+    locator.evaluate((el) => (el as HTMLElement).style.transform || '');
   const handle = cards.nth(index).getByTestId('category-drag-handle');
   const card = cards.nth(index);
+  const neighbor = cards.nth(index + 1);
   const from = await handle.boundingBox();
-  const target = await cards.nth(index + 1).boundingBox();
+  const target = await neighbor.boundingBox();
   expect(from).not.toBeNull();
   expect(target).not.toBeNull();
   if (!from || !target) throw new Error('drag boxes not measurable');
-  const restTransform = await card.evaluate((el) => (el as HTMLElement).style.transform || '');
+  const restTransform = await transformOf(card);
+  const restNeighborTransform = await transformOf(neighbor);
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down();
   await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 15 });
-  await expect
-    .poll(async () => card.evaluate((el) => (el as HTMLElement).style.transform || ''), {
-      timeout: 10000,
-    })
-    .not.toBe(restTransform);
+  await expect.poll(() => transformOf(card), { timeout: 10000 }).not.toBe(restTransform);
+  await expect.poll(() => transformOf(neighbor), { timeout: 10000 }).not.toBe(restNeighborTransform);
   await page.mouse.up();
 }
 

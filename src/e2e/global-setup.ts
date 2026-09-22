@@ -71,48 +71,54 @@ async function globalSetup() {
 
   const password = resolvePrdSeedPassword(process.env, randomUUID);
   for (const account of PRD_ACCOUNTS) {
-    const { error: createError } = await admin.auth.admin.createUser({
+    const { data: created, error: createError } = await admin.auth.admin.createUser({
       email: account.email,
       password,
       email_confirm: true,
       user_metadata: { first_name: account.firstName, last_name: account.lastName },
     });
     if (createError) throw createError;
+    if (!created.user) {
+      throw new Error(`PRD seed creation returned no user for ${account.email}.`);
+    }
   }
 
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!anonKey) throw new Error('PRD seeding requires NEXT_PUBLIC_SUPABASE_ANON_KEY.');
 
-  // Resolve fresh ids (admin.createUser returns them, but re-listing keeps
-  // this step robust against pre-existing rows the cleanup above may miss).
-  const { data: fresh, error: freshError } = await admin.auth.admin.listUsers({
-    page: 1,
-    perPage: 1000,
-  });
-  if (freshError) throw freshError;
-  const userIdByEmail = new Map(
-    fresh.users
-      .filter((user) => user.email && wantedEmails.has(user.email))
-      .map((user) => [user.email as string, user.id]),
-  );
+  // Ids come from a sign-in round-trip per account (authoritative, same
+  // data the specs will use) instead of a second admin user listing, which
+  // proved unreliable in CI (created accounts missing from the re-list).
+  const signIn = async (email: string) => {
+    const client = createClient(supabaseURL, anonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data, error: signInError } = await client.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (signInError) throw signInError;
+    if (!data.user) throw new Error(`PRD seed sign-in returned no user for ${email}.`);
+    return { client, userId: data.user.id };
+  };
+  type PrdSession = Awaited<ReturnType<typeof signIn>>;
+  const sessions = Object.fromEntries(
+    await Promise.all(
+      PRD_ACCOUNTS.map(async (account) => [account.role, await signIn(account.email)]),
+    ),
+  ) as Record<PrdAccountRole, PrdSession>;
   const userIds = Object.fromEntries(
-    PRD_ACCOUNTS.map((account) => {
-      const id = userIdByEmail.get(account.email);
-      if (!id) throw new Error(`PRD seed account missing after creation: ${account.email}`);
-      return [account.role, id];
-    }),
+    PRD_ACCOUNTS.map((account) => [account.role, sessions[account.role].userId]),
   ) as Record<PrdAccountRole, string>;
 
   // Foyers go through the production RPC (create_household) so seeds carry
   // the real default categories/items fork; userB joins foyer 1 by direct
   // membership insert (the invitation join flow stays covered by
   // join-household.spec.ts).
-  const createFoyer = async (email: string, name: string): Promise<string> => {
-    const client = createClient(supabaseURL, anonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const { error: signInError } = await client.auth.signInWithPassword({ email, password });
-    if (signInError) throw signInError;
+  const createFoyer = async (
+    client: PrdSession['client'],
+    name: string,
+  ): Promise<string> => {
     const { data, error: rpcError } = await client.rpc('create_household', { p_name: name });
     if (rpcError) throw rpcError;
     if (typeof data !== 'string' || data.length === 0) {
@@ -121,8 +127,8 @@ async function globalSetup() {
     return data;
   };
 
-  const foyer1 = await createFoyer(PRD_ACCOUNTS[0].email, PRD_FOYER_1_NAME);
-  await createFoyer(PRD_ACCOUNTS[2].email, PRD_FOYER_2_NAME);
+  const foyer1 = await createFoyer(sessions['household1.userA'].client, PRD_FOYER_1_NAME);
+  await createFoyer(sessions['household2.userA'].client, PRD_FOYER_2_NAME);
   const { error: joinError } = await admin
     .from('household_members')
     .insert({ household_id: foyer1, user_id: userIds['household1.userB'], role: 'member' });

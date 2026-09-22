@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { expect, test as base, type Browser, type Page, type TestInfo } from '@playwright/test';
@@ -7,11 +7,13 @@ import { e2eEnvironment } from './environment';
 import {
   PRD_ACCOUNTS,
   PRD_SEED_STATE_FILENAME,
+  PRD_SESSION_DIR,
   foyerNameFor,
   isSessionStampCurrent,
   prdSessionPaths,
   type PrdAccount,
   type PrdAccountRole,
+  type PrdSessionStamp,
 } from '../../quality/prd-accounts';
 
 type Account = {
@@ -78,6 +80,25 @@ export async function requireSeedPassword(): Promise<string> {
   return password;
 }
 
+/** Absolute repo-root path of a session file (single place building it). */
+function sessionFile(relative: string): string {
+  return path.join(process.cwd(), relative);
+}
+
+function expectedStamp(password: string): PrdSessionStamp {
+  return { password, backend: process.env.E2E_SUPABASE_URL ?? '' };
+}
+
+/**
+ * Atomic save (temp file + rename) so a parallel worker never reads a
+ * half-written session or stamp left by a concurrent fresh login.
+ */
+async function saveAtomically(target: string, write: (tmp: string) => Promise<unknown>): Promise<void> {
+  const tmp = `${target}.tmp-${randomUUID()}`;
+  await write(tmp);
+  await rename(tmp, target);
+}
+
 async function freshSeedLogin(
   browser: Browser,
   role: PrdAccountRole,
@@ -94,9 +115,11 @@ async function freshSeedLogin(
   await page.getByLabel('Mot de passe').fill(password);
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL('/home', { timeout: 20000 });
-  await mkdir(path.join(process.cwd(), 'test-results/.auth'), { recursive: true });
-  await context.storageState({ path: path.join(process.cwd(), state) });
-  await writeFile(path.join(process.cwd(), stamp), JSON.stringify({ password }), 'utf8');
+  await mkdir(sessionFile(PRD_SESSION_DIR), { recursive: true });
+  await saveAtomically(sessionFile(state), (tmp) => context.storageState({ path: tmp }));
+  await saveAtomically(sessionFile(stamp), (tmp) =>
+    writeFile(tmp, JSON.stringify(expectedStamp(password)), 'utf8'),
+  );
   return page;
 }
 
@@ -116,7 +139,7 @@ export async function ensureAuthenticatedPage(
   const password = await requireSeedPassword();
   const foyer = foyerNameFor(role);
   const { state, stamp } = prdSessionPaths(role);
-  const probe = async (page: Page): Promise<boolean> => {
+  const verifyFoyerLoaded = async (page: Page): Promise<boolean> => {
     await page.goto('/home');
     try {
       await expect(page.getByRole('heading', { level: 1, name: foyer })).toBeVisible({
@@ -129,18 +152,18 @@ export async function ensureAuthenticatedPage(
   };
 
   try {
-    const raw = await readFile(path.join(process.cwd(), stamp), 'utf8');
-    if (isSessionStampCurrent(JSON.parse(raw), password)) {
-      const reused = await browser.newContext({ storageState: path.join(process.cwd(), state) });
+    const raw = await readFile(sessionFile(stamp), 'utf8');
+    if (isSessionStampCurrent(JSON.parse(raw), expectedStamp(password))) {
+      const reused = await browser.newContext({ storageState: sessionFile(state) });
       const page = reused.pages()[0] ?? (await reused.newPage());
-      if (await probe(page)) return page;
+      if (await verifyFoyerLoaded(page)) return page;
       await reused.close();
     }
   } catch {
     // Missing/corrupt session files: fall through to a fresh login.
   }
   const page = await freshSeedLogin(browser, role, password);
-  if (!(await probe(page))) {
+  if (!(await verifyFoyerLoaded(page))) {
     throw new Error(`Authenticated session probe failed for ${role} after a fresh login.`);
   }
   return page;

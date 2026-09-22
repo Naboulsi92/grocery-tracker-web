@@ -55,6 +55,10 @@ describe('prd-accounts', () => {
     expect(foyerNameFor('household1.userB')).toBe(PRD_FOYER_1_NAME);
     expect(foyerNameFor('household2.userA')).toBe(PRD_FOYER_2_NAME);
   });
+
+  it('rejects an unknown role instead of probing the wrong foyer', () => {
+    expect(() => foyerNameFor('household3.userA' as never)).toThrow('Unknown PRD seed role');
+  });
 });
 
 describe('prd session reuse', () => {
@@ -68,16 +72,28 @@ describe('prd session reuse', () => {
     );
   });
 
-  it('accepts a stamp carrying the current password', () => {
-    expect(isSessionStampCurrent({ password: 'run-secret' }, 'run-secret')).toBe(true);
+  it('accepts a stamp carrying the current password and backend', () => {
+    expect(
+      isSessionStampCurrent(
+        { password: 'run-secret', backend: 'http://127.0.0.1:54321' },
+        { password: 'run-secret', backend: 'http://127.0.0.1:54321' },
+      ),
+    ).toBe(true);
   });
 
-  it('rejects a stale, malformed, or missing stamp', () => {
-    expect(isSessionStampCurrent({ password: 'old-secret' }, 'run-secret')).toBe(false);
-    expect(isSessionStampCurrent({ password: 42 }, 'run-secret')).toBe(false);
-    expect(isSessionStampCurrent(null, 'run-secret')).toBe(false);
-    expect(isSessionStampCurrent('run-secret', 'run-secret')).toBe(false);
-    expect(isSessionStampCurrent(undefined, 'run-secret')).toBe(false);
+  it('rejects a stale, foreign-backend, malformed, or missing stamp', () => {
+    const current = { password: 'run-secret', backend: 'http://127.0.0.1:54321' };
+    expect(isSessionStampCurrent({ password: 'old-secret', backend: current.backend }, current)).toBe(
+      false,
+    );
+    expect(
+      isSessionStampCurrent({ password: 'run-secret', backend: 'http://other:54321' }, current),
+    ).toBe(false);
+    expect(isSessionStampCurrent({ password: 'run-secret' }, current)).toBe(false);
+    expect(isSessionStampCurrent({ password: 42, backend: current.backend }, current)).toBe(false);
+    expect(isSessionStampCurrent(null, current)).toBe(false);
+    expect(isSessionStampCurrent('run-secret', current)).toBe(false);
+    expect(isSessionStampCurrent(undefined, current)).toBe(false);
   });
 });
 

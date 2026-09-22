@@ -60,6 +60,8 @@ export const PRD_SESSION_DIR = 'test-results/.auth';
 
 export type PrdSessionStamp = {
   password: string;
+  /** Backend the session was minted against: same password on another backend must re-login. */
+  backend: string;
 };
 
 export function prdSessionPaths(role: PrdAccountRole): { state: string; stamp: string } {
@@ -70,18 +72,22 @@ export function prdSessionPaths(role: PrdAccountRole): { state: string; stamp: s
   };
 }
 
-/** A saved session is reusable only when stamped with the current password. */
-export function isSessionStampCurrent(stamp: unknown, password: string): boolean {
-  return (
-    typeof stamp === 'object' &&
-    stamp !== null &&
-    (stamp as { password?: unknown }).password === password
-  );
+/**
+ * A saved session is reusable only when stamped with the current password
+ * AND backend. Throws on an unknown role so a future fourth account fails
+ * fast instead of silently probing the wrong foyer.
+ */
+export function isSessionStampCurrent(stamp: unknown, expected: PrdSessionStamp): boolean {
+  if (typeof stamp !== 'object' || stamp === null) return false;
+  const { password, backend } = stamp as { password?: unknown; backend?: unknown };
+  return password === expected.password && backend === expected.backend;
 }
 
-/** Seeded foyer each role belongs to (mirrors global-setup topology). */
+/** Seeded foyer each role belongs to (single-sourced from PRD_ACCOUNTS). */
 export function foyerNameFor(role: PrdAccountRole): string {
-  return role === 'household2.userA' ? PRD_FOYER_2_NAME : PRD_FOYER_1_NAME;
+  const account = PRD_ACCOUNTS.find((candidate) => candidate.role === role);
+  if (!account) throw new Error(`Unknown PRD seed role: ${role}.`);
+  return account.foyer === 2 ? PRD_FOYER_2_NAME : PRD_FOYER_1_NAME;
 }
 
 export const PRD_SEED_PASSWORD_ENV_VAR = 'E2E_PRD_PASSWORD';

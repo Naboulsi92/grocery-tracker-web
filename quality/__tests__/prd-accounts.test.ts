@@ -4,6 +4,9 @@ import {
   PRD_FOYER_2_NAME,
   PRD_SEED_STATE_FILENAME,
   assertFoyerTopology,
+  foyerNameFor,
+  isSessionStampCurrent,
+  prdSessionPaths,
   resolvePrdSeedPassword,
   type FoyerMembership,
 } from '../prd-accounts';
@@ -45,6 +48,36 @@ describe('prd-accounts', () => {
   it('names two distinct deterministic foyers', () => {
     expect(PRD_FOYER_1_NAME).toBe('Foyer test 1');
     expect(PRD_FOYER_2_NAME).toBe('Foyer test 2');
+  });
+
+  it('maps each role to its seeded foyer', () => {
+    expect(foyerNameFor('household1.userA')).toBe(PRD_FOYER_1_NAME);
+    expect(foyerNameFor('household1.userB')).toBe(PRD_FOYER_1_NAME);
+    expect(foyerNameFor('household2.userA')).toBe(PRD_FOYER_2_NAME);
+  });
+});
+
+describe('prd session reuse', () => {
+  it('derives one state + stamp file per role under the ignored dir', () => {
+    expect(prdSessionPaths('household1.userA')).toEqual({
+      state: 'test-results/.auth/household1-userA.json',
+      stamp: 'test-results/.auth/household1-userA.stamp.json',
+    });
+    expect(prdSessionPaths('household2.userA').state).toBe(
+      'test-results/.auth/household2-userA.json',
+    );
+  });
+
+  it('accepts a stamp carrying the current password', () => {
+    expect(isSessionStampCurrent({ password: 'run-secret' }, 'run-secret')).toBe(true);
+  });
+
+  it('rejects a stale, malformed, or missing stamp', () => {
+    expect(isSessionStampCurrent({ password: 'old-secret' }, 'run-secret')).toBe(false);
+    expect(isSessionStampCurrent({ password: 42 }, 'run-secret')).toBe(false);
+    expect(isSessionStampCurrent(null, 'run-secret')).toBe(false);
+    expect(isSessionStampCurrent('run-secret', 'run-secret')).toBe(false);
+    expect(isSessionStampCurrent(undefined, 'run-secret')).toBe(false);
   });
 });
 

@@ -1,13 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
-import { expect, test as base, type Page, type TestInfo } from '@playwright/test';
+import { expect, test as base, type Browser, type Page, type TestInfo } from '@playwright/test';
 import { e2eEnvironment } from './environment';
 import {
   PRD_ACCOUNTS,
   PRD_SEED_STATE_FILENAME,
+  foyerNameFor,
+  isSessionStampCurrent,
+  prdSessionPaths,
   type PrdAccount,
+  type PrdAccountRole,
 } from '../../quality/prd-accounts';
 
 type Account = {
@@ -58,7 +62,102 @@ export function createAccount(prefix = 'e2e'): Account {
   };
 }
 
-export const test = base.extend<LocalFixtures & PrdFixtures>({
+/**
+ * Fail-fast guard for specs that require the seeded PRD accounts: throws
+ * instead of skipping so a missing backend can never masquerade as green.
+ * (Pre-existing `test.skip` call sites migrate to this helper in follow-ups;
+ * new specs must use it from the start.)
+ */
+export async function requireSeedPassword(): Promise<string> {
+  const password = await readPrdSeedPassword();
+  if (!e2eEnvironment.writesAllowed || !password) {
+    throw new Error(
+      'PRD seed accounts require E2E_ALLOW_WRITES=true with local Supabase (global-setup seeds them).',
+    );
+  }
+  return password;
+}
+
+async function freshSeedLogin(
+  browser: Browser,
+  role: PrdAccountRole,
+  password: string,
+): Promise<Page> {
+  const account = PRD_ACCOUNTS.find((candidate) => candidate.role === role);
+  if (!account) throw new Error(`Unknown PRD seed role: ${role}.`);
+  const { state, stamp } = prdSessionPaths(role);
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible();
+  await page.getByLabel('Email').fill(account.email);
+  await page.getByLabel('Mot de passe').fill(password);
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL('/home', { timeout: 20000 });
+  await mkdir(path.join(process.cwd(), 'test-results/.auth'), { recursive: true });
+  await context.storageState({ path: path.join(process.cwd(), state) });
+  await writeFile(path.join(process.cwd(), stamp), JSON.stringify({ password }), 'utf8');
+  return page;
+}
+
+/**
+ * Page already authenticated as the `accountRole` seed account, reusing a
+ * saved `storageState` when it is stamped with the current run password.
+ * A stale session (e.g. previous run with the same `E2E_PRD_PASSWORD`
+ * override but expired tokens) triggers exactly one fresh login, verified
+ * by the seeded foyer heading — web-first, no `waitForTimeout`.
+ * Parallel workers racing on the same session files are benign: same
+ * credentials, last write wins, every saved state is valid.
+ */
+export async function ensureAuthenticatedPage(
+  browser: Browser,
+  role: PrdAccountRole,
+): Promise<Page> {
+  const password = await requireSeedPassword();
+  const foyer = foyerNameFor(role);
+  const { state, stamp } = prdSessionPaths(role);
+  const probe = async (page: Page): Promise<boolean> => {
+    await page.goto('/home');
+    try {
+      await expect(page.getByRole('heading', { level: 1, name: foyer })).toBeVisible({
+        timeout: 10000,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  try {
+    const raw = await readFile(path.join(process.cwd(), stamp), 'utf8');
+    if (isSessionStampCurrent(JSON.parse(raw), password)) {
+      const reused = await browser.newContext({ storageState: path.join(process.cwd(), state) });
+      const page = reused.pages()[0] ?? (await reused.newPage());
+      if (await probe(page)) return page;
+      await reused.close();
+    }
+  } catch {
+    // Missing/corrupt session files: fall through to a fresh login.
+  }
+  const page = await freshSeedLogin(browser, role, password);
+  if (!(await probe(page))) {
+    throw new Error(`Authenticated session probe failed for ${role} after a fresh login.`);
+  }
+  return page;
+}
+
+type AuthFixtures = {
+  accountRole: PrdAccountRole;
+  authenticatedPage: Page;
+};
+
+export const test = base.extend<LocalFixtures & PrdFixtures & AuthFixtures>({
+  accountRole: ['household1.userA' as PrdAccountRole, { option: true }],
+  authenticatedPage: async ({ browser, accountRole }, provide) => {
+    const page = await ensureAuthenticatedPage(browser, accountRole);
+    await provide(page);
+    await page.context().close();
+  },
   account: async ({}, provide, testInfo) => {
     const account = createAccount(`e2e-${testInfo.parallelIndex}-${testInfo.retry}`);
     createdEmails.add(account.email);

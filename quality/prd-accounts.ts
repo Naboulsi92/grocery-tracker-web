@@ -51,6 +51,39 @@ export const PRD_FOYER_2_NAME = 'Foyer test 2';
 /** File (repo-root relative) where global-setup publishes the run password. */
 export const PRD_SEED_STATE_FILENAME = 'test-results/prd-seed.json';
 
+/**
+ * Directory (repo-root relative, under the ignored `test-results/`) holding
+ * reused Playwright login sessions, one per seed role. Forward slashes on
+ * purpose: consumed by both node:fs and Playwright on every OS.
+ */
+export const PRD_SESSION_DIR = 'test-results/.auth';
+
+export type PrdSessionStamp = {
+  password: string;
+};
+
+export function prdSessionPaths(role: PrdAccountRole): { state: string; stamp: string } {
+  const slug = role.replace('.', '-');
+  return {
+    state: `${PRD_SESSION_DIR}/${slug}.json`,
+    stamp: `${PRD_SESSION_DIR}/${slug}.stamp.json`,
+  };
+}
+
+/** A saved session is reusable only when stamped with the current password. */
+export function isSessionStampCurrent(stamp: unknown, password: string): boolean {
+  return (
+    typeof stamp === 'object' &&
+    stamp !== null &&
+    (stamp as { password?: unknown }).password === password
+  );
+}
+
+/** Seeded foyer each role belongs to (mirrors global-setup topology). */
+export function foyerNameFor(role: PrdAccountRole): string {
+  return role === 'household2.userA' ? PRD_FOYER_2_NAME : PRD_FOYER_1_NAME;
+}
+
 export const PRD_SEED_PASSWORD_ENV_VAR = 'E2E_PRD_PASSWORD';
 
 export const PRD_SEED_PASSWORD_MIN_LENGTH = 8;

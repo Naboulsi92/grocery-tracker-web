@@ -5,6 +5,7 @@ const e2eEnvironment = resolveE2EEnvironment(process.env);
 
 export default defineConfig({
   testDir: './src/e2e',
+  globalSetup: './src/e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

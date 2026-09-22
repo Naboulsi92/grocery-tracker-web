@@ -7,26 +7,28 @@ import {
   writesDisabledReason,
 } from './environment';
 
-// dnd-kit keyboard drag: focus the handle, Space to lift, ArrowDown to move,
-// Space to drop. Lift and displacement are async (React state + collision
-// detection), so the drop must wait for them: dropping on the next tick
-// lands on the stale target (the dragged card itself) and the reorder
-// silently no-ops. Gates use aria-pressed + the active card's inline
-// transform, which are unique per card (no live-region ambiguity).
-async function keyboardDragDownOne(page: Page, cards: Locator, index: number): Promise<void> {
+// Pointer drag one card down: the pointer position drives collision
+// directly, so ending over the next card's center lands the drop there
+// deterministically. Gated on the active card's displacement so the drop
+// never fires before the drag is armed (distance-5 activation).
+async function pointerDragDownOne(page: Page, cards: Locator, index: number): Promise<void> {
   const handle = cards.nth(index).getByTestId('category-drag-handle');
   const card = cards.nth(index);
-  await handle.focus();
-  await page.keyboard.press('Space');
-  await expect(handle).toHaveAttribute('aria-pressed', 'true', { timeout: 10000 });
+  const from = await handle.boundingBox();
+  const target = await cards.nth(index + 1).boundingBox();
+  expect(from).not.toBeNull();
+  expect(target).not.toBeNull();
+  if (!from || !target) throw new Error('drag boxes not measurable');
   const restTransform = await card.evaluate((el) => (el as HTMLElement).style.transform || '');
-  await page.keyboard.press('ArrowDown');
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 15 });
   await expect
     .poll(async () => card.evaluate((el) => (el as HTMLElement).style.transform || ''), {
       timeout: 10000,
     })
     .not.toBe(restTransform);
-  await page.keyboard.press('Space');
+  await page.mouse.up();
 }
 
 test.describe('Categories CRUD', () => {
@@ -531,8 +533,43 @@ test.describe('Categories CRUD', () => {
     });
   });
 
-  test.describe('Custom Order via Keyboard DnD (#113)', () => {
-    test('reorders categories with keyboard and persists after reload', async ({ page, account }) => {
+  test.describe('Custom Order via Drag and Drop (#113)', () => {
+    test('keyboard lifts and cancels a drag without changing order', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-categories').click();
+      const cards = page.locator('[data-testid="category-section-default"] .category-card');
+      await expect(cards).toHaveCount(10);
+      const names = (locator: Locator): Promise<string[]> =>
+        locator.locator('.category-name').allInnerTexts();
+      const before = await names(cards);
+
+      // Keyboard operability (dnd-kit): the handle is Tab-reachable, Space
+      // lifts (aria-pressed + screen-reader announcement wired), Escape
+      // cancels with the order untouched. Pointer drag below covers moving.
+      const handle = cards.nth(0).getByTestId('category-drag-handle');
+      await handle.focus();
+      await expect(handle).toBeFocused();
+      await page.keyboard.press('Space');
+      await expect(handle).toHaveAttribute('aria-pressed', 'true', { timeout: 10000 });
+      await expect
+        .poll(
+          async () =>
+            page.evaluate(() =>
+              [...document.querySelectorAll('[aria-live]')]
+                .map((region) => region.textContent ?? '')
+                .join(' '),
+            ),
+          { timeout: 10000 },
+        )
+        .not.toBe('');
+      await page.keyboard.press('Escape');
+      await expect(handle).not.toHaveAttribute('aria-pressed', 'true');
+      await expect.poll(() => names(cards), { timeout: 10000 }).toEqual(before);
+    });
+
+    test('pointer drag reorders categories and persists after reload', async ({ page, account }) => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await createHousehold(page, account);
 
@@ -543,21 +580,12 @@ test.describe('Categories CRUD', () => {
         locator.locator('.category-name').allInnerTexts();
 
       const before = await names(cards);
-      const firstName = before[0];
-
-      // dnd-kit keyboard sorting: focus the drag handle, Space to lift,
-      // ArrowDown to move, Space to drop (gated on lift + displacement so
-      // the drop never lands on the stale over-target).
-      await keyboardDragDownOne(page, cards, 0);
-
-      // The card moved down (exact landing step is dnd-kit internals, not
-      // app code): same set, new order, first card displaced.
+      await pointerDragDownOne(page, cards, 0);
       const after = await names(cards);
-      expect(after.slice().sort()).toEqual(before.slice().sort());
-      expect(after).not.toEqual(before);
-      expect(after.indexOf(firstName)).toBeGreaterThan(0);
+      expect(after[0]).toBe(before[1]);
+      expect(after[1]).toBe(before[0]);
 
-      // Same path for custom categories (position per household).
+      // Same persistence path for custom categories (position per household).
       const customA = `Catordre A ${randomUUID().slice(0, 8)}`;
       const customB = `Catordre B ${randomUUID().slice(0, 8)}`;
       for (const name of [customA, customB]) {
@@ -568,12 +596,10 @@ test.describe('Categories CRUD', () => {
       }
       const customCards = page.locator('[data-testid="category-section-custom"] .category-card');
       await expect(customCards).toHaveCount(2);
-      const customBefore = await names(customCards);
-      await keyboardDragDownOne(page, customCards, 0);
+      await pointerDragDownOne(page, customCards, 0);
       const customAfter = await names(customCards);
-      expect(customAfter.slice().sort()).toEqual(customBefore.slice().sort());
-      expect(customAfter).not.toEqual(customBefore);
-      expect(customAfter.indexOf(customBefore[0])).toBeGreaterThan(0);
+      expect(customAfter[0]).toBe(customB);
+      expect(customAfter[1]).toBe(customA);
 
       // The new order survives a reload: positions persisted per household.
       await page.reload();

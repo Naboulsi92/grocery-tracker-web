@@ -1,0 +1,80 @@
+name: Notify thresholds
+
+# Ticket #114 (PRD §4.6/§4.7) : rappel quotidien + envoi des notifications de
+# seuil via l'edge notify-thresholds (service_role, CRON_SECRET obligatoire,
+# fail-closed 401 — cf supabase/functions/notify-thresholds/index.ts).
+#
+# Le run fait 2 appels, dans l'ordre :
+#   1. POST /daily-reminders — enfile les rappels dus (enqueue_daily_reminders,
+#      dédoublonné 24h par (foyer, user), sans double envoi) ;
+#   2. POST / — traite la file pending_notifications et pousse via VAPID.
+#
+# Cadence : toutes les 15 minutes (minimum utile GitHub Actions : 5 min).
+# LIMITATION DOCUMENTÉE : enqueue_daily_reminders ne retient que les
+# reminder_time ÉGAUX à l'heure UTC courante (HH:MM exact) — seuls les
+# rappels réglés sur :00/:15/:30/:45 se déclenchent. Régler reminder_time
+# sur un quart d'heure côté app (validation = chantier séparé).
+# Secrets requis (fail-fast) : SUPABASE_URL, SUPABASE_CRON_SECRET
+# (même valeur que CRON_SECRET de la fonction). Aucune clé service-role
+# côté GitHub. Variables par environment GitHub `production` (#62).
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notify-thresholds
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - name: Check notify secrets configured
+        run: |
+          if [ -z "${{ secrets.SUPABASE_URL }}" ]; then
+            echo "::error::SUPABASE_URL is not configured — notify-thresholds target unknown"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SUPABASE_CRON_SECRET }}" ]; then
+            echo "::error::SUPABASE_CRON_SECRET is not configured — notify-thresholds requires CRON_SECRET (fail-closed 401)"
+            exit 1
+          fi
+      - name: Enqueue daily reminders
+        run: |
+          set -euo pipefail
+          response_file="$RUNNER_TEMP/notify-enqueue-response.json"
+          http_code="$(
+            curl --fail-with-body --silent --show-error \
+              --request POST \
+              --url "${{ secrets.SUPABASE_URL }}/functions/v1/notify-thresholds/daily-reminders" \
+              --header "x-cron-secret: ${{ secrets.SUPABASE_CRON_SECRET }}" \
+              --header "Content-Type: application/json" \
+              --data '{}' \
+              --output "$response_file" \
+              --write-out '%{http_code}'
+          )"
+          echo "notify-thresholds/daily-reminders responded HTTP $http_code"
+          cat "$response_file"
+      - name: Process pending notifications
+        run: |
+          set -euo pipefail
+          response_file="$RUNNER_TEMP/notify-process-response.json"
+          http_code="$(
+            curl --fail-with-body --silent --show-error \
+              --request POST \
+              --url "${{ secrets.SUPABASE_URL }}/functions/v1/notify-thresholds" \
+              --header "x-cron-secret: ${{ secrets.SUPABASE_CRON_SECRET }}" \
+              --header "Content-Type: application/json" \
+              --data '{}' \
+              --output "$response_file" \
+              --write-out '%{http_code}'
+          )"
+          echo "notify-thresholds responded HTTP $http_code"
+          cat "$response_file"

@@ -20,7 +20,7 @@ Server-side notification delivery for the grocery list app. Processes pending no
 | `VAPID_PUBLIC_KEY` | Yes (project secret) | VAPID public key for Web Push |
 | `VAPID_PRIVATE_KEY` | Yes (project secret) | VAPID private key for Web Push |
 | `VAPID_SUBJECT` | Yes (project secret) | VAPID subject (mailto: URL or origin) |
-| `CRON_SECRET` | No | Optional shared secret; if set, every request must send `x-cron-secret: <CRON_SECRET>` (401 otherwise) |
+| `CRON_SECRET` | Yes (fail-closed) | Mandatory shared secret; every request must send `x-cron-secret: <CRON_SECRET>` (401 otherwise, even if unset server-side — ticket #114) |
 
 ### How It Works
 
@@ -37,10 +37,9 @@ Server-side notification delivery for the grocery list app. Processes pending no
 
 ### Security
 
-Both endpoints (`POST /` and `POST /daily-reminders`) use the same optional cron-secret guard as `member-gdpr-sweep`: **if the `CRON_SECRET` env var is set**, requests must include `x-cron-secret: <CRON_SECRET>` (rejected with 401 otherwise), so a stray caller cannot force sends or enqueue reminders. If `CRON_SECRET` is **not** set, access falls back to the deployment-time JWT verification setting.
+Both endpoints (`POST /` and `POST /daily-reminders`) use the same mandatory cron-secret guard as `member-gdpr-sweep` (ticket #114): requests must include `x-cron-secret: <CRON_SECRET>` (rejected with 401 otherwise, **including when `CRON_SECRET` is not set server-side** — fail closed), so a stray caller cannot force sends or enqueue reminders.
 
-- The default deployment keeps JWT verification enabled: callers must present a valid `Authorization: Bearer <supabase-jwt>`.
-- To let a cron service call the function without a JWT, deploy with `--no-verify-jwt` **and** set `CRON_SECRET` — without the secret every caller would be allowed:
+- Deploy with `--no-verify-jwt` **and** set `CRON_SECRET` so the cron service can call without a JWT; the in-code check remains the real gate either way (JWT verify réévalué : OFF + secret obligatoire, pas de fallback permissif) :
   ```bash
   supabase functions deploy notify-thresholds --no-verify-jwt --project-ref <project-ref>
   supabase secrets set CRON_SECRET=<your-secret> --project-ref <project-ref>

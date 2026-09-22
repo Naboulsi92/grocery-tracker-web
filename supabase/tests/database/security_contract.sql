@@ -1786,6 +1786,39 @@ end;
 $$;
 reset role;
 
+-- Ticket #114 — cron interne service_role seul : authenticated ne peut ni
+-- purger (sweep) ni enfiler des rappels (enqueue) ; anon non plus.
+do $$
+begin
+  if has_function_privilege('anon', 'public.enqueue_daily_reminders(time)', 'EXECUTE') then
+    raise exception 'anon can execute enqueue_daily_reminders';
+  end if;
+  if has_function_privilege('public', 'public.enqueue_daily_reminders(time)', 'EXECUTE') then
+    raise exception 'public can execute enqueue_daily_reminders';
+  end if;
+  if not has_function_privilege('service_role', 'public.enqueue_daily_reminders(time)', 'EXECUTE') then
+    raise exception 'service_role cannot execute enqueue_daily_reminders';
+  end if;
+  if not has_function_privilege('service_role', 'public.sweep_fully_deleted_members()', 'EXECUTE') then
+    raise exception 'service_role cannot execute sweep_fully_deleted_members';
+  end if;
+end;
+$$;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+declare denied boolean := false;
+begin
+  begin
+    perform public.enqueue_daily_reminders();
+  exception when insufficient_privilege then denied := true;
+  end;
+  if not denied then raise exception 'authenticated enqueued daily reminders'; end if;
+end;
+$$;
+reset role;
+
 -- Sweep >7j : purge 013, retient 014, idempotent (2e passage → 0).
 select public.sweep_fully_deleted_members() as lc_sweep1 \gset
 select set_config('test.lc_sweep1', :'lc_sweep1', true);

@@ -126,6 +126,13 @@ PostgREST argument names are exact. Supabase JS calls therefore use objects such
   `items_category_household_fkey` reste `RESTRICT` (catégorie non-vide
   non-supprimable). `ITEM_TEMPLATES` + `default_categories` n'ont aucun FK
   foyer → jamais affectés (10 + 10 intacts, assert contrat).
+- Export RGPD (§4.11, #136) : 100 % client, **aucune RPC** — `src/lib/account-export.ts`
+  (`buildAccountExport` : profil toujours + foyer si encore membre via les
+  lectures membre-gatées existantes, historique limité aux 200 dernières ;
+  `downloadAccountExport` : Blob JSON). Bouton sur `/account`
+  (`account-export-button`), avant suppression comme pendant la grâce 7j
+  (sans foyer : `household: null`, profil exporté). Tests :
+  `src/lib/__tests__/account-export.test.ts` + `src/e2e/account-export.spec.ts`.
 
 ### Household equality — `owner` derogation (accepted, #106 C3)
 

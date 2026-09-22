@@ -17,15 +17,24 @@ const SNOOZED_AT_KEY = 'pwa-banner-snoozed-at';
 const INSTALLED_KEY = 'pwa-banner-installed';
 const PWA_BANNER_EVENT = 'pwa-banner-change';
 
-function getVisits(): number {
-  return Number(localStorage.getItem(VISITS_KEY) ?? 0);
-}
-
-function getSnoozedAt(): number | null {
-  const raw = localStorage.getItem(SNOOZED_AT_KEY);
+function readVisitCounter(key: string): number | null {
+  const raw = localStorage.getItem(key);
   if (raw === null) return null;
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getVisits(): number {
+  return readVisitCounter(VISITS_KEY) ?? 0;
+}
+
+function getSnoozedAt(): number | null {
+  return readVisitCounter(SNOOZED_AT_KEY);
+}
+
+function persistAndBroadcast(key: string, value: string): void {
+  localStorage.setItem(key, value);
+  window.dispatchEvent(new Event(PWA_BANNER_EVENT));
 }
 
 function isInstalled(): boolean {
@@ -72,13 +81,11 @@ export function PwaInstallBanner() {
   // Visit-arithmetic assertions live in unit tests (single mount each);
   // E2E reads the counters instead of assuming increments.
   useEffect(() => {
-    localStorage.setItem(VISITS_KEY, String(getVisits() + 1));
-    window.dispatchEvent(new Event(PWA_BANNER_EVENT));
+    persistAndBroadcast(VISITS_KEY, String(getVisits() + 1));
   }, []);
 
   const markInstalled = useCallback(() => {
-    localStorage.setItem(INSTALLED_KEY, '1');
-    window.dispatchEvent(new Event(PWA_BANNER_EVENT));
+    persistAndBroadcast(INSTALLED_KEY, '1');
     setInstallEvent(null);
   }, []);
 
@@ -102,16 +109,21 @@ export function PwaInstallBanner() {
 
   const handleInstall = useCallback(async () => {
     if (!installEvent) return;
-    await installEvent.prompt();
-    const { outcome } = await installEvent.userChoice;
-    if (outcome === 'accepted') {
-      markInstalled();
+    try {
+      await installEvent.prompt();
+      const { outcome } = await installEvent.userChoice;
+      if (outcome === 'accepted') {
+        markInstalled();
+      }
+    } catch {
+      // Native prompt unavailable or rejected (e.g. already showing):
+      // keep the banner so the user can retry or dismiss.
+      console.warn('client_operation_failed', { area: 'pwa', action: 'install', code: 'prompt_failed' });
     }
   }, [installEvent, markInstalled]);
 
   const handleDismiss = useCallback(() => {
-    localStorage.setItem(SNOOZED_AT_KEY, String(getVisits()));
-    window.dispatchEvent(new Event(PWA_BANNER_EVENT));
+    persistAndBroadcast(SNOOZED_AT_KEY, String(getVisits()));
     setDismissed(true);
   }, []);
 

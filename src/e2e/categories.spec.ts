@@ -530,9 +530,34 @@ test.describe('Categories CRUD', () => {
       await expect(cards.nth(0).locator('.category-name')).toHaveText(secondName);
       await expect(cards.nth(1).locator('.category-name')).toHaveText(firstName);
 
+      // Same path for custom categories (position per household).
+      const customA = `Catordre A ${randomUUID().slice(0, 8)}`;
+      const customB = `Catordre B ${randomUUID().slice(0, 8)}`;
+      for (const name of [customA, customB]) {
+        await page.getByTestId('btn-new-category').click();
+        await page.getByTestId('input-category-name').fill(name);
+        await page.getByTestId('btn-create-category').click();
+        await expect(page.getByText(name)).toBeVisible({ timeout: 10000 });
+      }
+      const customCards = page.locator('[data-testid="category-section-custom"] .category-card');
+      await expect(customCards).toHaveCount(2);
+      await customCards.nth(0).getByTestId('category-drag-handle').focus();
+      await page.keyboard.press('Space');
+      await page.keyboard.press('ArrowDown');
+      await page.keyboard.press('Space');
+      await expect(customCards.nth(0).locator('.category-name')).toHaveText(customB);
+      await expect(customCards.nth(1).locator('.category-name')).toHaveText(customA);
+
       await page.reload();
       await expect(cards.nth(0).locator('.category-name')).toHaveText(secondName);
       await expect(cards.nth(1).locator('.category-name')).toHaveText(firstName);
+      await expect(customCards.nth(0).locator('.category-name')).toHaveText(customB);
+      await expect(customCards.nth(1).locator('.category-name')).toHaveText(customA);
+
+      page.once('dialog', (dialog) => dialog.accept());
+      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${customA}`) }).click();
+      page.once('dialog', (dialog) => dialog.accept());
+      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${customB}`) }).click();
     });
   });
 });

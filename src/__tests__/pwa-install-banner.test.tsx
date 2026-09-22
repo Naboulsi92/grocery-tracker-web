@@ -135,6 +135,27 @@ describe('PwaInstallBanner (PRD §4.13)', () => {
     expect(screen.queryByTestId('pwa-install-banner')).not.toBeInTheDocument();
   });
 
+  it('keeps the banner when the install prompt is dismissed', async () => {
+    const prompt = jest.fn().mockResolvedValue(undefined);
+    const userChoice = Promise.resolve({ outcome: 'dismissed' as const, platform: 'test' });
+    simulateVisit();
+    simulateVisit();
+
+    act(() => {
+      const event = new Event('beforeinstallprompt');
+      (event as unknown as { prompt: () => Promise<void> }).prompt = prompt;
+      (event as unknown as { userChoice: typeof userChoice }).userChoice = userChoice;
+      window.dispatchEvent(event);
+    });
+
+    fireEvent.click(screen.getByTestId('pwa-install-button'));
+    await waitFor(() => {
+      expect(prompt).toHaveBeenCalled();
+    });
+    expect(screen.getByTestId('pwa-install-banner')).toBeInTheDocument();
+    expect(localStorage.getItem('pwa-banner-installed')).toBeNull();
+  });
+
   it('does not render when already installed (standalone display mode)', () => {
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,

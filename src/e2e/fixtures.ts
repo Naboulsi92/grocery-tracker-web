@@ -1,7 +1,14 @@
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
-import { expect, test as base, type Page } from '@playwright/test';
+import { expect, test as base, type Page, type TestInfo } from '@playwright/test';
 import { e2eEnvironment } from './environment';
+import {
+  PRD_ACCOUNTS,
+  PRD_SEED_STATE_FILENAME,
+  type PrdAccount,
+} from '../../quality/prd-accounts';
 
 type Account = {
   email: string;
@@ -13,6 +20,31 @@ type Account = {
 type LocalFixtures = {
   account: Account;
 };
+
+export type PrdSeededAccount = PrdAccount & {
+  password: string;
+};
+
+type PrdFixtures = {
+  prdAccounts: PrdSeededAccount[];
+};
+
+/**
+ * Password for the PRD seed accounts: explicit `E2E_PRD_PASSWORD` override
+ * first, otherwise the per-run value published by global-setup. Never a
+ * repo literal (`scan:secrets`).
+ */
+export async function readPrdSeedPassword(): Promise<string | null> {
+  const override = process.env.E2E_PRD_PASSWORD?.trim();
+  if (override) return override;
+  try {
+    const raw = await readFile(path.join(process.cwd(), PRD_SEED_STATE_FILENAME), 'utf8');
+    const password = (JSON.parse(raw) as { password?: unknown }).password;
+    return typeof password === 'string' && password.length > 0 ? password : null;
+  } catch {
+    return null;
+  }
+}
 
 const createdEmails = new Set<string>();
 
@@ -26,11 +58,19 @@ export function createAccount(prefix = 'e2e'): Account {
   };
 }
 
-export const test = base.extend<LocalFixtures>({
+export const test = base.extend<LocalFixtures & PrdFixtures>({
   account: async ({}, provide, testInfo) => {
     const account = createAccount(`e2e-${testInfo.parallelIndex}-${testInfo.retry}`);
     createdEmails.add(account.email);
     await provide(account);
+  },
+  prdAccounts: async ({}, provide, testInfo: TestInfo) => {
+    const password = await readPrdSeedPassword();
+    testInfo.skip(
+      !e2eEnvironment.writesAllowed || !password,
+      'PRD seed accounts require E2E_ALLOW_WRITES=true with local Supabase (global-setup seeds them).',
+    );
+    await provide(PRD_ACCOUNTS.map((account) => ({ ...account, password: password as string })));
   },
 });
 

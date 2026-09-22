@@ -231,7 +231,7 @@
   "account.session_section": "Session",
   "account.session_hint": "Déconnectez cet appareil de votre compte.",
   "account.data_section": "Données personnelles",
-  "account.data_hint": "Téléchargez une copie de vos données (profil, foyer, catégories, articles, historique) au format JSON.",
+  "account.data_hint": "Téléchargez une copie de vos données (profil, foyer, catégories, articles, 200 dernières entrées d'historique) au format JSON.",
   "account.export_data": "Télécharger mes données",
   "account.exporting": "Préparation…",
   "account.export_done": "Export téléchargé.",

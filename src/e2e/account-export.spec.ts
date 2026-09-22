@@ -34,6 +34,6 @@ test.describe('Account export RGPD (#136)', () => {
     expect(Array.isArray(exported.household?.categories)).toBe(true);
     expect(Array.isArray(exported.household?.items)).toBe(true);
     expect(Array.isArray(exported.household?.history)).toBe(true);
-    await expect(page.getByText('Export téléchargé.')).toBeVisible();
+    await expect(page.getByTestId('account-export-success')).toBeVisible();
   });
 });

@@ -187,15 +187,17 @@ export default function AccountPage() {
     setExporting(true);
     setExportError('');
     setExportDone(false);
-    const { data, error } = await buildAccountExport(supabase, user.id);
-    if (error || !data) {
-      setExportError(error ?? 'errors.account.export_failed');
+    try {
+      const { data, error } = await buildAccountExport(supabase, user.id);
+      if (error || !data) {
+        setExportError(error ?? 'errors.account.export_failed');
+        return;
+      }
+      downloadAccountExport(data);
+      setExportDone(true);
+    } finally {
       setExporting(false);
-      return;
     }
-    downloadAccountExport(data);
-    setExportDone(true);
-    setExporting(false);
   };
 
   // PRD §4.9 : suppression = quitter (l'autre membre garde l'inventaire,
@@ -424,7 +426,7 @@ export default function AccountPage() {
           </p>
           {exportError && <p className="notification-error" role="alert">{translateMessage(language, exportError)}</p>}
           {exportDone && (
-            <p className="account-feedback-success" role="status">{t('account.export_done')}</p>
+            <p className="account-feedback-success" role="status" data-testid="account-export-success">{t('account.export_done')}</p>
           )}
           <button
             type="button"

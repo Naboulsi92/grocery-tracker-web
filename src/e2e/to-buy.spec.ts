@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect, createHousehold } from './fixtures';
 import {
   e2eEnvironment,
@@ -113,6 +114,19 @@ async function clearCatalog(householdId: string) {
 // defeats every delay/abort route registered in this file. Blocking service
 // workers lets the routes below actually intercept the inventory fetches.
 test.use({ serviceWorkers: 'block' });
+
+// Beurre 2/3 : l'article strict de référence (#112). Crée, ouvre /to-buy,
+// saisit la quantité et confirme. Retourne l'article créé.
+async function stockBeurreAndConfirm(page: Page, householdId: string, addedQty: string) {
+  const item = await createItemWithLowStock(householdId, 'Beurre', 2, 3, undefined, 'unite');
+
+  await page.goto('/to-buy');
+  await expect(page.getByText('Beurre')).toBeVisible();
+
+  await page.getByTestId('tobuy-quantity-input').fill(addedQty);
+  await page.getByTestId('tobuy-check-button').click();
+  return item;
+}
 
 test.describe('To-Buy Page', () => {
   let householdId: string;
@@ -239,6 +253,71 @@ test.describe('To-Buy Page', () => {
       .single();
 
     expect(updatedItem.data?.quantity).toBe(4);
+  });
+
+  test('lists items exactly at the threshold (strict <= rule)', async ({ page }) => {
+    await createItemWithLowStock(householdId, 'Beurre', 3, 3, undefined, 'unite');
+
+    await page.goto('/to-buy');
+    await expect(page.getByText('Beurre')).toBeVisible();
+    await expect(page.getByText('3/3 unite')).toBeVisible();
+  });
+
+  test('cannot check without entering a quantity above the threshold', async ({ page }) => {
+    await createItemWithLowStock(householdId, 'Beurre', 2, 3, undefined, 'unite');
+
+    await page.goto('/to-buy');
+    await expect(page.getByText('Beurre')).toBeVisible();
+
+    // Pas de saisie : bouton désactivé, aucun appel.
+    await expect(page.getByTestId('tobuy-check-button')).toBeDisabled();
+
+    // Quantité nulle : early-return silencieux, ni badge ni notice.
+    await page.getByTestId('tobuy-quantity-input').fill('0');
+    await page.getByTestId('tobuy-check-button').click();
+    await expect(page.locator('.badge-success')).toHaveCount(0);
+    await expect(page.getByTestId('tobuy-threshold-notice')).toHaveCount(0);
+    await expect(page.getByText('Beurre')).toBeVisible();
+  });
+
+  test('shows a threshold notice instead of checking when quantity stays at or below threshold', async ({ page }) => {
+    // Beurre 2/3 + 1 = 3, soit pile le seuil : pas de coche (règle stricte >),
+    // notice visible, article toujours à acheter.
+    await stockBeurreAndConfirm(page, householdId, '1');
+
+    await expect(page.getByTestId('tobuy-threshold-notice')).toBeVisible();
+    await expect(page.locator('.badge-success')).toHaveCount(0);
+    await expect(page.getByText('Beurre')).toBeVisible();
+  });
+
+  test('keeps the checked item visible with its badge across a realtime refetch', async ({ page }) => {
+    const item = await stockBeurreAndConfirm(page, householdId, '2');
+    await expect(page.locator('.badge-success')).toBeVisible();
+
+    // Un refetch (realtime) ne doit pas faire perdre le coché : l'article
+    // reste visible avec son badge jusqu'à quitter l'écran. On attend le
+    // refetch lui-même (requête GET items) plutôt qu'un délai arbitraire.
+    const refetch = page.waitForRequest(
+      (request) => request.url().includes('/rest/v1/items') && request.method() === 'GET',
+      { timeout: 15000 },
+    );
+    const supabase = await adminClient();
+    await supabase.from('items').update({ quantity: 5 }).eq('id', item.id);
+    await refetch;
+
+    await expect(page.getByText('Beurre')).toBeVisible();
+    await expect(page.locator('.badge-success')).toBeVisible();
+  });
+
+  test('checked item is gone after reopening the screen', async ({ page }) => {
+    await stockBeurreAndConfirm(page, householdId, '2');
+    await expect(page.locator('.badge-success')).toBeVisible();
+
+    // Le coché est un état d'écran (mémoire) : à la réouverture, l'article
+    // réapprovisionné (4 > 3) n'est plus à acheter.
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'À acheter' })).toBeVisible();
+    await expect(page.getByText('Beurre')).toHaveCount(0);
   });
 
   test('navigates back to dashboard from to-buy page', async ({ page }) => {

@@ -5,9 +5,11 @@ import { test, expect } from './fixtures';
  * PRD §comptes-de-test: the three dedicated addresses must be usable for
  * automated tests. Global-setup reseeds them (writable lane only) with
  * their foyers — household1.userA + household1.userB share foyer 1,
- * household2.userA owns isolated foyer 2 — so each login lands on /home
- * with its seeded household already loaded. No shared foyer is mutated,
- * so the three logins stay interference-free in parallel workers.
+ * household2.userA owns isolated foyer 2. Each case consumes the shared
+ * `authenticatedPage` fixture (UI login once per role per run, then
+ * `storageState` reuse) and proves it lands on /home with its seeded
+ * household loaded. Requiring the fixture is fail-fast: without a seeded
+ * backend these tests error instead of skipping silently.
  */
 test.describe('PRD seed accounts', () => {
   const cases = [
@@ -16,20 +18,15 @@ test.describe('PRD seed accounts', () => {
     { role: 'household2.userA', foyer: PRD_FOYER_2_NAME },
   ] as const;
   for (const { role, foyer } of cases) {
-    test(`${role} can log in and sees ${foyer}`, async ({ page, prdAccounts }) => {
-      const account = prdAccounts.find((candidate) => candidate.role === role);
-      expect(account).toBeDefined();
-
-      await page.goto('/login');
-      await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible();
-
-      await page.getByLabel('Email').fill(account!.email);
-      await page.getByLabel('Mot de passe').fill(account!.password);
-      await page.getByRole('button', { name: 'Se connecter' }).click();
-
-      // Authenticated users leave /login for /home (never back to /login).
-      await expect(page).toHaveURL('/home', { timeout: 20000 });
-      await expect(page.getByRole('heading', { level: 1, name: foyer })).toBeVisible();
+    test.describe(role, () => {
+      test.use({ accountRole: role });
+      test(`can log in and sees ${foyer}`, async ({ authenticatedPage }) => {
+        // Authenticated users stay on /home (never bounced back to /login).
+        await expect(authenticatedPage).toHaveURL('/home');
+        await expect(
+          authenticatedPage.getByRole('heading', { level: 1, name: foyer }),
+        ).toBeVisible();
+      });
     });
   }
 });

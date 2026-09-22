@@ -51,6 +51,45 @@ export const PRD_FOYER_2_NAME = 'Foyer test 2';
 /** File (repo-root relative) where global-setup publishes the run password. */
 export const PRD_SEED_STATE_FILENAME = 'test-results/prd-seed.json';
 
+/**
+ * Directory (repo-root relative, under the ignored `test-results/`) holding
+ * reused Playwright login sessions, one per seed role. Forward slashes on
+ * purpose: consumed by both node:fs and Playwright on every OS.
+ */
+export const PRD_SESSION_DIR = 'test-results/.auth';
+
+export type PrdSessionStamp = {
+  password: string;
+  /** Backend the session was minted against: same password on another backend must re-login. */
+  backend: string;
+};
+
+export function prdSessionPaths(role: PrdAccountRole): { state: string; stamp: string } {
+  const slug = role.replace('.', '-');
+  return {
+    state: `${PRD_SESSION_DIR}/${slug}.json`,
+    stamp: `${PRD_SESSION_DIR}/${slug}.stamp.json`,
+  };
+}
+
+/**
+ * A saved session is reusable only when stamped with the current password
+ * AND backend. Throws on an unknown role so a future fourth account fails
+ * fast instead of silently probing the wrong foyer.
+ */
+export function isSessionStampCurrent(stamp: unknown, expected: PrdSessionStamp): boolean {
+  if (typeof stamp !== 'object' || stamp === null) return false;
+  const { password, backend } = stamp as { password?: unknown; backend?: unknown };
+  return password === expected.password && backend === expected.backend;
+}
+
+/** Seeded foyer each role belongs to (single-sourced from PRD_ACCOUNTS). */
+export function foyerNameFor(role: PrdAccountRole): string {
+  const account = PRD_ACCOUNTS.find((candidate) => candidate.role === role);
+  if (!account) throw new Error(`Unknown PRD seed role: ${role}.`);
+  return account.foyer === 2 ? PRD_FOYER_2_NAME : PRD_FOYER_1_NAME;
+}
+
 export const PRD_SEED_PASSWORD_ENV_VAR = 'E2E_PRD_PASSWORD';
 
 export const PRD_SEED_PASSWORD_MIN_LENGTH = 8;

@@ -56,19 +56,19 @@ serve(async (req) => {
     );
   }
 
-  // Optionally require a shared cron secret so random callers can't trigger
-  // sends or reminders. Mirrors member-gdpr-sweep: if CRON_SECRET is set,
-  // require a matching x-cron-secret header; otherwise requests are gated only
-  // by the deployment-time verify_jwt setting (documented in README.md).
+  // Mandatory shared cron secret so stray callers can't trigger sends or
+  // reminders. Mirrors member-gdpr-sweep (ticket #114): fail closed — no
+  // configured secret (or a mismatch) => 401, nothing enqueued or sent.
+  // Deployment-time verify_jwt is intentionally OFF for cron callers (see
+  // README.md); this in-code check is the real gate either way.
   const expected = Deno.env.get("CRON_SECRET");
-  if (expected) {
-    const provided = req.headers.get("x-cron-secret");
-    if (provided !== expected) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json" } },
-      );
-    }
+  const provided = req.headers.get("x-cron-secret");
+  if (!expected || provided !== expected) {
+    console.warn("notify-thresholds rejected: missing or invalid cron secret");
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { "Content-Type": "application/json" } },
+    );
   }
 
   // POST /daily-reminders — enqueue daily reminder notifications
@@ -100,8 +100,10 @@ async function handleProcessNotifications(): Promise<Response> {
     .order("created_at", { ascending: true });
 
   if (fetchError) {
+    // Server-side log only: never leak error.message to the HTTP caller.
+    console.error("notify-thresholds fetch failed:", fetchError);
     return new Response(
-      JSON.stringify({ error: "Failed to fetch notifications", details: fetchError.message }),
+      JSON.stringify({ error: "Failed to fetch notifications" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
@@ -256,8 +258,10 @@ async function handleDailyReminders(): Promise<Response> {
   });
 
   if (error) {
+    // Server-side log only: never leak error.message to the HTTP caller.
+    console.error("notify-thresholds enqueue failed:", error);
     return new Response(
-      JSON.stringify({ error: "Failed to enqueue reminders", details: error.message }),
+      JSON.stringify({ error: "Failed to enqueue reminders" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }

@@ -16,6 +16,7 @@ jobs:
   sweep:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: production
     steps:
       - name: Check sweep secrets configured
         run: |

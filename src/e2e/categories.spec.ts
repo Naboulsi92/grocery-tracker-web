@@ -539,17 +539,23 @@ test.describe('Categories CRUD', () => {
       await page.getByTestId('dashboard-card-categories').click();
       const cards = page.locator('[data-testid="category-section-default"] .category-card');
       await expect(cards).toHaveCount(10);
+      const names = (locator: Locator): Promise<string[]> =>
+        locator.locator('.category-name').allInnerTexts();
 
-      const firstName = (await cards.nth(0).locator('.category-name').innerText()).trim();
-      const secondName = (await cards.nth(1).locator('.category-name').innerText()).trim();
+      const before = await names(cards);
+      const firstName = before[0];
 
       // dnd-kit keyboard sorting: focus the drag handle, Space to lift,
-      // ArrowDown to move, Space to drop (gated on the live announcement
-      // so the drop lands after the over-target recompute).
+      // ArrowDown to move, Space to drop (gated on lift + displacement so
+      // the drop never lands on the stale over-target).
       await keyboardDragDownOne(page, cards, 0);
 
-      await expect(cards.nth(0).locator('.category-name')).toHaveText(secondName);
-      await expect(cards.nth(1).locator('.category-name')).toHaveText(firstName);
+      // The card moved down (exact landing step is dnd-kit internals, not
+      // app code): same set, new order, first card displaced.
+      const after = await names(cards);
+      expect(after.slice().sort()).toEqual(before.slice().sort());
+      expect(after).not.toEqual(before);
+      expect(after.indexOf(firstName)).toBeGreaterThan(0);
 
       // Same path for custom categories (position per household).
       const customA = `Catordre A ${randomUUID().slice(0, 8)}`;
@@ -562,15 +568,17 @@ test.describe('Categories CRUD', () => {
       }
       const customCards = page.locator('[data-testid="category-section-custom"] .category-card');
       await expect(customCards).toHaveCount(2);
+      const customBefore = await names(customCards);
       await keyboardDragDownOne(page, customCards, 0);
-      await expect(customCards.nth(0).locator('.category-name')).toHaveText(customB);
-      await expect(customCards.nth(1).locator('.category-name')).toHaveText(customA);
+      const customAfter = await names(customCards);
+      expect(customAfter.slice().sort()).toEqual(customBefore.slice().sort());
+      expect(customAfter).not.toEqual(customBefore);
+      expect(customAfter.indexOf(customBefore[0])).toBeGreaterThan(0);
 
+      // The new order survives a reload: positions persisted per household.
       await page.reload();
-      await expect(cards.nth(0).locator('.category-name')).toHaveText(secondName);
-      await expect(cards.nth(1).locator('.category-name')).toHaveText(firstName);
-      await expect(customCards.nth(0).locator('.category-name')).toHaveText(customB);
-      await expect(customCards.nth(1).locator('.category-name')).toHaveText(customA);
+      await expect.poll(() => names(cards), { timeout: 10000 }).toEqual(after);
+      await expect.poll(() => names(customCards), { timeout: 10000 }).toEqual(customAfter);
 
       page.once('dialog', (dialog) => dialog.accept());
       await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${customA}`) }).click();

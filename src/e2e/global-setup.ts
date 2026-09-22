@@ -115,7 +115,10 @@ async function globalSetup() {
     if (signInError) throw signInError;
     const { data, error: rpcError } = await client.rpc('create_household', { p_name: name });
     if (rpcError) throw rpcError;
-    return data as string;
+    if (typeof data !== 'string' || data.length === 0) {
+      throw new Error(`create_household RPC returned an unexpected household id for ${name}.`);
+    }
+    return data;
   };
 
   const foyer1 = await createFoyer(PRD_ACCOUNTS[0].email, PRD_FOYER_1_NAME);

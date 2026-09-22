@@ -180,7 +180,9 @@ export default function CategoriesPage() {
 
     try {
       const [categoriesRes, positionsRes] = await Promise.all([
-        supabase.from('categories').select('*').eq('household_id', householdId),
+        // Ticket #117 : colonnes explicites (Row complet, pas de '*').
+        // Inventaire SANS pagination (décision ticket).
+        supabase.from('categories').select('id, household_id, name, is_default, created_at').eq('household_id', householdId),
         supabase.from('category_positions').select('category_id, position').eq('household_id', householdId),
       ]);
       if (categoriesRes.error) throw categoriesRes.error;
@@ -252,7 +254,7 @@ export default function CategoriesPage() {
           .update({ name: formName.trim() })
           .eq('id', editingId)
           .eq('household_id', householdId)
-          .select()
+          .select('id, household_id, name, is_default, created_at')
           .single();
         if (updateError) throw updateError;
         setCategories((current) => current.map((category) => category.id === data.id ? data : category));
@@ -264,7 +266,7 @@ export default function CategoriesPage() {
             household_id: householdId,
             name: formName.trim(),
           })
-          .select()
+          .select('id, household_id, name, is_default, created_at')
           .single();
         if (insertError) throw insertError;
 

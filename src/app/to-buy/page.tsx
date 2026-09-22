@@ -51,8 +51,10 @@ export default function ToBuyPage() {
 
     try {
       const [itemsRes, categoriesRes] = await Promise.all([
-        supabase.from('items').select('*').eq('household_id', householdId).order('name'),
-        supabase.from('categories').select('*').eq('household_id', householdId),
+        // Ticket #117 : colonnes explicites (Row complet, pas de '*').
+        // Inventaire SANS pagination (décision ticket) : tri conservé.
+        supabase.from('items').select('id, household_id, category_id, name, quantity, unit, low_stock_threshold, already_notified, template_id, created_at, updated_at, last_modified_at, last_modified_by').eq('household_id', householdId).order('name'),
+        supabase.from('categories').select('id, household_id, name, is_default, created_at').eq('household_id', householdId),
       ]);
       const queryError = itemsRes.error ?? categoriesRes.error;
       if (queryError) throw queryError;

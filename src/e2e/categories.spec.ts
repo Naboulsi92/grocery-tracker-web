@@ -1,10 +1,29 @@
 import { randomUUID } from 'node:crypto';
+import type { Locator, Page } from '@playwright/test';
 import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
 import {
   e2eEnvironment,
   fixtureRequiredReason,
   writesDisabledReason,
 } from './environment';
+
+// dnd-kit keyboard drag: focus the handle, Space to lift, ArrowDown to move,
+// Space to drop. The over-target recompute after ArrowDown is async (React
+// state + collision detection), so the drop must wait for the live-region
+// announcement to change — dropping on the next tick lands on the stale
+// target (the dragged card itself) and the reorder silently no-ops.
+async function keyboardDragDownOne(page: Page, handle: Locator): Promise<void> {
+  const live = page.locator('[aria-live="assertive"]');
+  await handle.focus();
+  await page.keyboard.press('Space');
+  await expect.poll(async () => live.innerText(), { timeout: 10000 }).not.toBe('');
+  const liftedAnnouncement = await live.innerText();
+  await page.keyboard.press('ArrowDown');
+  await expect
+    .poll(async () => live.innerText(), { timeout: 10000 })
+    .not.toBe(liftedAnnouncement);
+  await page.keyboard.press('Space');
+}
 
 test.describe('Categories CRUD', () => {
   test.describe('Create Category', () => {
@@ -521,11 +540,9 @@ test.describe('Categories CRUD', () => {
       const secondName = (await cards.nth(1).locator('.category-name').innerText()).trim();
 
       // dnd-kit keyboard sorting: focus the drag handle, Space to lift,
-      // ArrowDown to move, Space to drop.
-      await cards.nth(0).getByTestId('category-drag-handle').focus();
-      await page.keyboard.press('Space');
-      await page.keyboard.press('ArrowDown');
-      await page.keyboard.press('Space');
+      // ArrowDown to move, Space to drop (gated on the live announcement
+      // so the drop lands after the over-target recompute).
+      await keyboardDragDownOne(page, cards.nth(0).getByTestId('category-drag-handle'));
 
       await expect(cards.nth(0).locator('.category-name')).toHaveText(secondName);
       await expect(cards.nth(1).locator('.category-name')).toHaveText(firstName);
@@ -541,10 +558,7 @@ test.describe('Categories CRUD', () => {
       }
       const customCards = page.locator('[data-testid="category-section-custom"] .category-card');
       await expect(customCards).toHaveCount(2);
-      await customCards.nth(0).getByTestId('category-drag-handle').focus();
-      await page.keyboard.press('Space');
-      await page.keyboard.press('ArrowDown');
-      await page.keyboard.press('Space');
+      await keyboardDragDownOne(page, customCards.nth(0).getByTestId('category-drag-handle'));
       await expect(customCards.nth(0).locator('.category-name')).toHaveText(customB);
       await expect(customCards.nth(1).locator('.category-name')).toHaveText(customA);
 

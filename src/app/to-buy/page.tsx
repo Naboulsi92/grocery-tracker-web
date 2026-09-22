@@ -10,7 +10,7 @@ import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SyncingIndicator } from '@/components/SyncingIndicator';
-import { getErrorMessage, getLowStockItems, joinInventory, type InventoryItem } from '@/lib/inventory';
+import { getErrorMessage, getLowStockItems, joinInventory, CATEGORY_COLUMNS, ITEM_COLUMNS, type InventoryItem } from '@/lib/inventory';
 import { updateItemQuantity } from '@/lib/itemOperations';
 import { validateQuantity } from '@/lib/validation';
 import { getUnitStep } from '@/types/units';
@@ -51,8 +51,10 @@ export default function ToBuyPage() {
 
     try {
       const [itemsRes, categoriesRes] = await Promise.all([
-        supabase.from('items').select('*').eq('household_id', householdId).order('name'),
-        supabase.from('categories').select('*').eq('household_id', householdId),
+        // Ticket #117 : colonnes explicites (Row complet, pas de '*').
+        // Inventaire SANS pagination (décision ticket) : tri conservé.
+        supabase.from('items').select(ITEM_COLUMNS).eq('household_id', householdId).order('name'),
+        supabase.from('categories').select(CATEGORY_COLUMNS).eq('household_id', householdId),
       ]);
       const queryError = itemsRes.error ?? categoriesRes.error;
       if (queryError) throw queryError;

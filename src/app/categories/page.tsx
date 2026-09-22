@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import { createClient } from '@/utils/supabase/client';
-import { getErrorMessage, getNextCategoryOrder, type Category } from '@/lib/inventory';
+import { getErrorMessage, getNextCategoryOrder, CATEGORY_COLUMNS, type Category } from '@/lib/inventory';
 import { hasDuplicateCustomName } from '@/lib/categories';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { validateName } from '@/lib/validation';
@@ -180,7 +180,9 @@ export default function CategoriesPage() {
 
     try {
       const [categoriesRes, positionsRes] = await Promise.all([
-        supabase.from('categories').select('*').eq('household_id', householdId),
+        // Ticket #117 : colonnes explicites (Row complet, pas de '*').
+        // Inventaire SANS pagination (décision ticket).
+        supabase.from('categories').select(CATEGORY_COLUMNS).eq('household_id', householdId),
         supabase.from('category_positions').select('category_id, position').eq('household_id', householdId),
       ]);
       if (categoriesRes.error) throw categoriesRes.error;
@@ -252,7 +254,7 @@ export default function CategoriesPage() {
           .update({ name: formName.trim() })
           .eq('id', editingId)
           .eq('household_id', householdId)
-          .select()
+          .select(CATEGORY_COLUMNS)
           .single();
         if (updateError) throw updateError;
         setCategories((current) => current.map((category) => category.id === data.id ? data : category));
@@ -264,7 +266,7 @@ export default function CategoriesPage() {
             household_id: householdId,
             name: formName.trim(),
           })
-          .select()
+          .select(CATEGORY_COLUMNS)
           .single();
         if (insertError) throw insertError;
 

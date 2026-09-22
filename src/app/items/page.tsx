@@ -10,7 +10,7 @@ import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SyncingIndicator } from '@/components/SyncingIndicator';
-import { getErrorMessage, groupItems, joinInventory, type Category, type InventoryItem } from '@/lib/inventory';
+import { getErrorMessage, groupItems, joinInventory, CATEGORY_COLUMNS, ITEM_COLUMNS, type Category, type InventoryItem } from '@/lib/inventory';
 import { createItem, updateItem, updateItemQuantity, deleteItem } from '@/lib/itemOperations';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -53,8 +53,10 @@ export default function ItemsPage() {
 
     try {
       const [categoriesRes, itemsRes] = await Promise.all([
-        supabase.from('categories').select('*').eq('household_id', householdId).order('name'),
-        supabase.from('items').select('*').eq('household_id', householdId).order('name'),
+        // Ticket #117 : colonnes explicites (Row complet, pas de '*').
+        // Inventaire SANS pagination (décision ticket) : tri conservé.
+        supabase.from('categories').select(CATEGORY_COLUMNS).eq('household_id', householdId).order('name'),
+        supabase.from('items').select(ITEM_COLUMNS).eq('household_id', householdId).order('name'),
       ]);
       const queryError = categoriesRes.error ?? itemsRes.error;
       if (queryError) throw queryError;

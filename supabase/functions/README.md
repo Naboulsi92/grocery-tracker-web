@@ -31,7 +31,7 @@ Server-side notification delivery for the grocery list app. Processes pending no
 
 2. **Processing** (`POST /`): The edge function selects all rows where `processed_at IS NULL`, sends Web Push notifications to the non-acting household member(s), then marks rows as processed.
 
-3. **Daily reminders** (`POST /daily-reminders`): Computes the current **UTC** wall-clock time (`HH:MM`, from `toISOString()`) and calls `enqueue_daily_reminders(p_at_time)`. That RPC enqueues one row **per user** whose `profiles.reminder_time` equals the argument, sets `target_user_id` (so only that member is notified), and de-duplicates within 24h per (household, user). `reminder_time` is a plain `time` with **no per-user timezone — the stored value is interpreted as UTC**; adjust cron/schedule times accordingly.
+3. **Daily reminders** (`POST /daily-reminders`): Computes the current **UTC** wall-clock time (`HH:MM`, from `toISOString()`) and calls `enqueue_daily_reminders(p_at_time)`. That RPC enqueues one row **per user** whose `profiles.reminder_time` is due (`<=` argument, bounded lateness), sets `target_user_id` (so only that member is notified), and de-duplicates within 24h per (household, user). `reminder_time` is a plain `time` with **no per-user timezone — the stored value is interpreted as UTC**; adjust cron/schedule times accordingly.
 
 4. **Subscription cleanup**: If a push subscription returns 404/410 (expired/unsubscribed), the subscription row is deleted from `push_subscriptions`.
 

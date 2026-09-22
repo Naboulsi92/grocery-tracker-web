@@ -1819,6 +1819,43 @@ end;
 $$;
 reset role;
 
+-- Ticket #114 — fenêtre d'échéance : un rappel à 08:07 est dû à 08:15
+-- (pas seulement à égalité HH:MM exacte), dédup 24h, heure future ignorée.
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+values ('00000000-0000-4000-8000-000000000015', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'reminder@example.test', '', now(), now());
+update public.profiles set notification_type = 'push', reminder_time = '08:07' where id = '00000000-0000-4000-8000-000000000015';
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000015', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.create_household('Reminder household');
+reset role;
+select public.enqueue_daily_reminders('08:15'::time);
+do $$
+begin
+  if (select count(*) from public.pending_notifications where target_user_id = '00000000-0000-4000-8000-000000000015' and processed_at is null) <> 1 then
+    raise exception 'due reminder 08:07 was not enqueued at 08:15';
+  end if;
+end;
+$$;
+select public.enqueue_daily_reminders('08:16'::time);
+do $$
+begin
+  if (select count(*) from public.pending_notifications where target_user_id = '00000000-0000-4000-8000-000000000015' and processed_at is null) <> 1 then
+    raise exception 'daily reminder was double-enqueued within 24h';
+  end if;
+end;
+$$;
+delete from public.pending_notifications where target_user_id = '00000000-0000-4000-8000-000000000015';
+update public.profiles set reminder_time = '09:00' where id = '00000000-0000-4000-8000-000000000015';
+select public.enqueue_daily_reminders('08:15'::time);
+do $$
+begin
+  if (select count(*) from public.pending_notifications where target_user_id = '00000000-0000-4000-8000-000000000015' and processed_at is null) <> 0 then
+    raise exception 'future reminder 09:00 was enqueued at 08:15';
+  end if;
+end;
+$$;
+
 -- Sweep >7j : purge 013, retient 014, idempotent (2e passage → 0).
 select public.sweep_fully_deleted_members() as lc_sweep1 \gset
 select set_config('test.lc_sweep1', :'lc_sweep1', true);

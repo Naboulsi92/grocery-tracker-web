@@ -10,10 +10,9 @@ name: Notify thresholds
 #   2. POST / — traite la file pending_notifications et pousse via VAPID.
 #
 # Cadence : toutes les 15 minutes (minimum utile GitHub Actions : 5 min).
-# LIMITATION DOCUMENTÉE : enqueue_daily_reminders ne retient que les
-# reminder_time ÉGAUX à l'heure UTC courante (HH:MM exact) — seuls les
-# rappels réglés sur :00/:15/:30/:45 se déclenchent. Régler reminder_time
-# sur un quart d'heure côté app (validation = chantier séparé).
+# enqueue_daily_reminders retient tout reminder_time DÛ (<= heure UTC
+# courante, retard borné ≤15 min) avec dédup 24h par (foyer, user) :
+# aucun réglage n'est silencieusement ignoré.
 # Secrets requis (fail-fast) : SUPABASE_URL, SUPABASE_CRON_SECRET
 # (même valeur que CRON_SECRET de la fonction). Aucune clé service-role
 # côté GitHub. Variables par environment GitHub `production` (#62).

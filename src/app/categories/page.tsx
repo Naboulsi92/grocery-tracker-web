@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import { createClient } from '@/utils/supabase/client';
-import { getErrorMessage, getNextCategoryOrder, type Category } from '@/lib/inventory';
+import { getErrorMessage, getNextCategoryOrder, CATEGORY_COLUMNS, type Category } from '@/lib/inventory';
 import { hasDuplicateCustomName } from '@/lib/categories';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { validateName } from '@/lib/validation';
@@ -182,7 +182,7 @@ export default function CategoriesPage() {
       const [categoriesRes, positionsRes] = await Promise.all([
         // Ticket #117 : colonnes explicites (Row complet, pas de '*').
         // Inventaire SANS pagination (décision ticket).
-        supabase.from('categories').select('id, household_id, name, is_default, created_at').eq('household_id', householdId),
+        supabase.from('categories').select(CATEGORY_COLUMNS).eq('household_id', householdId),
         supabase.from('category_positions').select('category_id, position').eq('household_id', householdId),
       ]);
       if (categoriesRes.error) throw categoriesRes.error;
@@ -254,7 +254,7 @@ export default function CategoriesPage() {
           .update({ name: formName.trim() })
           .eq('id', editingId)
           .eq('household_id', householdId)
-          .select('id, household_id, name, is_default, created_at')
+          .select(CATEGORY_COLUMNS)
           .single();
         if (updateError) throw updateError;
         setCategories((current) => current.map((category) => category.id === data.id ? data : category));
@@ -266,7 +266,7 @@ export default function CategoriesPage() {
             household_id: householdId,
             name: formName.trim(),
           })
-          .select('id, household_id, name, is_default, created_at')
+          .select(CATEGORY_COLUMNS)
           .single();
         if (insertError) throw insertError;
 

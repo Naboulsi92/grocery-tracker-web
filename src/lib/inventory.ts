@@ -12,6 +12,14 @@ export type ItemGroup = {
   items: InventoryItem[];
 };
 
+// Ticket #117 : colonnes explicites partagées (Row complet, pas de '*').
+// Inventaire SANS pagination (décision ticket) : listes miroirs de
+// database.ts Row — à étendre si une colonne est ajoutée en base.
+export const CATEGORY_COLUMNS = 'id, household_id, name, is_default, created_at';
+
+export const ITEM_COLUMNS =
+  'id, household_id, category_id, name, quantity, unit, low_stock_threshold, already_notified, template_id, created_at, updated_at, last_modified_at, last_modified_by';
+
 export function joinInventory(items: Item[], categories: Category[]): InventoryItem[] {
   const categoriesById = new Map(categories.map((category) => [category.id, category]));
 

@@ -1,10 +1,16 @@
 import { randomUUID } from 'node:crypto';
+import type { Page } from '@playwright/test';
 import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
 import {
   e2eEnvironment,
   fixtureRequiredReason,
   writesDisabledReason,
 } from './environment';
+import {
+  PWA_INSTALLED_KEY,
+  PWA_SNOOZED_AT_KEY,
+  PWA_VISITS_KEY,
+} from '../lib/pwa-banner';
 
 const VIEWPORTS = {
   mobile: { width: 320, height: 568 },
@@ -323,4 +329,81 @@ test.describe('Mobile Responsiveness', () => {
       await expect(page).toHaveURL('/home');
     });
   });
+
+  // Ticket #113 (PRD §4.13) : le bandeau vit sur la page marketing publique,
+  // donc ces tests tournent sans backend (pas de gate writesAllowed).
+  test.describe('PWA install banner (P1-14, #113)', () => {
+    // Recharge puis arme le bandeau : on attend que l'effet de montage ait
+    // tourné (compteur de visites incrémenté => listeners beforeinstallprompt
+    // attachés) AVANT de dispatcher l'événement, sinon la course avec
+    // l'hydratation rend le test flaky.
+    async function reloadAndArm(page: Page) {
+      const before = Number(
+        await page.evaluate((key) => localStorage.getItem(key) ?? 0, PWA_VISITS_KEY),
+      );
+      await page.reload();
+      await page.waitForFunction(
+        ([key, previous]) => Number(localStorage.getItem(key) ?? 0) > previous,
+        [PWA_VISITS_KEY, before] as const,
+      );
+      await page.evaluate(() => window.dispatchEvent(new Event('beforeinstallprompt')));
+    }
+
+    async function installableVisit(page: Page, visits: number) {
+      await page.goto('/');
+      await page.evaluate(([key, v]) => {
+        localStorage.setItem(key, String(v));
+      }, [PWA_VISITS_KEY, visits] as const);
+      await reloadAndArm(page);
+    }
+
+    test('appears on the 2nd visit', async ({ page, browserName }) => {
+      test.skip(browserName !== 'chromium', 'PWA banner tests on Chromium only');
+      await installableVisit(page, 1);
+      await expect(page.getByTestId('pwa-install-banner')).toBeVisible();
+      await expect(page.getByTestId('pwa-install-banner')).toContainText("Installez l'application");
+    });
+
+    test('dismiss snoozes until 2 further visits, then reappears', async ({ page, browserName }) => {
+      test.skip(browserName !== 'chromium', 'PWA banner tests on Chromium only');
+      // Seed high so the banner shows regardless of dev double-mount.
+      await installableVisit(page, 10);
+      await expect(page.getByTestId('pwa-install-banner')).toBeVisible();
+
+      await page.getByTestId('pwa-install-dismiss').click();
+      await expect(page.getByTestId('pwa-install-banner')).toHaveCount(0);
+      const snoozedAt = Number(
+        await page.evaluate((key) => localStorage.getItem(key), PWA_SNOOZED_AT_KEY),
+      );
+      expect(snoozedAt).toBeGreaterThan(0);
+
+      // Rewind inside the snooze window: still hidden after reload.
+      await page.evaluate(([key, s]) => {
+        localStorage.setItem(key, String(s - 10));
+      }, [PWA_VISITS_KEY, snoozedAt] as const);
+      await reloadAndArm(page);
+      await expect(page.getByTestId('pwa-install-banner')).toHaveCount(0);
+
+      // Fast-forward past the window: visible again.
+      await page.evaluate(([key, s]) => {
+        localStorage.setItem(key, String(s + 10));
+      }, [PWA_VISITS_KEY, snoozedAt] as const);
+      await reloadAndArm(page);
+      await expect(page.getByTestId('pwa-install-banner')).toBeVisible();
+    });
+
+    test('stays hidden once installed', async ({ page, browserName }) => {
+      test.skip(browserName !== 'chromium', 'PWA banner tests on Chromium only');
+      await installableVisit(page, 1);
+      await expect(page.getByTestId('pwa-install-banner')).toBeVisible();
+
+      await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
+      await expect(page.getByTestId('pwa-install-banner')).toHaveCount(0);
+      expect(await page.evaluate((key) => localStorage.getItem(key), PWA_INSTALLED_KEY)).toBe('1');
+
+      await reloadAndArm(page);
+      await expect(page.getByTestId('pwa-install-banner')).toHaveCount(0);
+    });
+  });
+
 });

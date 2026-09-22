@@ -1,10 +1,40 @@
 import { randomUUID } from 'node:crypto';
+import type { Locator, Page } from '@playwright/test';
 import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
 import {
   e2eEnvironment,
   fixtureRequiredReason,
   writesDisabledReason,
 } from './environment';
+
+// Pointer drag straight down: .categories-grid is multi-column and the
+// DnD context restricts movement to the vertical axis, so only a vertical
+// drag can land the dragged card over another row. closestCenter follows
+// the (axis-clamped) dragged rect, not the pointer — a horizontal move
+// displaces nothing and the drop silently no-ops. Lift, displacement AND
+// the neighbor shift are gated: the drop must wait for the over-target
+// commit, otherwise it lands on the stale target.
+async function pointerDragDownOneRow(page: Page, cards: Locator, index: number): Promise<void> {
+  const transformOf = (locator: Locator): Promise<string> =>
+    locator.evaluate((el) => (el as HTMLElement).style.transform || '');
+  const handle = cards.nth(index).getByTestId('category-drag-handle');
+  const card = cards.nth(index);
+  const neighbor = cards.nth(index + 1);
+  const from = await handle.boundingBox();
+  const box = await card.boundingBox();
+  expect(from).not.toBeNull();
+  expect(box).not.toBeNull();
+  if (!from || !box) throw new Error('drag boxes not measurable');
+  const restTransform = await transformOf(card);
+  const restNeighborTransform = await transformOf(neighbor);
+  const x = from.x + from.width / 2;
+  await page.mouse.move(x, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(x, box.y + box.height * 1.6, { steps: 15 });
+  await expect.poll(() => transformOf(card), { timeout: 10000 }).not.toBe(restTransform);
+  await expect.poll(() => transformOf(neighbor), { timeout: 10000 }).not.toBe(restNeighborTransform);
+  await page.mouse.up();
+}
 
 test.describe('Categories CRUD', () => {
   test.describe('Create Category', () => {
@@ -505,6 +535,69 @@ test.describe('Categories CRUD', () => {
         .getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) })
         .click();
       await expect(page.getByText(categoryName)).toHaveCount(0);
+    });
+  });
+
+  test.describe('Custom Order via Drag and Drop (#113)', () => {
+    const names = (locator: Locator): Promise<string[]> =>
+      locator.locator('.category-name').allInnerTexts();
+
+    test('keyboard lifts and cancels a drag without changing order', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-categories').click();
+      const cards = page.locator('[data-testid="category-section-default"] .category-card');
+      await expect(cards).toHaveCount(10);
+      const before = await names(cards);
+
+      // Keyboard operability (dnd-kit): the handle is Tab-reachable, Space
+      // lifts (aria-pressed + screen-reader announcement wired), Escape
+      // cancels with the order untouched. Pointer drag below covers moving.
+      const handle = cards.nth(0).getByTestId('category-drag-handle');
+      await handle.focus();
+      await expect(handle).toBeFocused();
+      await page.keyboard.press('Space');
+      await expect(handle).toHaveAttribute('aria-pressed', 'true', { timeout: 10000 });
+      await expect
+        .poll(
+          async () =>
+            page.evaluate(() =>
+              [...document.querySelectorAll('[aria-live]')]
+                .map((region) => region.textContent ?? '')
+                .join(' '),
+            ),
+          { timeout: 10000 },
+        )
+        .not.toBe('');
+      await page.keyboard.press('Escape');
+      await expect(handle).not.toHaveAttribute('aria-pressed', 'true');
+      await expect.poll(() => names(cards), { timeout: 10000 }).toEqual(before);
+    });
+
+    test('pointer drag reorders categories and persists after reload', async ({ page, account }) => {
+      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-categories').click();
+      const cards = page.locator('[data-testid="category-section-default"] .category-card');
+      await expect(cards).toHaveCount(10);
+
+      // Drag the first card one row down: same set, new order, first card
+      // displaced. (Exact landing row is grid-layout dependent; movement +
+      // persistence is the ticket criterion. Custom categories share the
+      // exact same handleDragEnd/upsert path — no branch on is_default —
+      // so one end-to-end drag covers both.)
+      const before = await names(cards);
+      await pointerDragDownOneRow(page, cards, 0);
+      const after = await names(cards);
+      expect(after.slice().sort()).toEqual(before.slice().sort());
+      expect(after).not.toEqual(before);
+      expect(after.indexOf(before[0])).toBeGreaterThan(0);
+
+      // The new order survives a reload: positions persisted per household.
+      await page.reload();
+      await expect.poll(() => names(cards), { timeout: 10000 }).toEqual(after);
     });
   });
 });

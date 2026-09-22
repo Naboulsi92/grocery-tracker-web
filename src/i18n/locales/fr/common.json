@@ -70,6 +70,7 @@
   "pwa.install": "Installer",
   "pwa.later_aria": "Plus tard",
   "pwa.later": "Plus tard",
+  "pwa.manual": "Ajoutez l'application depuis le menu Partager de votre navigateur (Sur l'écran d'accueil).",
   "session.expired": "Votre session a expiré. Veuillez vous reconnecter.",
   "private.verify_household_error": "Impossible de vérifier votre foyer. Vous pouvez réessayer.",
   "header.back_home": "Retour à l'accueil",

@@ -91,6 +91,10 @@ as $$
 $$;
 
 -- Dead since V1.1 §24 (PRD §11 household equality): drop, never recreate.
+-- The owner-gated households_update_owner policy depends on it: drop the
+-- policy first (it is re-created member-gated in §3 below; V1.1 §24 later
+-- replaces it with households_update_member).
+drop policy if exists households_update_owner on public.households;
 drop function if exists private.is_household_owner(uuid);
 
 revoke all on function private.is_household_member(uuid) from public, anon, authenticated;

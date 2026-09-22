@@ -25,6 +25,7 @@ import {
   validateNewPassword,
   type ProfileLanguage,
 } from '@/lib/account';
+import { buildAccountExport, downloadAccountExport } from '@/lib/account-export';
 
 export default function AccountPage() {
   const { user, householdId, signOut } = useAuth();
@@ -60,6 +61,10 @@ export default function AccountPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const [exportDone, setExportDone] = useState(false);
 
   // PRD §4.9 : reconnexion <7j → deleted_at NULL + compte restauré.
   // Restauration primaire dans AuthContext (toute session) ; ici en fallback
@@ -172,6 +177,25 @@ export default function AccountPage() {
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  // RGPD §4.11 : export JSON des données personnelles (profil + foyer si
+  // encore membre — après quitter, household vaut null et seul le profil
+  // est exporté). Disponible avant suppression et pendant la grâce 7j.
+  const handleExportData = async () => {
+    if (!user) return;
+    setExporting(true);
+    setExportError('');
+    setExportDone(false);
+    const { data, error } = await buildAccountExport(supabase, user.id);
+    if (error || !data) {
+      setExportError(error ?? 'errors.account.export_failed');
+      setExporting(false);
+      return;
+    }
+    downloadAccountExport(data);
+    setExportDone(true);
+    setExporting(false);
   };
 
   // PRD §4.9 : suppression = quitter (l'autre membre garde l'inventaire,
@@ -390,6 +414,26 @@ export default function AccountPage() {
             onClick={() => void handleSignOut()}
           >
             {t('auth.sign_out')}
+          </button>
+        </section>
+
+        <section className="card account-section">
+          <h2 className="account-section-title">{t('account.data_section')}</h2>
+          <p className="text-muted account-section-hint">
+            {t('account.data_hint')}
+          </p>
+          {exportError && <p className="notification-error" role="alert">{translateMessage(language, exportError)}</p>}
+          {exportDone && (
+            <p className="account-feedback-success" role="status">{t('account.export_done')}</p>
+          )}
+          <button
+            type="button"
+            data-testid="account-export-button"
+            className="btn btn-secondary"
+            onClick={() => void handleExportData()}
+            disabled={exporting}
+          >
+            {exporting ? t('account.exporting') : t('account.export_data')}
           </button>
         </section>
 

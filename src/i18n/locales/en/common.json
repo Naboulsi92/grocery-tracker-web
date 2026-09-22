@@ -70,6 +70,7 @@
   "pwa.install": "Install",
   "pwa.later_aria": "Later",
   "pwa.later": "Later",
+  "pwa.manual": "Add the app from your browser's Share menu (Add to Home Screen).",
   "session.expired": "Your session has expired. Please sign in again.",
   "private.verify_household_error": "Unable to verify your household. You can retry.",
   "header.back_home": "Back to home",

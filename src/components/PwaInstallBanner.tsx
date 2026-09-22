@@ -2,20 +2,22 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { useI18n } from '@/contexts/LanguageContext';
+import {
+  PWA_BANNER_EVENT,
+  PWA_INSTALLED_KEY,
+  PWA_SNOOZED_AT_KEY,
+  PWA_VISITS_KEY,
+} from '@/lib/pwa-banner';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
-const VISITS_KEY = 'pwa-banner-visits';
 // Visit count at the last dismissal — the banner snoozes until 2 further
 // visits (PRD §4.13). Legacy key 'pwa-banner-dismissals' (dismissal counter
 // with permanent hide) is intentionally ignored: clients carrying it simply
 // become re-eligible, which matches the no-permanent-hide rule.
-const SNOOZED_AT_KEY = 'pwa-banner-snoozed-at';
-const INSTALLED_KEY = 'pwa-banner-installed';
-const PWA_BANNER_EVENT = 'pwa-banner-change';
 
 function readVisitCounter(key: string): number | null {
   const raw = localStorage.getItem(key);
@@ -25,11 +27,11 @@ function readVisitCounter(key: string): number | null {
 }
 
 function getVisits(): number {
-  return readVisitCounter(VISITS_KEY) ?? 0;
+  return readVisitCounter(PWA_VISITS_KEY) ?? 0;
 }
 
 function getSnoozedAt(): number | null {
-  return readVisitCounter(SNOOZED_AT_KEY);
+  return readVisitCounter(PWA_SNOOZED_AT_KEY);
 }
 
 function persistAndBroadcast(key: string, value: string): void {
@@ -38,7 +40,7 @@ function persistAndBroadcast(key: string, value: string): void {
 }
 
 function isInstalled(): boolean {
-  return localStorage.getItem(INSTALLED_KEY) === '1';
+  return localStorage.getItem(PWA_INSTALLED_KEY) === '1';
 }
 
 function getStandaloneSnapshot(): boolean {
@@ -54,7 +56,7 @@ function subscribeStandalone(onStoreChange: () => void): () => void {
 
 function subscribePwaBanner(onStoreChange: () => void) {
   const handleStorage = (event: StorageEvent) => {
-    if (event.key === VISITS_KEY || event.key === SNOOZED_AT_KEY || event.key === INSTALLED_KEY) {
+    if (event.key === PWA_VISITS_KEY || event.key === PWA_SNOOZED_AT_KEY || event.key === PWA_INSTALLED_KEY) {
       onStoreChange();
     }
   };
@@ -81,11 +83,11 @@ export function PwaInstallBanner() {
   // Visit-arithmetic assertions live in unit tests (single mount each);
   // E2E reads the counters instead of assuming increments.
   useEffect(() => {
-    persistAndBroadcast(VISITS_KEY, String(getVisits() + 1));
+    persistAndBroadcast(PWA_VISITS_KEY, String(getVisits() + 1));
   }, []);
 
   const markInstalled = useCallback(() => {
-    persistAndBroadcast(INSTALLED_KEY, '1');
+    persistAndBroadcast(PWA_INSTALLED_KEY, '1');
     setInstallEvent(null);
   }, []);
 
@@ -123,15 +125,17 @@ export function PwaInstallBanner() {
   }, [installEvent, markInstalled]);
 
   const handleDismiss = useCallback(() => {
-    persistAndBroadcast(SNOOZED_AT_KEY, String(getVisits()));
+    persistAndBroadcast(PWA_SNOOZED_AT_KEY, String(getVisits()));
     setDismissed(true);
   }, []);
 
   // Already installed (persisted flag) or running as an installed PWA.
   if (installed || standalone) return null;
 
-  // Wait for the browser's beforeinstallprompt event before offering install.
-  if (!installEvent) return null;
+  // The banner itself follows the visit rule only (PRD §4.13): on browsers
+  // without beforeinstallprompt (iOS Safari) there is no native prompt, so
+  // the install button is replaced by manual install instructions instead
+  // of hiding the banner forever.
 
   // Visit rule (PRD §4.13) : the banner appears starting from the 2nd visit.
   // Dismissal rule : a dismissal snoozes it until 2 further visits
@@ -153,15 +157,21 @@ export function PwaInstallBanner() {
         {t('pwa.text')}
       </p>
       <div className="pwa-install-actions">
-        <button
-          type="button"
-          data-testid="pwa-install-button"
-          aria-label={t('pwa.install_aria')}
-          onClick={handleInstall}
-          className="btn btn-primary pwa-install-button"
-        >
-          {t('pwa.install')}
-        </button>
+        {installEvent ? (
+          <button
+            type="button"
+            data-testid="pwa-install-button"
+            aria-label={t('pwa.install_aria')}
+            onClick={handleInstall}
+            className="btn btn-primary pwa-install-button"
+          >
+            {t('pwa.install')}
+          </button>
+        ) : (
+          <span data-testid="pwa-manual-hint" className="pwa-install-manual">
+            {t('pwa.manual')}
+          </span>
+        )}
         <span data-testid="pwa-dismiss-button">
           <button
             type="button"

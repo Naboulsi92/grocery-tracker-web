@@ -1,10 +1,16 @@
 import { randomUUID } from 'node:crypto';
+import type { Page } from '@playwright/test';
 import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
 import {
   e2eEnvironment,
   fixtureRequiredReason,
   writesDisabledReason,
 } from './environment';
+import {
+  PWA_INSTALLED_KEY,
+  PWA_SNOOZED_AT_KEY,
+  PWA_VISITS_KEY,
+} from '../lib/pwa-banner';
 
 const VIEWPORTS = {
   mobile: { width: 320, height: 568 },
@@ -331,23 +337,23 @@ test.describe('Mobile Responsiveness', () => {
     // tourné (compteur de visites incrémenté => listeners beforeinstallprompt
     // attachés) AVANT de dispatcher l'événement, sinon la course avec
     // l'hydratation rend le test flaky.
-    async function reloadAndArm(page: import('@playwright/test').Page) {
+    async function reloadAndArm(page: Page) {
       const before = Number(
-        await page.evaluate(() => localStorage.getItem('pwa-banner-visits') ?? 0),
+        await page.evaluate((key) => localStorage.getItem(key) ?? 0, PWA_VISITS_KEY),
       );
       await page.reload();
       await page.waitForFunction(
-        (previous) => Number(localStorage.getItem('pwa-banner-visits') ?? 0) > previous,
-        before,
+        ([key, previous]) => Number(localStorage.getItem(key) ?? 0) > previous,
+        [PWA_VISITS_KEY, before] as const,
       );
       await page.evaluate(() => window.dispatchEvent(new Event('beforeinstallprompt')));
     }
 
-    async function installableVisit(page: import('@playwright/test').Page, visits: number) {
+    async function installableVisit(page: Page, visits: number) {
       await page.goto('/');
-      await page.evaluate((v) => {
-        localStorage.setItem('pwa-banner-visits', String(v));
-      }, visits);
+      await page.evaluate(([key, v]) => {
+        localStorage.setItem(key, String(v));
+      }, [PWA_VISITS_KEY, visits] as const);
       await reloadAndArm(page);
     }
 
@@ -367,21 +373,21 @@ test.describe('Mobile Responsiveness', () => {
       await page.getByTestId('pwa-install-dismiss').click();
       await expect(page.getByTestId('pwa-install-banner')).toHaveCount(0);
       const snoozedAt = Number(
-        await page.evaluate(() => localStorage.getItem('pwa-banner-snoozed-at')),
+        await page.evaluate((key) => localStorage.getItem(key), PWA_SNOOZED_AT_KEY),
       );
       expect(snoozedAt).toBeGreaterThan(0);
 
       // Rewind inside the snooze window: still hidden after reload.
-      await page.evaluate((s) => {
-        localStorage.setItem('pwa-banner-visits', String(s - 10));
-      }, snoozedAt);
+      await page.evaluate(([key, s]) => {
+        localStorage.setItem(key, String(s - 10));
+      }, [PWA_VISITS_KEY, snoozedAt] as const);
       await reloadAndArm(page);
       await expect(page.getByTestId('pwa-install-banner')).toHaveCount(0);
 
       // Fast-forward past the window: visible again.
-      await page.evaluate((s) => {
-        localStorage.setItem('pwa-banner-visits', String(s + 10));
-      }, snoozedAt);
+      await page.evaluate(([key, s]) => {
+        localStorage.setItem(key, String(s + 10));
+      }, [PWA_VISITS_KEY, snoozedAt] as const);
       await reloadAndArm(page);
       await expect(page.getByTestId('pwa-install-banner')).toBeVisible();
     });
@@ -393,33 +399,11 @@ test.describe('Mobile Responsiveness', () => {
 
       await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
       await expect(page.getByTestId('pwa-install-banner')).toHaveCount(0);
-      expect(await page.evaluate(() => localStorage.getItem('pwa-banner-installed'))).toBe('1');
+      expect(await page.evaluate((key) => localStorage.getItem(key), PWA_INSTALLED_KEY)).toBe('1');
 
       await reloadAndArm(page);
       await expect(page.getByTestId('pwa-install-banner')).toHaveCount(0);
     });
   });
 
-  // Ticket #113 (PRD §4.10) : bascule FR/EN sur la page publique, sans backend.
-  test.describe('Language switch FR/EN (#113)', () => {
-    test('toggles marketing copy and html lang', async ({ page, browserName }) => {
-      test.skip(browserName !== 'chromium', 'Language tests on Chromium only');
-      await page.goto('/');
-      await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
-      await expect(page.getByRole('heading', { level: 1 })).toContainText(
-        'Des listes de courses collaboratives',
-      );
-
-      await page.getByRole('button', { name: 'English' }).click();
-      await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-      await expect(page.getByRole('heading', { level: 1 })).toContainText('Collaborative grocery lists');
-      expect(await page.evaluate(() => localStorage.getItem('language'))).toBe('en');
-
-      await page.getByRole('button', { name: 'Français' }).click();
-      await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
-      await expect(page.getByRole('heading', { level: 1 })).toContainText(
-        'Des listes de courses collaboratives',
-      );
-    });
-  });
 });

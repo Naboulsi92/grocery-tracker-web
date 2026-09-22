@@ -539,6 +539,9 @@ test.describe('Categories CRUD', () => {
   });
 
   test.describe('Custom Order via Drag and Drop (#113)', () => {
+    const names = (locator: Locator): Promise<string[]> =>
+      locator.locator('.category-name').allInnerTexts();
+
     test('keyboard lifts and cancels a drag without changing order', async ({ page, account }) => {
       test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
       await createHousehold(page, account);
@@ -546,8 +549,6 @@ test.describe('Categories CRUD', () => {
       await page.getByTestId('dashboard-card-categories').click();
       const cards = page.locator('[data-testid="category-section-default"] .category-card');
       await expect(cards).toHaveCount(10);
-      const names = (locator: Locator): Promise<string[]> =>
-        locator.locator('.category-name').allInnerTexts();
       const before = await names(cards);
 
       // Keyboard operability (dnd-kit): the handle is Tab-reachable, Space
@@ -581,8 +582,6 @@ test.describe('Categories CRUD', () => {
       await page.getByTestId('dashboard-card-categories').click();
       const cards = page.locator('[data-testid="category-section-default"] .category-card');
       await expect(cards).toHaveCount(10);
-      const names = (locator: Locator): Promise<string[]> =>
-        locator.locator('.category-name').allInnerTexts();
 
       // Drag the first card one row down: same set, new order, first card
       // displaced. (Exact landing row is grid-layout dependent; movement +

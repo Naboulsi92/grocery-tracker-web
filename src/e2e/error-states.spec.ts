@@ -1,6 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { didBecomeVisible } from './helpers';
-import { requireWrites } from './fixtures';
+import { requireWrites, test, expect } from './fixtures';
 
 async function fillOnboardingNames(page: Page) {
   await page.getByTestId('onboarding-first-name-input').fill('Camille');
@@ -8,11 +8,6 @@ async function fillOnboardingNames(page: Page) {
 }
 
 test.describe('Error States', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.context().clearCookies();
-    await page.context().clearPermissions();
-  });
-
   test.describe('Authentication Error States', () => {
     test('login shows error for invalid credentials', async ({ page }) => {
       await page.goto('/login');
@@ -182,7 +177,7 @@ test.describe('Error States', () => {
   });
 
   test.describe('Items Page Error States', () => {
-    test('items page shows error state when load fails', async ({ page }) => {
+    test('items page shows error state when load fails', async ({ authenticatedPage: page }) => {
       await page.goto('/items');
       await page.waitForLoadState('domcontentloaded');
 
@@ -207,7 +202,7 @@ test.describe('Error States', () => {
       }
     });
 
-    test('items page has loading state when creating item', async ({ page }) => {
+    test('items page has loading state when creating item', async ({ authenticatedPage: page }) => {
       await page.goto('/items');
       await page.waitForLoadState('domcontentloaded');
 
@@ -231,7 +226,7 @@ test.describe('Error States', () => {
       }
     });
 
-    test('items page has disabled delete button during mutation', async ({ page }) => {
+    test('items page has disabled delete button during mutation', async ({ authenticatedPage: page }) => {
       requireWrites();
 
       await page.goto('/items');
@@ -257,7 +252,7 @@ test.describe('Error States', () => {
   });
 
   test.describe('Categories Page Error States', () => {
-    test('categories page has loading state when creating category', async ({ page }) => {
+    test('categories page has loading state when creating category', async ({ authenticatedPage: page }) => {
       await page.goto('/categories');
       await page.waitForLoadState('domcontentloaded');
 
@@ -281,7 +276,7 @@ test.describe('Error States', () => {
       }
     });
 
-    test('categories page shows error for duplicate category name', async ({ page }) => {
+    test('categories page shows error for duplicate category name', async ({ authenticatedPage: page }) => {
       requireWrites();
 
       await page.goto('/categories');
@@ -313,7 +308,7 @@ test.describe('Error States', () => {
   });
 
   test.describe('Members Page Error States', () => {
-    test('members page shows error when load fails', async ({ page }) => {
+    test('members page shows error when load fails', async ({ authenticatedPage: page }) => {
       await page.goto('/members');
       await page.waitForLoadState('domcontentloaded');
 
@@ -339,7 +334,7 @@ test.describe('Error States', () => {
   });
 
   test.describe('Network Failure Handling', () => {
-    test('shows friendly error when network request fails', async ({ page }) => {
+    test('shows friendly error when network request fails', async ({ authenticatedPage: page }) => {
       await page.route('**/rest/v1/**', (route) => {
         route.abort('failed');
       });
@@ -359,7 +354,7 @@ test.describe('Error States', () => {
       }
     });
 
-    test('retry button works after network failure', async ({ page }) => {
+    test('retry button works after network failure', async ({ authenticatedPage: page }) => {
       let requestCount = 0;
       await page.route('**/rest/v1/**', (route) => {
         requestCount++;

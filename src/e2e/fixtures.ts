@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
-import { expect, test as base, type Browser, type Page, type TestInfo } from '@playwright/test';
+import { expect, test as base, type Browser, type Page } from '@playwright/test';
 import { e2eEnvironment } from './environment';
 import {
   PRD_ACCOUNTS,
@@ -11,7 +11,6 @@ import {
   foyerNameFor,
   isSessionStampCurrent,
   prdSessionPaths,
-  type PrdAccount,
   type PrdAccountRole,
   type PrdSessionStamp,
 } from '../../quality/prd-accounts';
@@ -25,14 +24,6 @@ type Account = {
 
 type LocalFixtures = {
   account: Account;
-};
-
-export type PrdSeededAccount = PrdAccount & {
-  password: string;
-};
-
-type PrdFixtures = {
-  prdAccounts: PrdSeededAccount[];
 };
 
 /**
@@ -78,6 +69,18 @@ export async function requireSeedPassword(): Promise<string> {
     );
   }
   return password;
+}
+
+/**
+ * Fail-fast guard for specs that need a writable backend but not the seed
+ * accounts (e.g. the standalone real-signup journey, the PRD §8 exception):
+ * throws instead of skipping so a missing backend can never masquerade as
+ * green.
+ */
+export function requireWrites(): void {
+  if (!e2eEnvironment.writesAllowed) {
+    throw new Error('This spec requires E2E_ALLOW_WRITES=true with local Supabase.');
+  }
 }
 
 /** Absolute repo-root path of a session file (single place building it). */
@@ -174,7 +177,7 @@ type AuthFixtures = {
   authenticatedPage: Page;
 };
 
-export const test = base.extend<LocalFixtures & PrdFixtures & AuthFixtures>({
+export const test = base.extend<LocalFixtures & AuthFixtures>({
   accountRole: ['household1.userA' as PrdAccountRole, { option: true }],
   authenticatedPage: async ({ browser, accountRole }, provide) => {
     const page = await ensureAuthenticatedPage(browser, accountRole);
@@ -185,14 +188,6 @@ export const test = base.extend<LocalFixtures & PrdFixtures & AuthFixtures>({
     const account = createAccount(`e2e-${testInfo.parallelIndex}-${testInfo.retry}`);
     createdEmails.add(account.email);
     await provide(account);
-  },
-  prdAccounts: async ({}, provide, testInfo: TestInfo) => {
-    const password = await readPrdSeedPassword();
-    testInfo.skip(
-      !e2eEnvironment.writesAllowed || !password,
-      'PRD seed accounts require E2E_ALLOW_WRITES=true with local Supabase (global-setup seeds them).',
-    );
-    await provide(PRD_ACCOUNTS.map((account) => ({ ...account, password: password as string })));
   },
 });
 

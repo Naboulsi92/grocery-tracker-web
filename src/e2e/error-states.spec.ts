@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { didBecomeVisible } from './helpers';
 import { e2eEnvironment, writesDisabledReason, fixtureRequiredReason } from './environment';
 
 async function fillOnboardingNames(page: Page) {
@@ -115,10 +116,10 @@ test.describe('Error States', () => {
       await page.getByLabel('Nom du foyer').fill('');
       await page.getByRole('button', { name: 'Créer mon foyer' }).click();
 
-      await page.waitForTimeout(2000);
-
+      // Optional backend validation error: bounded web-first wait (returns
+      // early when it appears) instead of a fixed sleep, same branch below.
       const errorMessage = page.locator('.auth-error');
-      if (await errorMessage.isVisible()) {
+      if (await didBecomeVisible(errorMessage, 2000)) {
         await expect(errorMessage).toContainText(/erreur|déjà|existe/i);
       }
     });
@@ -190,16 +191,16 @@ test.describe('Error States', () => {
         test.skip(true, 'Not authenticated');
       }
 
-      // Wait for the page to settle instead of networkidle (more reliable)
-      await page.waitForTimeout(2000);
-
+      // Settle web-first: resolve on whichever terminal signal lands first
+      // (error banner or page content) instead of a fixed sleep.
       const errorBanner = page.locator('.error, .auth-error, [role="alert"]');
+      const newItemButton = page.getByTestId('btn-new-item');
+      await didBecomeVisible(errorBanner.or(newItemButton), 8000);
       const hasError = await errorBanner.count() > 0;
 
       if (hasError) {
         await expect(errorBanner.first()).toBeVisible();
       } else {
-        const newItemButton = page.getByTestId('btn-new-item');
         if (await newItemButton.isVisible({ timeout: 3000 })) {
           await expect(newItemButton).toBeVisible();
         }
@@ -215,10 +216,9 @@ test.describe('Error States', () => {
         test.skip(true, 'Not authenticated');
       }
 
-      // Wait for the page to settle instead of networkidle (more reliable)
-      await page.waitForTimeout(2000);
-
+      // Settle web-first: content or error, whichever lands first.
       const newItemButton = page.getByTestId('btn-new-item');
+      await didBecomeVisible(newItemButton.or(page.locator('.error, .auth-error, [role="alert"]')), 8000);
       if (await newItemButton.isVisible()) {
         await newItemButton.click();
 
@@ -242,10 +242,9 @@ test.describe('Error States', () => {
         test.skip(true, 'Not authenticated');
       }
 
-      // Wait for the page to settle instead of networkidle (more reliable)
-      await page.waitForTimeout(2000);
-
+      // Settle web-first: rows or error, whichever lands first.
       const deleteButtons = page.locator('[data-testid^="btn-delete-item-"]');
+      await didBecomeVisible(deleteButtons.or(page.locator('.error, .auth-error, [role="alert"]')), 8000);
       const count = await deleteButtons.count();
 
       if (count > 0) {
@@ -267,10 +266,9 @@ test.describe('Error States', () => {
         test.skip(true, 'Not authenticated');
       }
 
-      // Wait for the page to settle instead of networkidle (more reliable)
-      await page.waitForTimeout(2000);
-
+      // Settle web-first: content or error, whichever lands first.
       const newCategoryButton = page.getByTestId('btn-new-category');
+      await didBecomeVisible(newCategoryButton.or(page.locator('.error, .auth-error, [role="alert"]')), 8000);
       if (await newCategoryButton.isVisible()) {
         await newCategoryButton.click();
 
@@ -294,10 +292,10 @@ test.describe('Error States', () => {
         test.skip(true, 'Not authenticated');
       }
 
-      // Wait for the page to settle instead of networkidle (more reliable)
-      await page.waitForTimeout(2000);
-
+      // Settle web-first: content or error, whichever lands first.
       const newCategoryButton = page.getByTestId('btn-new-category');
+      const duplicateError = page.locator('.error, .auth-error, [role="alert"]');
+      await didBecomeVisible(newCategoryButton.or(duplicateError), 8000);
       if (await newCategoryButton.isVisible()) {
         await newCategoryButton.click();
 
@@ -306,10 +304,9 @@ test.describe('Error States', () => {
         const createButton = page.getByTestId('btn-create-category');
         await createButton.click();
 
-        await page.waitForTimeout(1000);
-
-        if (await page.locator('.error, .auth-error, [role="alert"]').first().isVisible()) {
-          await expect(page.locator('.error, .auth-error, [role="alert"]').first()).toContainText(/doublon|existe|déjà/i);
+        // Optional duplicate error: bounded wait, same conditional branch.
+        if (await didBecomeVisible(duplicateError, 2000)) {
+          await expect(duplicateError.first()).toContainText(/doublon|existe|déjà/i);
         }
       }
     });
@@ -325,16 +322,15 @@ test.describe('Error States', () => {
         test.skip(true, 'Not authenticated');
       }
 
-      // Wait for the page to settle instead of networkidle (more reliable)
-      await page.waitForTimeout(2000);
-
+      // Settle web-first: error banner or page content, whichever first.
       const errorBanner = page.locator('.error, .auth-error, [role="alert"]');
+      const heading = page.getByRole('heading', { name: /membres|household/i });
+      await didBecomeVisible(errorBanner.or(heading), 8000);
       const hasError = await errorBanner.count() > 0;
 
       if (hasError) {
         await expect(errorBanner.first()).toBeVisible();
       } else {
-        const heading = page.getByRole('heading', { name: /membres|household/i });
         if (await heading.isVisible({ timeout: 3000 })) {
           await expect(heading).toBeVisible();
         }
@@ -356,10 +352,9 @@ test.describe('Error States', () => {
         test.skip(true, 'Not authenticated - redirected to login');
       }
 
-      await page.waitForTimeout(2000);
-
+      // Optional network-failure error: bounded web-first wait, same branch.
       const errorMessage = page.locator('.error, .auth-error, [role="alert"]');
-      if (await errorMessage.count() > 0) {
+      if (await didBecomeVisible(errorMessage, 5000)) {
         await expect(errorMessage.first()).toBeVisible();
       }
     });
@@ -383,14 +378,12 @@ test.describe('Error States', () => {
         test.skip(true, 'Not authenticated - redirected to login');
       }
 
-      await page.waitForTimeout(2000);
-
+      // Retry surfaces after the first failures: bounded wait, same branch.
       const retryButton = page.getByRole('button', { name: /réessayer|retry|réessayer/i });
-      if (await retryButton.isVisible()) {
+      if (await didBecomeVisible(retryButton, 5000)) {
         await retryButton.click();
-        await page.waitForTimeout(2000);
 
-        await expect(retryButton).not.toBeVisible();
+        await expect(retryButton).not.toBeVisible({ timeout: 5000 });
       }
     });
   });

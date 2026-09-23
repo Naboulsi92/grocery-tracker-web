@@ -51,6 +51,20 @@ describe('validateName', () => {
   it('accepts mixed letters and numbers', () => {
     expect(validateName('Coca-Cola 2L')).toBeNull();
   });
+
+  it('rejects multiplication and division signs alone (ticket #127)', () => {
+    expect(validateName('×')).toBe(NameErrors.REQUIRED_LETTER);
+    expect(validateName('÷')).toBe(NameErrors.REQUIRED_LETTER);
+  });
+
+  it('rejects names whose only letter-like char is × or ÷ (ticket #127)', () => {
+    expect(validateName('×3')).toBe(NameErrors.REQUIRED_LETTER);
+    expect(validateName('÷2')).toBe(NameErrors.REQUIRED_LETTER);
+  });
+
+  it('still accepts accented capitals around the excluded range (ticket #127)', () => {
+    expect(validateName('ÀÖØÞßàöøþÿ')).toBeNull();
+  });
 });
 
 describe('validateQuantity', () => {

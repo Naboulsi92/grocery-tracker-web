@@ -1,9 +1,4 @@
-import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import {
-  e2eEnvironment,
-  fixtureRequiredReason,
-  writesDisabledReason,
-} from './environment';
+import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
 
 const LEAVE_HINT =
   "Vous perdrez l'accès à l'inventaire. L'autre membre garde toutes les données.";
@@ -24,7 +19,7 @@ test.describe('Household lifecycle P1-9 (#110)', () => {
     page,
     account,
   }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     await page.goto('/household');
@@ -49,7 +44,7 @@ test.describe('Household lifecycle P1-9 (#110)', () => {
     page,
     account,
   }) => {
-    test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+    requireWrites();
     const householdName = await createHousehold(page, account);
 
     await page.goto('/household');
@@ -70,7 +65,7 @@ test.describe('Household lifecycle P1-9 (#110)', () => {
     account,
     browser,
   }) => {
-    test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+    requireWrites();
     const householdName = await createHousehold(page, account);
 
     await page.getByRole('link', { name: /Membres/ }).click();
@@ -113,7 +108,7 @@ test.describe('Household lifecycle P1-9 (#110)', () => {
     page,
     account,
   }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     await page.goto('/account');

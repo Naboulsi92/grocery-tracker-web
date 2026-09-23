@@ -1,6 +1,5 @@
 import * as fs from 'fs';
-import { createHousehold, expect, test } from './fixtures';
-import { e2eEnvironment, writesDisabledReason } from './environment';
+import { requireWrites, createHousehold, expect, test } from './fixtures';
 
 /**
  * Export RGPD — #136 (PRD §4.11).
@@ -14,7 +13,7 @@ test.describe('Account export RGPD (#136)', () => {
     page,
     account,
   }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     const householdName = await createHousehold(page, account);
 
     await page.goto('/account');

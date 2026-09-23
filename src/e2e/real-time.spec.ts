@@ -1,18 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
 import { deleteItemRow } from './helpers';
-import {
-  e2eEnvironment,
-  fixtureRequiredReason,
-  writesDisabledReason,
-} from './environment';
 
 test.describe('Real-time Collaboration', () => {
   test.describe('Real-time Item Updates (US 56)', () => {
     test('updates item quantity in real-time across browser contexts', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article rt ${randomUUID()}`;
@@ -58,7 +53,7 @@ test.describe('Real-time Collaboration', () => {
     });
 
     test('updates item name in real-time across browser contexts', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const originalName = `Article orig ${randomUUID()}`;
@@ -108,7 +103,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('Real-time Category Updates (US 57)', () => {
     test('updates category in real-time across browser contexts', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const categoryName = `Catégorie rt ${randomUUID()}`;
@@ -169,7 +164,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('To-Buy List Real-time Updates (US 58)', () => {
     test('auto-updates to-buy list when items change', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article ach ${randomUUID()}`;
@@ -227,7 +222,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('Debounce Mechanism (US 59, 60)', () => {
     test('prevents excessive re-fetches during rapid updates', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article deb ${randomUUID()}`;
@@ -279,7 +274,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('Multi-user Onboarding (US 70)', () => {
     test('new user sees real-time data after joining household', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       const householdName = await createHousehold(page, account);
 
       const itemNames = [
@@ -322,7 +317,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('Concurrent Updates', () => {
     test('handles concurrent updates from multiple users without race conditions', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article conc ${randomUUID()}`;
@@ -376,7 +371,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('Subscription Lifecycle', () => {
     test('validates subscription cleanup on page navigation', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -402,7 +397,7 @@ test.describe('Real-time Collaboration', () => {
     });
 
     test('validates channel creation and subscription lifecycle', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article ch ${randomUUID()}`;
@@ -451,7 +446,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('No Duplicate Updates', () => {
     test('validates no duplicate updates or race conditions', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article dup ${randomUUID()}`;
@@ -580,7 +575,7 @@ test.describe('Real-time Collaboration', () => {
     }
 
     test('P1-10 — 21st history action evicts the oldest, max 20 shown, 0 history_insert_failed', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       const historyWarnings: string[] = [];
       page.on('console', (msg) => {
         if (msg.type() === 'warning' && msg.text().includes('history_insert_failed')) {
@@ -640,7 +635,7 @@ test.describe('Real-time Collaboration', () => {
     });
 
     test('P0-2 — A crosses below threshold: only B is notified, A is not', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
       const admin = await adminClient();
       const actorA = await getUserIdByEmail(account.email);
@@ -695,7 +690,7 @@ test.describe('Real-time Collaboration', () => {
     });
 
     test('P0-3 — down/up/down notifies once per crossing via already_notified', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
       const admin = await adminClient();
       const actorId = await getUserIdByEmail(account.email);

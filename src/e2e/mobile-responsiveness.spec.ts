@@ -1,11 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
-import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import {
-  e2eEnvironment,
-  fixtureRequiredReason,
-  writesDisabledReason,
-} from './environment';
+import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
 import {
   PWA_INSTALLED_KEY,
   PWA_SNOOZED_AT_KEY,
@@ -31,7 +26,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('dashboard cards stack vertically on mobile', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.mobile);
       const account = createAccount();
       await createHousehold(page, account);
@@ -51,7 +46,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('touch targets are minimum 44px on mobile', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.mobile);
       const account = createAccount();
       await createHousehold(page, account);
@@ -75,7 +70,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('back button is tappable on mobile', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.mobile);
       const account = createAccount();
       await createHousehold(page, account);
@@ -95,7 +90,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('forms are usable on mobile', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.mobile);
       const account = createAccount();
       await createHousehold(page, account);
@@ -121,7 +116,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('lists scroll properly on mobile', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.mobile);
       const account = createAccount();
       await createHousehold(page, account);
@@ -150,7 +145,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('modals/dialogs are usable on mobile', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.mobile);
       const account = createAccount();
       await createHousehold(page, account);
@@ -180,7 +175,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('navigation works on mobile viewport', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.mobile);
       const account = createAccount();
       await createHousehold(page, account);
@@ -218,7 +213,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('dashboard cards layout on tablet', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.tablet);
       const account = createAccount();
       await createHousehold(page, account);
@@ -229,7 +224,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('navigation works on tablet viewport', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.tablet);
       const account = createAccount();
       await createHousehold(page, account);
@@ -241,7 +236,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('forms are usable on tablet', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.tablet);
       const account = createAccount();
       await createHousehold(page, account);
@@ -270,7 +265,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('dashboard cards layout on small laptop', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.smallLaptop);
       const account = createAccount();
       await createHousehold(page, account);
@@ -281,7 +276,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('navigation works on small laptop viewport', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.smallLaptop);
       const account = createAccount();
       await createHousehold(page, account);
@@ -306,7 +301,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('dashboard cards layout on large desktop', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.largeDesktop);
       const account = createAccount();
       await createHousehold(page, account);
@@ -317,7 +312,7 @@ test.describe('Mobile Responsiveness', () => {
 
     test('navigation works on large desktop viewport', async ({ page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await page.setViewportSize(VIEWPORTS.largeDesktop);
       const account = createAccount();
       await createHousehold(page, account);

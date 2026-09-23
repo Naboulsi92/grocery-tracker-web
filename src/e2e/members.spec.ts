@@ -1,14 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import {
-  e2eEnvironment,
-  fixtureRequiredReason,
-  writesDisabledReason,
-} from './environment';
+import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
 
 test.describe('Members Page', () => {
   test('displays member count in heading', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+    requireWrites();
     const householdName = await createHousehold(page, account);
 
     await page.getByRole('link', { name: /Membres/ }).click();
@@ -18,7 +13,7 @@ test.describe('Members Page', () => {
   });
 
   test('owner can create invitation', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     await page.getByRole('link', { name: /Membres/ }).click();
@@ -36,7 +31,7 @@ test.describe('Members Page', () => {
   });
 
   test('owner can copy invitation token to clipboard', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     await page.getByRole('link', { name: /Membres/ }).click();
@@ -71,7 +66,7 @@ test.describe('Members Page', () => {
   });
 
   test('owner can revoke invitation token', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     await page.getByRole('link', { name: /Membres/ }).click();
@@ -89,7 +84,7 @@ test.describe('Members Page', () => {
   });
 
   test('displays invitation expiration', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     await page.getByRole('link', { name: /Membres/ }).click();
@@ -102,7 +97,7 @@ test.describe('Members Page', () => {
   });
 
   test('member can reach the invite section (equal rights, no owner-only gate)', async ({ page, account, browser }) => {
-    test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+    requireWrites();
     const householdName = await createHousehold(page, account);
 
     await page.getByRole('link', { name: /Membres/ }).click();
@@ -138,7 +133,7 @@ test.describe('Members Page', () => {
   });
 
   test('displays member role (owner vs member)', async ({ page, account, browser }) => {
-    test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+    requireWrites();
     const householdName = await createHousehold(page, account);
 
     await page.getByRole('link', { name: /Membres/ }).click();
@@ -171,7 +166,7 @@ test.describe('Members Page', () => {
   });
 
   test('visual confirmation when invited user joins', async ({ page, account, browser }) => {
-    test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+    requireWrites();
     const householdName = await createHousehold(page, account);
 
     await page.getByRole('link', { name: /Membres/ }).click();
@@ -201,7 +196,7 @@ test.describe('Members Page', () => {
   });
 
   test('real-time updates when members join', async ({ page, account, browser }) => {
-    test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+    requireWrites();
     const householdName = await createHousehold(page, account);
 
     await page.getByRole('link', { name: /Membres/ }).click();
@@ -228,7 +223,7 @@ test.describe('Members Page', () => {
   });
 
   test('owner can create new invitation after previous is revoked', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     await page.getByRole('link', { name: /Membres/ }).click();

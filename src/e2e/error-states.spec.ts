@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { didBecomeVisible } from './helpers';
-import { e2eEnvironment, writesDisabledReason, fixtureRequiredReason } from './environment';
+import { requireWrites } from './fixtures';
 
 async function fillOnboardingNames(page: Page) {
   await page.getByTestId('onboarding-first-name-input').fill('Camille');
@@ -102,7 +102,7 @@ test.describe('Error States', () => {
     });
 
     test('join household shows error for duplicate household creation', async ({ page }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
 
       await page.goto('/join-household');
       await page.waitForLoadState('domcontentloaded');
@@ -232,7 +232,7 @@ test.describe('Error States', () => {
     });
 
     test('items page has disabled delete button during mutation', async ({ page }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
 
       await page.goto('/items');
       await page.waitForLoadState('domcontentloaded');
@@ -282,7 +282,7 @@ test.describe('Error States', () => {
     });
 
     test('categories page shows error for duplicate category name', async ({ page }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
 
       await page.goto('/categories');
       await page.waitForLoadState('domcontentloaded');

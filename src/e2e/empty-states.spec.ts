@@ -1,16 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
 import { deleteAllItems } from './helpers';
-import {
-  e2eEnvironment,
-  fixtureRequiredReason,
-  writesDisabledReason,
-} from './environment';
 
 test.describe('Empty States', () => {
   test.describe('Categories Empty State', () => {
     test('shows the default categories catalog for a new household (US 80, 84-85)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
@@ -27,7 +22,7 @@ test.describe('Empty States', () => {
     });
 
     test('add-category button is functional and creates a custom category', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
@@ -50,7 +45,7 @@ test.describe('Empty States', () => {
     });
 
     test('default categories cannot be deleted or renamed', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
@@ -64,7 +59,7 @@ test.describe('Empty States', () => {
 
   test.describe('Items Empty State', () => {
     test('shows empty state with icon and CTA when no items exist (US 81, 84-85)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -85,7 +80,7 @@ test.describe('Empty States', () => {
     });
 
     test('add-item button is functional and creates an item', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -111,7 +106,7 @@ test.describe('Empty States', () => {
     });
 
     test('empty state appears after deleting all items', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article X ${randomUUID()}`;
@@ -131,7 +126,7 @@ test.describe('Empty States', () => {
 
   test.describe('To-Buy Success State', () => {
     test('shows success state when all items are stocked (US 82)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -158,7 +153,7 @@ test.describe('Empty States', () => {
     });
 
     test('to-buy shows items when low stock items exist', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article fbl ${randomUUID()}`;
@@ -179,7 +174,7 @@ test.describe('Empty States', () => {
 
   test.describe('Members Empty State Edge Case', () => {
     test('shows appropriate state when household has only one member (US 83)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       const householdName = await createHousehold(page, account);
 
       await page.getByRole('link', { name: /Membres/ }).click();
@@ -197,7 +192,7 @@ test.describe('Empty States', () => {
     });
 
     test('members list updates when new member joins', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       const householdName = await createHousehold(page, account);
 
       await page.getByRole('link', { name: /Membres/ }).click();
@@ -229,7 +224,7 @@ test.describe('Empty States', () => {
 
   test.describe('Empty State Localization', () => {
     test('categories page shows the localized default catalog', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
@@ -242,7 +237,7 @@ test.describe('Empty States', () => {
     });
 
     test('items empty state text is in French and localized', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -257,7 +252,7 @@ test.describe('Empty States', () => {
 
   test.describe('Empty State Transitions', () => {
     test('empty state transitions to populated when adding the first item', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -283,7 +278,7 @@ test.describe('Empty States', () => {
     });
 
     test('populated state transitions to empty after deleting all items', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article all ${randomUUID()}`;

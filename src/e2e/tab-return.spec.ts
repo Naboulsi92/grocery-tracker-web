@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { createAccount, createHousehold } from './fixtures';
+import { requireWrites, createAccount, createHousehold } from './fixtures';
 import { didBecomeVisible } from './helpers';
 
 /**
@@ -52,8 +52,7 @@ async function expireSessionCookie(page: Page) {
 
 test.describe('Tab return behavior', () => {
   test('returning to tab shows no spinner and preserves form state', async ({ page }) => {
-    test.skip(!process.env.E2E_SUPABASE_URL || !process.env.E2E_SUPABASE_SERVICE_ROLE_KEY, 
-      'E2E requires writable Supabase environment');
+    requireWrites();
 
     const account = createAccount('tab-return');
     await createHousehold(page, account);
@@ -96,8 +95,7 @@ test.describe('Tab return behavior', () => {
   });
 
   test('returning to tab does not trigger household members refetch', async ({ page }) => {
-    test.skip(!process.env.E2E_SUPABASE_URL || !process.env.E2E_SUPABASE_SERVICE_ROLE_KEY,
-      'E2E requires writable Supabase environment');
+    requireWrites();
 
     const account = createAccount('tab-return-refetch');
     await createHousehold(page, account);
@@ -132,8 +130,7 @@ test.describe('Tab return behavior', () => {
   });
 
   test('cold first load still shows loading indicator', async ({ page }) => {
-    test.skip(!process.env.E2E_SUPABASE_URL || !process.env.E2E_SUPABASE_SERVICE_ROLE_KEY,
-      'E2E requires writable Supabase environment');
+    requireWrites();
 
     const account = createAccount('cold-load');
     
@@ -160,8 +157,7 @@ test.describe('Tab return behavior', () => {
   });
 
   test('signing out still clears the screen', async ({ page }) => {
-    test.skip(!process.env.E2E_SUPABASE_URL || !process.env.E2E_SUPABASE_SERVICE_ROLE_KEY,
-      'E2E requires writable Supabase environment');
+    requireWrites();
 
     const account = createAccount('signout');
     await createHousehold(page, account);
@@ -175,8 +171,7 @@ test.describe('Tab return behavior', () => {
   });
 
   test('explicit household retry after joining still shows loading', async ({ page }) => {
-    test.skip(!process.env.E2E_SUPABASE_URL || !process.env.E2E_SUPABASE_SERVICE_ROLE_KEY,
-      'E2E requires writable Supabase environment');
+    requireWrites();
 
     const account = createAccount('retry');
     

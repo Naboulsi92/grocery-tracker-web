@@ -1,5 +1,4 @@
-import { createHousehold, expect, signUp, test } from './fixtures';
-import { e2eEnvironment, writesDisabledReason } from './environment';
+import { requireWrites, createHousehold, expect, signUp, test } from './fixtures';
 import { didBecomeVisible } from './helpers';
 
 test.describe('Accessibility', () => {
@@ -35,7 +34,7 @@ test.describe('Accessibility', () => {
     });
 
     test('app pages have proper heading hierarchy', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     });
@@ -90,7 +89,7 @@ test.describe('Accessibility', () => {
 
   test.describe('Loading States Announced with role=status (US 101)', () => {
     test('loading state has role=status', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await page.goto('/login');
       const loadingText = page.getByText('Chargement...');
       if (await loadingText.isVisible()) {
@@ -123,7 +122,7 @@ test.describe('Accessibility', () => {
     });
 
     test('login error has role=alert', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await page.goto('/login');
       const loadingText = page.getByText('Chargement...');
       if (await loadingText.isVisible()) {
@@ -256,7 +255,7 @@ test.describe('Accessibility', () => {
 
   test.describe('Focus Trap in Dialogs/Modals (US 107)', () => {
     test('dialog traps focus within modal', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
       await page.getByTestId('dashboard-card-categories').click();
       const deleteButton = page.locator('[data-testid*="btn-delete-category"]').first();
@@ -292,7 +291,7 @@ test.describe('Accessibility', () => {
     });
 
     test('app pages have logical tab order', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
       const main = page.locator('main, #main, [role="main"]');
       const mainCount = await main.count();
@@ -455,7 +454,7 @@ test.describe('Accessibility', () => {
 
   test.describe('ARIA Labels on Icon-Only Buttons', () => {
     test('icon-only buttons have aria-label', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
       await page.getByTestId('dashboard-card-items').click();
       const iconButtons = page.locator('button').filter({ has: page.locator('svg') });
@@ -475,7 +474,7 @@ test.describe('Accessibility', () => {
 
   test.describe('Live Regions Announcing Dynamic Content', () => {
     test('dynamic content updates are announced', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
       await page.getByTestId('dashboard-card-items').click();
       const liveRegion = page.locator('[aria-live], [role="status"], [role="log"], [role="alert"]');
@@ -484,7 +483,7 @@ test.describe('Accessibility', () => {
     });
 
     test('toast notifications have aria-live', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();

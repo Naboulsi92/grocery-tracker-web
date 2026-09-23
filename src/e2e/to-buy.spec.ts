@@ -1,8 +1,7 @@
 import type { Page } from '@playwright/test';
-import { test, expect, createHousehold } from './fixtures';
+import { requireWrites, test, expect, createHousehold } from './fixtures';
 import {
   e2eEnvironment,
-  fixtureRequiredReason,
 } from './environment';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
@@ -132,9 +131,7 @@ test.describe('To-Buy Page', () => {
   let householdId: string;
 
   test.beforeEach(async ({ page, account }) => {
-    if (!e2eEnvironment.writesAllowed) {
-      test.skip(true, fixtureRequiredReason);
-    }
+    requireWrites();
     await createHousehold(page, account);
     householdId = await getHouseholdId(account);
     await clearCatalog(householdId);

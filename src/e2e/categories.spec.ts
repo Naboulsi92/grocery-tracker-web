@@ -1,11 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
-import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import {
-  e2eEnvironment,
-  fixtureRequiredReason,
-  writesDisabledReason,
-} from './environment';
+import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
 
 // Pointer drag straight down: .categories-grid is multi-column and the
 // DnD context restricts movement to the vertical axis, so only a vertical
@@ -39,7 +34,7 @@ async function pointerDragDownOneRow(page: Page, cards: Locator, index: number):
 test.describe('Categories CRUD', () => {
   test.describe('Create Category', () => {
     test('shows error message on create failure', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const categoryName = `Catégorie E ${randomUUID()}`;
@@ -69,7 +64,7 @@ test.describe('Categories CRUD', () => {
     });
 
     test('validates duplicate category name', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const categoryName = `Catégorie D ${randomUUID()}`;
@@ -90,7 +85,7 @@ test.describe('Categories CRUD', () => {
     });
 
     test('validates maximum name length', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const tooLongName = 'Catégorie avec un nom vraiment beaucoup trop long pour dépasser la limite de cinquante caractères';
@@ -103,7 +98,7 @@ test.describe('Categories CRUD', () => {
     });
 
     test('displays default and custom category icons', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
@@ -134,7 +129,7 @@ test.describe('Categories CRUD', () => {
 
   test.describe('Edit Category', () => {
     test('can edit category name (US 34)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const originalName = `Catégorie ${randomUUID()}`;
@@ -161,7 +156,7 @@ test.describe('Categories CRUD', () => {
     });
 
     test('default categories cannot be edited or deleted', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
@@ -173,7 +168,7 @@ test.describe('Categories CRUD', () => {
     });
 
     test('preserves category order after edit', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const cat1 = `Catégorie A ${randomUUID()}`;
@@ -223,7 +218,7 @@ test.describe('Categories CRUD', () => {
 
   test.describe('Delete Category', () => {
     test('shows confirmation dialog before deleting (US 35)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const categoryName = `Catégorie ${randomUUID()}`;
@@ -242,7 +237,7 @@ test.describe('Categories CRUD', () => {
     });
 
     test('shows error message on delete failure (US 37)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const categoryName = `Catégorie E ${randomUUID()}`;
@@ -276,7 +271,7 @@ test.describe('Categories CRUD', () => {
     });
 
     test('preserves category order after delete', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const cat1 = `Catégorie A ${randomUUID()}`;
@@ -316,7 +311,7 @@ test.describe('Categories CRUD', () => {
 
   test.describe('Empty State', () => {
     test('shows the default catalog for a new household (US 33, 80)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
@@ -335,7 +330,7 @@ test.describe('Categories CRUD', () => {
 
   test.describe('Real-time Updates', () => {
     test('updates in real-time when categories change', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const categoryName = `Catégorie rt ${randomUUID()}`;
@@ -384,7 +379,7 @@ test.describe('Categories CRUD', () => {
 
   test.describe('Category Order', () => {
     test('preserves order after creating multiple categories', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const cat1 = `Catégorie Z ${randomUUID()}`;
@@ -427,7 +422,7 @@ test.describe('Categories CRUD', () => {
       page,
       account,
     }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
@@ -457,7 +452,7 @@ test.describe('Categories CRUD', () => {
 
   test.describe('Category Field Validation (P1-7, #107)', () => {
     test('rejects a category name without any letter', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
@@ -469,7 +464,7 @@ test.describe('Categories CRUD', () => {
     });
 
     test('rejects a case-insensitive duplicate category name', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const baseName = `Catdup ${randomUUID().slice(0, 8)}`;
@@ -494,7 +489,7 @@ test.describe('Categories CRUD', () => {
 
   test.describe('Delete Blocked When Not Empty (#107)', () => {
     test('shows the move-or-delete message instead of deleting', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const categoryName = `Catégorie pleine ${randomUUID().slice(0, 8)}`;
@@ -546,7 +541,7 @@ test.describe('Categories CRUD', () => {
       locator.locator('.category-name').allInnerTexts();
 
     test('keyboard lifts and cancels a drag without changing order', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
@@ -579,7 +574,7 @@ test.describe('Categories CRUD', () => {
     });
 
     test('pointer drag reorders categories and persists after reload', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();

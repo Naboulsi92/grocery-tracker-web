@@ -33,6 +33,8 @@ export const metadata = {
     images: ['/og-image.png'],
   },
   alternates: {
+    // Single-URL client-side i18n (no /en routes): hreflang alternates do not
+    // apply. Canonical resolves absolute via the root metadataBase (#120).
     canonical: '/',
   },
 };

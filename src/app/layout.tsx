@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -10,6 +10,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: "Liste de courses",
   description: "Application de suivi de courses partagée",
+};
+
+export const viewport: Viewport = {
+  themeColor: '#15803d',
+  width: 'device-width',
+  initialScale: 1,
 };
 
 const themeScript = `(() => {

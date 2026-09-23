@@ -54,6 +54,26 @@ const securityHeaders = [
   { key: 'Content-Security-Policy', value: contentSecurityPolicy },
 ];
 
+/**
+ * Authenticated app shell (ticket #120): crawlers are disinvited via
+ * robots.ts (advisory) and `robots: noindex` metadata on the `(auth)` group,
+ * but the business pages are `'use client'` (a metadata export there is
+ * ignored by Next.js) — so enforcement lives here as `X-Robots-Tag`.
+ */
+const noIndexHeaders = [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }];
+
+const NOINDEX_SOURCES = [
+  '/home',
+  '/items',
+  '/categories',
+  '/to-buy',
+  '/members',
+  '/history',
+  '/household',
+  '/account',
+  '/settings/:path*',
+];
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
@@ -64,6 +84,7 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: securityHeaders,
       },
+      ...NOINDEX_SOURCES.map((source) => ({ source, headers: noIndexHeaders })),
     ];
   },
 };

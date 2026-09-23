@@ -512,7 +512,44 @@ input::placeholder {
   margin: 0;
 }
 
-/* Skip link (WCAG 2.4.1): first focusable element, revealed on focus. */
+/* Skeleton placeholders for route loading states (ticket #122). */
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: var(--color-border-subtle);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton-heading {
+  height: 2rem;
+  width: 12rem;
+  margin-bottom: 1.5rem;
+}
+
+.skeleton-row {
+  height: 4.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.skeleton-card {
+  height: 7rem;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    opacity: 0.8;
+  }
+}
 .skip-link {
   position: absolute;
   left: -9999px;

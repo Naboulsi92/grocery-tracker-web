@@ -115,6 +115,11 @@ async function handleSubmit(e: React.FormEvent) {
 
   if (!householdId || !formUnit || mutating || !isOnline) return;
 
+  // A displayed unit error blocks submit even though the last valid unit
+  // state would pass validation (tampered select value: the error is set
+  // from the DOM value while formUnit keeps the previous valid one).
+  if (fieldUnitError) return;
+
   const unitErr = validateUnit(formUnit);
   if (unitErr) { setFieldUnitError(unitErr); return; }
 

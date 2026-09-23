@@ -136,6 +136,17 @@ begin
     or has_function_privilege('authenticated', 'public.update_last_modified()', 'EXECUTE') then
     raise exception 'trigger function is client-executable';
   end if;
+  -- Ticket #125: invalidate_invitations_on_departure is an internal
+  -- SECURITY DEFINER trigger (household departure cleanup); it must never be
+  -- directly executable by clients. The migration revokes ALL from
+  -- public/anon/authenticated — assert both roles here so a future GRANT
+  -- fails the contract instead of regressing silently.
+  if has_function_privilege('anon', 'public.invalidate_invitations_on_departure()', 'EXECUTE') then
+    raise exception 'anon can execute trigger function public.invalidate_invitations_on_departure()';
+  end if;
+  if has_function_privilege('authenticated', 'public.invalidate_invitations_on_departure()', 'EXECUTE') then
+    raise exception 'authenticated can execute trigger function public.invalidate_invitations_on_departure()';
+  end if;
   if has_schema_privilege('authenticated', 'private', 'USAGE') then
     raise exception 'authenticated can resolve private RLS helpers directly';
   end if;

@@ -50,13 +50,10 @@ export function AccessibleDialog({
   const onCancelRef = useRef(onCancel);
   onCancelRef.current = onCancel;
 
-  // Remember the trigger for focus restoration (the element focused when the
-  // dialog mounts is the button that opened it).
-  if (triggerRef.current === null && typeof document !== 'undefined') {
-    triggerRef.current = document.activeElement;
-  }
-
   useEffect(() => {
+    // Remember the trigger for focus restoration (the element focused when
+    // the dialog mounts is the button that opened it).
+    triggerRef.current = document.activeElement;
     confirmRef.current?.focus();
     const content = contentRef.current;
     const parent = content?.parentElement;

@@ -427,7 +427,7 @@ export default function CategoriesPage() {
       <OfflineBanner />
       <AuthenticatedHeader showBackLink household={household} loading={householdLoading} error={householdError} />
 
-      <main className="app-main">
+      <main className="app-main" id="main">
         <h1>{t('categories.title')}</h1>
 
         {combinedError && (
@@ -472,7 +472,7 @@ export default function CategoriesPage() {
                   required
                   placeholder={t('categories.name_placeholder')}
                   aria-invalid={!!fieldNameError}
-                  aria-describedby="category-name-error"
+                  aria-describedby={fieldNameError ? 'category-name-error' : undefined}
                 />
                 {fieldNameError && <p className="field-error" role="alert" id="category-name-error" data-testid={fieldNameError === 'categories.duplicate' ? 'error-name-duplicate' : fieldNameError === 'validation.name.too_long' ? 'error-name-too-long' : 'error-name-required-letter'}>{translateMessage(language, fieldNameError)}</p>}
               </div>

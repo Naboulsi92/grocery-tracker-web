@@ -210,8 +210,8 @@ export default function NotificationSettingsPage() {
         error={householdError}
       />
 
-      <main className="app-main">
-        <h2>{t('notif.title')}</h2>
+      <main className="app-main" id="main">
+        <h1>{t('notif.title')}</h1>
 
         {loadError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>

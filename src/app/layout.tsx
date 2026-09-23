@@ -47,6 +47,10 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body>
+        {/* Skip link (WCAG 2.4.1): first focusable element on every page. */}
+        <a href="#main" className="skip-link" data-testid="skip-link">
+          Aller au contenu
+        </a>
         <ServiceWorkerRegister />
         <ThemeProvider>
           <AuthProvider>

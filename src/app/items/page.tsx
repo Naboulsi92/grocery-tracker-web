@@ -246,7 +246,7 @@ return (
       <AuthenticatedHeader showBackLink household={household} loading={householdLoading} error={householdError} />
       <SyncingIndicator />
 
-      <main className="app-main">
+      <main className="app-main" id="main">
         <h1>{t('items.title')}</h1>
 
         {combinedError && (
@@ -282,7 +282,7 @@ return (
             <form onSubmit={handleSubmit} noValidate style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
               <div className="form-group">
                 <label htmlFor="item-name">{t('items.name')}</label>
-                 <input id="item-name" type="text" data-testid="input-item-name" value={formName} onChange={(e) => { setFormName(e.target.value); setFieldNameError(''); }} required placeholder={t('items.name_placeholder')} aria-invalid={!!fieldNameError} aria-describedby="item-name-error" />
+                 <input id="item-name" type="text" data-testid="input-item-name" value={formName} onChange={(e) => { setFormName(e.target.value); setFieldNameError(''); }} required placeholder={t('items.name_placeholder')} aria-invalid={!!fieldNameError} aria-describedby={fieldNameError ? 'item-name-error' : undefined} />
                 {fieldNameError && <p className="field-error" role="alert" id="item-name-error" data-testid={fieldNameError === 'items.duplicate' ? 'error-name-duplicate' : fieldNameError === 'validation.name.too_long' ? 'error-name-too-long' : 'error-name-required-letter'}>{translateMessage(language, fieldNameError)}</p>}
               </div>
               <div className="form-group">
@@ -296,7 +296,7 @@ return (
               </div>
               <div className="form-group">
                 <label htmlFor="item-quantity">{t('items.quantity')}</label>
-                <input id="item-quantity" type="number" data-testid="input-item-quantity" value={formQuantity} onChange={(e) => { setFormQuantity(e.target.value); setFieldQuantityError(''); }} min="0" step={getUnitStep(formUnit)} aria-invalid={!!fieldQuantityError} aria-describedby="item-quantity-error" />
+                <input id="item-quantity" type="number" data-testid="input-item-quantity" value={formQuantity} onChange={(e) => { setFormQuantity(e.target.value); setFieldQuantityError(''); }} min="0" step={getUnitStep(formUnit)} aria-invalid={!!fieldQuantityError} aria-describedby={fieldQuantityError ? 'item-quantity-error' : undefined} />
                 {fieldQuantityError && <p className="field-error" role="alert" id="item-quantity-error" data-testid="error-quantity-negative">{translateMessage(language, fieldQuantityError)}</p>}
               </div>
               <div className="form-group">
@@ -315,7 +315,7 @@ return (
                     setFieldUnitError('');
                   }
                   setFormUnit(nextUnit);
-                }} required aria-invalid={!!fieldUnitError} aria-describedby="item-unit-error">
+                }} required aria-invalid={!!fieldUnitError} aria-describedby={fieldUnitError ? 'item-unit-error' : undefined}>
                   {UNITS.map((unit) => (
                     <option key={unit} value={unit}>{t(`items.unit_${unit}`)}</option>
                   ))}
@@ -324,7 +324,7 @@ return (
               </div>
               <div className="form-group">
                 <label htmlFor="item-threshold">{t('items.threshold')}</label>
-                <input id="item-threshold" type="number" data-testid="input-item-threshold" value={formThreshold} onChange={(e) => { setFormThreshold(e.target.value); setFieldThresholdError(''); }} min="1" step={getUnitStep(formUnit)} aria-invalid={!!fieldThresholdError} aria-describedby="item-threshold-error" />
+                <input id="item-threshold" type="number" data-testid="input-item-threshold" value={formThreshold} onChange={(e) => { setFormThreshold(e.target.value); setFieldThresholdError(''); }} min="1" step={getUnitStep(formUnit)} aria-invalid={!!fieldThresholdError} aria-describedby={fieldThresholdError ? 'item-threshold-error' : undefined} />
                 {fieldThresholdError && <p className="field-error" role="alert" id="item-threshold-error" data-testid="error-threshold-required">{translateMessage(language, fieldThresholdError)}</p>}
               </div>
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>

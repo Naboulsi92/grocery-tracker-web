@@ -50,7 +50,7 @@ export function AuthenticatedHeader({ showBackLink = false, onBackLinkClick, tra
               <BrandIcon />
             </div>
             {backLink}
-            <h1>{t('header.loading')}</h1>
+            <p className="header-brand-name">{t('header.loading')}</p>
           </div>
         </div>
       </header>
@@ -66,7 +66,7 @@ export function AuthenticatedHeader({ showBackLink = false, onBackLinkClick, tra
               <BrandIcon />
             </div>
             {backLink}
-            <h1>{t('header.error')}</h1>
+            <p className="header-brand-name">{t('header.error')}</p>
           </div>
         </div>
       </header>
@@ -81,7 +81,7 @@ export function AuthenticatedHeader({ showBackLink = false, onBackLinkClick, tra
               <BrandIcon />
             </div>
             {backLink}
-            <h1>{household?.name || t('header.default_name')}</h1>
+            <p className="header-brand-name">{household?.name || t('header.default_name')}</p>
         </div>
         <div className="header-actions">
           {trailingAction}

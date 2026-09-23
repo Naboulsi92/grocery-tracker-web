@@ -506,9 +506,28 @@ input::placeholder {
   border-radius: var(--radius-sm);
 }
 
-.header-brand h1 {
+.header-brand .header-brand-name {
   font-size: 1.25rem;
   font-weight: 600;
+  margin: 0;
+}
+
+/* Skip link (WCAG 2.4.1): first focusable element, revealed on focus. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 1000;
+  padding: 0.75rem 1rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+}
+
+.skip-link:focus-visible {
+  left: 0.5rem;
+  top: 0.5rem;
 }
 
 .app-main {

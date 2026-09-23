@@ -33,10 +33,23 @@ test.describe('Accessibility', () => {
       await expect(page.getByRole('heading', { level: 1, name: 'Inscription' })).toBeVisible();
     });
 
-    test('app pages have proper heading hierarchy', async ({ page, account }) => {
+    test('app pages have exactly one h1', async ({ page, account }) => {
       requireWrites();
       await createHousehold(page, account);
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      for (const route of [
+        '/home',
+        '/items',
+        '/categories',
+        '/to-buy',
+        '/members',
+        '/household',
+        '/history',
+        '/account',
+        '/settings/notifications',
+      ]) {
+        await page.goto(route);
+        await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1, { timeout: 10000 });
+      }
     });
   });
 
@@ -257,37 +270,36 @@ test.describe('Accessibility', () => {
     test('dialog traps focus within modal', async ({ page, account }) => {
       requireWrites();
       await createHousehold(page, account);
-      await page.getByTestId('dashboard-card-categories').click();
-      const deleteButton = page.locator('[data-testid*="btn-delete-category"]').first();
-      const deleteCount = await deleteButton.count();
-      if (deleteCount > 0) {
-        await deleteButton.first().click();
-        // Optional custom dialog: bounded wait instead of a fixed sleep.
-        // NOTE: category delete uses a native confirm(), so role=dialog never
-        // appears here — this branch is currently vacuous (#84 candidate).
-        const dialog = page.locator('[role="dialog"]');
-        if (await didBecomeVisible(dialog, 2000)) {
-          await expect(dialog).toBeVisible();
-          const focusableInDialog = dialog.locator('button, a, input, [tabindex]:not([tabindex="-1"])');
-          const count = await focusableInDialog.count();
-          expect(count).toBeGreaterThan(0);
-        }
-      }
+      await page.goto('/household');
+      await page.getByTestId('invite-code-create-button').click();
+      const regenButton = page.getByTestId('invite-code-regenerate-button');
+      await expect(regenButton).toBeVisible({ timeout: 10000 });
+      await regenButton.click();
+      const dialog = page.getByTestId('invite-regenerate-dialog');
+      await expect(dialog).toBeVisible({ timeout: 10000 });
+      // Initial focus lands on confirm; Tab wraps around to cancel.
+      const cancelButton = page.getByTestId('invite-regenerate-cancel-button');
+      const confirmButton = page.getByTestId('invite-code-regenerate-confirm');
+      await expect(confirmButton).toBeFocused();
+      await page.keyboard.press('Tab');
+      await expect(cancelButton).toBeFocused();
+      // Escape closes and restores focus to the trigger.
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+      await expect(regenButton).toBeFocused();
     });
   });
 
   test.describe('Skip Links or Logical Tab Order (US 108)', () => {
-    test('homepage has skip link or logical tab order', async ({ page }) => {
+    test('skip link is first and jumps to main', async ({ page }) => {
       await page.goto('/');
-      const skipLink = page.locator('a[href="#main"], a[href="#content"], [class*="skip"]');
-      const skipCount = await skipLink.count();
-      if (skipCount > 0) {
-        await expect(skipLink.first()).toBeVisible();
-      } else {
-        const main = page.locator('main, #main, [role="main"]');
-        const mainCount = await main.count();
-        expect(mainCount).toBeGreaterThan(0);
-      }
+      const skipLink = page.getByTestId('skip-link');
+      await expect(skipLink).toBeAttached();
+      await page.keyboard.press('Tab');
+      await expect(skipLink).toBeFocused();
+      await skipLink.press('Enter');
+      await expect(page).toHaveURL(/#main/);
+      await expect(page.locator('#main')).toBeVisible();
     });
 
     test('app pages have logical tab order', async ({ page, account }) => {

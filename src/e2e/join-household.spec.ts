@@ -13,7 +13,7 @@ test.describe('Join Household Flow', () => {
       await page.getByLabel('Nom du foyer').fill(householdName);
       await page.getByRole('button', { name: 'Créer mon foyer' }).click();
       await page.waitForURL('/home', { timeout: 20000 });
-      await expect(page.getByRole('heading', { level: 1, name: householdName })).toBeVisible();
+      await expect(page.getByTestId('header-household-name')).toHaveText(householdName);
     });
 
     test('US 6: user can choose a custom name for their household', async ({ page, account }) => {
@@ -24,7 +24,7 @@ test.describe('Join Household Flow', () => {
       await page.getByLabel('Nom du foyer').fill(customHouseholdName);
       await page.getByRole('button', { name: 'Créer mon foyer' }).click();
       await page.waitForURL('/home', { timeout: 20000 });
-      await expect(page.getByRole('heading', { level: 1, name: customHouseholdName })).toBeVisible();
+      await expect(page.getByTestId('header-household-name')).toHaveText(customHouseholdName);
     });
 
     test('US 7: user can use the default suggested household name', async ({ page, account }) => {
@@ -33,7 +33,7 @@ test.describe('Join Household Flow', () => {
       
       await page.getByRole('button', { name: 'Créer mon foyer' }).click();
       await page.waitForURL('/home', { timeout: 20000 });
-      await expect(page.getByRole('heading', { level: 1, name: 'Mon Foyer' })).toBeVisible();
+      await expect(page.getByTestId('header-household-name')).toHaveText('Mon Foyer');
     });
 
     test('US 8: user sees loading indicators while household is being created', async ({ page, account }) => {
@@ -45,7 +45,7 @@ test.describe('Join Household Flow', () => {
       await page.getByRole('button', { name: 'Créer mon foyer' }).click();
       
       await page.waitForURL('/home', { timeout: 20000 });
-      await expect(page.getByRole('heading', { level: 1, name: householdName })).toBeVisible();
+      await expect(page.getByTestId('header-household-name')).toHaveText(householdName);
     });
 
     test('US 10: user can see the household name before confirming creation', async ({ page, account }) => {
@@ -60,7 +60,7 @@ test.describe('Join Household Flow', () => {
       
       await page.getByRole('button', { name: 'Créer mon foyer' }).click();
       await page.waitForURL('/home', { timeout: 20000 });
-      await expect(page.getByRole('heading', { level: 1, name: previewName })).toBeVisible();
+      await expect(page.getByTestId('header-household-name')).toHaveText(previewName);
     });
   });
 
@@ -146,7 +146,7 @@ test.describe('Join Household Flow', () => {
         await memberPage.getByLabel(/Code d'invitation complet/).fill(token!);
         await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
         await memberPage.waitForURL('/home', { timeout: 20000 });
-        await expect(memberPage.getByRole('heading', { level: 1, name: householdName })).toBeVisible();
+        await expect(memberPage.getByTestId('header-household-name')).toHaveText(householdName);
         await expect(memberPage.getByRole('link', { name: /Membres/ })).toBeVisible();
       } finally {
         await memberContext.close();

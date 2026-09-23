@@ -23,9 +23,7 @@ test.describe('PRD seed accounts', () => {
       test(`can log in and sees ${foyer}`, async ({ authenticatedPage }) => {
         // Authenticated users stay on /home (never bounced back to /login).
         await expect(authenticatedPage).toHaveURL('/home');
-        await expect(
-          authenticatedPage.getByRole('heading', { level: 1, name: foyer }),
-        ).toBeVisible();
+        await expect(authenticatedPage.getByTestId('header-household-name')).toHaveText(foyer);
       });
     });
   }

@@ -153,7 +153,7 @@ test.describe('Tab return behavior', () => {
     
     // Then should resolve to home page
     await page.waitForURL('/home', { timeout: 20000 });
-    await expect(page.getByRole('heading', { level: 1, name: householdName })).toBeVisible();
+    await expect(page.getByTestId('header-household-name')).toHaveText(householdName);
   });
 
   test('signing out still clears the screen', async ({ page }) => {
@@ -194,6 +194,6 @@ test.describe('Tab return behavior', () => {
     await expect(page.locator('.loading-spinner')).toBeVisible({ timeout: 5000 });
     
     await page.waitForURL('/home', { timeout: 20000 });
-    await expect(page.getByRole('heading', { level: 1, name: householdName })).toBeVisible();
+    await expect(page.getByTestId('header-household-name')).toHaveText(householdName);
   });
 });

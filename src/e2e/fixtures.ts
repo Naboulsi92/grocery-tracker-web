@@ -145,7 +145,7 @@ export async function ensureAuthenticatedPage(
   const verifyFoyerLoaded = async (page: Page): Promise<boolean> => {
     await page.goto('/home');
     try {
-      await expect(page.getByRole('heading', { level: 1, name: foyer })).toBeVisible({
+      await expect(page.getByTestId('header-household-name')).toHaveText(foyer, {
         timeout: 10000,
       });
       return true;
@@ -247,7 +247,7 @@ export async function createHousehold(page: Page, account: Account) {
   await page.getByLabel('Nom du foyer').fill(householdName);
   await page.getByRole('button', { name: 'Créer mon foyer' }).click();
   await page.waitForURL('/home', { timeout: 20000 });
-  await expect(page.getByRole('heading', { level: 1, name: householdName })).toBeVisible();
+  await expect(page.getByTestId('header-household-name')).toHaveText(householdName, { timeout: 20000 });
   return householdName;
 }
 

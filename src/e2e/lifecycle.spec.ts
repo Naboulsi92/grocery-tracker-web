@@ -57,7 +57,7 @@ test.describe('Household lifecycle P1-9 (#110)', () => {
 
     // The former household is no longer readable.
     await page.goto('/home');
-    await expect(page.getByRole('heading', { level: 1, name: householdName })).not.toBeVisible();
+    await expect(page.getByTestId('header-household-name')).not.toHaveText(householdName);
   });
 
   test('other member keeps all data after a departure', async ({
@@ -82,9 +82,7 @@ test.describe('Household lifecycle P1-9 (#110)', () => {
       await memberPage.getByLabel(/Code d.invitation complet/).fill(invitationToken!);
       await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await memberPage.waitForURL('/home', { timeout: 20000 });
-      await expect(
-        memberPage.getByRole('heading', { level: 1, name: householdName }),
-      ).toBeVisible();
+      await expect(memberPage.getByTestId('header-household-name')).toHaveText(householdName);
 
       // First member leaves.
       await page.goto('/household');
@@ -94,9 +92,7 @@ test.describe('Household lifecycle P1-9 (#110)', () => {
 
       // The remaining member keeps the household indefinitely.
       await memberPage.goto('/home');
-      await expect(
-        memberPage.getByRole('heading', { level: 1, name: householdName }),
-      ).toBeVisible();
+      await expect(memberPage.getByTestId('header-household-name')).toHaveText(householdName);
       await memberPage.goto('/members');
       await expect(memberPage.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
     } finally {

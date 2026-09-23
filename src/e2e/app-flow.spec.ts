@@ -79,7 +79,7 @@ test.describe('App Flow', () => {
       await memberPage.getByLabel(/Code d.invitation complet/).fill(invitationToken!);
       await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await memberPage.waitForURL('/home', { timeout: 20000 });
-      await expect(memberPage.getByRole('heading', { level: 1, name: householdName })).toBeVisible();
+      await expect(memberPage.getByTestId('header-household-name')).toHaveText(householdName);
       await memberPage.getByRole('link', { name: /Membres/ }).click();
       await expect(memberPage.getByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
     } finally {

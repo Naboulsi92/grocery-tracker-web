@@ -81,7 +81,7 @@ export function AuthenticatedHeader({ showBackLink = false, onBackLinkClick, tra
               <BrandIcon />
             </div>
             {backLink}
-            <p className="header-brand-name">{household?.name || t('header.default_name')}</p>
+            <p className="header-brand-name" data-testid="header-household-name">{household?.name || t('header.default_name')}</p>
         </div>
         <div className="header-actions">
           {trailingAction}

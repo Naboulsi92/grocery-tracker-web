@@ -305,8 +305,8 @@ test.describe('Categories CRUD', () => {
       await expect(cardsAfter.nth(0)).toContainText(cat1);
       await expect(cardsAfter.nth(1)).toContainText(cat3);
 
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat1}`) }).click();
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat3}`) }).click();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat1}`) }), 'category-delete-confirm');
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat3}`) }), 'category-delete-confirm');
     });
   });
 

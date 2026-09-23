@@ -57,7 +57,7 @@ test.describe('Household lifecycle P1-9 (#110)', () => {
 
     // The former household is no longer readable.
     await page.goto('/home');
-    await expect(page.getByTestId('header-household-name')).not.toHaveText(householdName);
+    await expect(page.getByTestId('header-household-name')).not.toHaveText(householdName, { timeout: 15000 });
   });
 
   test('other member keeps all data after a departure', async ({

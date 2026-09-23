@@ -58,4 +58,19 @@ describe('AccessibleDialog (ticket #119)', () => {
     screen.getByTestId('ok').click();
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
+
+  it('inerts the background siblings while open and restores them', () => {
+    const host = document.createElement('div');
+    const background = document.createElement('p');
+    const mount = document.createElement('div');
+    host.append(background, mount);
+    document.body.appendChild(host);
+    const { unmount } = render(<AccessibleDialog {...labels} onConfirm={jest.fn()} onCancel={jest.fn()} />, {
+      container: mount,
+    });
+    expect(background.hasAttribute('inert')).toBe(true);
+    unmount();
+    expect(background.hasAttribute('inert')).toBe(false);
+    host.remove();
+  });
 });

@@ -155,7 +155,7 @@ export default function HouseholdPage() {
         error={error}
       />
 
-      <main className="app-main">
+      <main className="app-main" id="main">
         {error && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>
             {translateMessage(language, error)}

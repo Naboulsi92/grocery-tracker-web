@@ -57,17 +57,23 @@ export function AccessibleDialog({
     // the dialog mounts is the button that opened it).
     triggerRef.current = document.activeElement;
     confirmRef.current?.focus();
-    const content = contentRef.current;
-    const parent = content?.parentElement;
-    // Inert the background siblings while open; restored on cleanup.
+    // Inert the page background while open: walk from the overlay up to
+    // <body>, inerting each ancestor's siblings (never the dialog's own
+    // chain — a single level misses background outside the mount parent,
+    // e.g. the header when the dialog renders inside <main>).
+    // Restored on cleanup.
     const inerted: Element[] = [];
-    if (parent) {
+    let node: Element | null = contentRef.current?.parentElement ?? null;
+    while (node && node !== document.body) {
+      const parent = node.parentElement;
+      if (!parent) break;
       for (const sibling of Array.from(parent.children)) {
-        if (sibling !== content && !sibling.hasAttribute('inert')) {
+        if (sibling !== node && !sibling.hasAttribute('inert')) {
           sibling.setAttribute('inert', '');
           inerted.push(sibling);
         }
       }
+      node = parent;
     }
     return () => {
       for (const sibling of inerted) sibling.removeAttribute('inert');

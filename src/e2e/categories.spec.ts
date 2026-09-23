@@ -207,10 +207,9 @@ test.describe('Categories CRUD', () => {
       await expect(cardsAfter.nth(1)).toContainText(cat2Edited);
       await expect(cardsAfter.nth(2)).toContainText(cat3);
 
-      page.on('dialog', (dialog) => void dialog.accept());
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat1.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat2Edited.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat3.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat1.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat2Edited.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat3.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
     });
   });
 
@@ -226,7 +225,17 @@ test.describe('Categories CRUD', () => {
       await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
-      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
+      const deleteButton = page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) });
+      await deleteButton.click();
+      const dialog = page.getByTestId('category-delete-dialog');
+      await expect(dialog).toBeVisible({ timeout: 10000 });
+      await expect(dialog.getByText(categoryName)).toBeVisible();
+      // Cancel keeps the category.
+      await page.getByTestId('category-delete-cancel').click();
+      await expect(dialog).toBeHidden();
+      await expect(page.getByText(categoryName)).toBeVisible();
+      // Confirm deletes it.
+      await confirmDeleteDialog(page, deleteButton, 'category-delete-confirm');
       await expect(page.getByText(categoryName)).toHaveCount(0);
     });
 
@@ -288,8 +297,7 @@ test.describe('Categories CRUD', () => {
       await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(cat3)).toBeVisible({ timeout: 10000 });
 
-      page.on('dialog', (dialog) => void dialog.accept());
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat2.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat2.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
 
       const customSection = page.locator('[data-testid="category-section-custom"]');
       const cardsAfter = customSection.locator('.category-card');
@@ -408,10 +416,9 @@ test.describe('Categories CRUD', () => {
       await expect(cards.nth(1)).toContainText(cat2);
       await expect(cards.nth(2)).toContainText(cat3);
 
-      page.on('dialog', (dialog) => void dialog.accept());
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat1}`) }).click();
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat2}`) }).click();
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat3}`) }).click();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat1}`) }), 'category-delete-confirm');
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat2}`) }), 'category-delete-confirm');
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${cat3}`) }), 'category-delete-confirm');
     });
   });
 

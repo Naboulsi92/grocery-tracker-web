@@ -351,26 +351,29 @@ test.describe('Categories CRUD', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /categories): fetch one via
+      // the proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/categories');
 
-        await secondPage.getByTestId('dashboard-card-categories').click();
-        await expect(secondPage.getByText(categoryName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        const newCategoryName = `Catégorie rt2 ${randomUUID()}`;
-        await secondPage.getByTestId('btn-new-category').click();
-        await secondPage.getByTestId('input-category-name').fill(newCategoryName);
-        await secondPage.getByTestId('btn-create-category').click();
-        await expect(secondPage.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByTestId('dashboard-card-categories').click();
+      await expect(secondPage.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
-        await expect(page.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
-      }
+      const newCategoryName = `Catégorie rt2 ${randomUUID()}`;
+      await secondPage.getByTestId('btn-new-category').click();
+      await secondPage.getByTestId('input-category-name').fill(newCategoryName);
+      await secondPage.getByTestId('btn-create-category').click();
+      await expect(secondPage.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
+
+      await expect(page.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
 
       await secondContext.close();
 

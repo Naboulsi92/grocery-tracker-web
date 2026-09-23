@@ -142,11 +142,10 @@ test.describe('Mobile Responsiveness', () => {
       expect(containerBox).not.toBeNull();
 
       await page.mouse.wheel(0, 500);
-      await page.waitForTimeout(500);
 
+      // Web-first: rows settle after scroll instead of a fixed sleep.
       const items = page.locator('.item-row');
-      const itemCount = await items.count();
-      expect(itemCount).toBeGreaterThan(0);
+      await expect.poll(async () => items.count(), { timeout: 8000 }).toBeGreaterThan(0);
     });
 
     test('modals/dialogs are usable on mobile', async ({ page, browserName }) => {

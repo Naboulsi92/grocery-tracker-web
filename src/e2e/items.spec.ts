@@ -329,24 +329,27 @@ test.describe('Items CRUD', () => {
       await signUp(secondPage, secondAccount);
       
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
+
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
+
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
       
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
-        
-        await secondPage.getByTestId('dashboard-card-items').click();
-        await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
-        
-        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await expect(secondItemRow.locator('.qty-value')).toContainText('2');
-        
-        await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('2');
-      }
+      await secondPage.getByTestId('dashboard-card-items').click();
+      await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      
+      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await expect(secondItemRow.locator('.qty-value')).toContainText('2');
+      
+      await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('2', { timeout: 10000 });
       
       await secondContext.close();
       

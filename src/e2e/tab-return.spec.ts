@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createAccount, createHousehold } from './fixtures';
+import { didBecomeVisible } from './helpers';
 
 /**
  * Simulates a real tab background/foreground cycle. Real browsers fire
@@ -12,6 +13,8 @@ async function simulateTabReturn(page: Page) {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
     window.dispatchEvent(new Event('visibilitychange'));
   });
+  // Intentional inter-event gap (stimulus, not settle): let hidden-state
+  // handlers (supabase-js token refresh) run before the visible event.
   await page.waitForTimeout(300);
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
@@ -74,8 +77,10 @@ test.describe('Tab return behavior', () => {
     await expireSessionCookie(page);
     await simulateTabReturn(page);
 
-    // Wait a bit for any potential re-resolution
-    await page.waitForTimeout(500);
+    // Re-resolution window: bounded web-first wait so the negative asserts
+    // below are meaningful (a spinner flashing late must fail, not pass
+    // vacuously). Failing here means the product regressed, not the test.
+    await didBecomeVisible(page.locator('.loading-spinner').or(page.locator('text=Chargement...')), 2000);
 
     // Verify no spinner appeared (form should still be visible)
     await expect(page.getByTestId('input-category-name')).toBeVisible();
@@ -108,23 +113,22 @@ test.describe('Tab return behavior', () => {
       }
     });
 
-    // Simulate tab blur and focus (window-level, as real browsers do)
+    // Simulate tab blur and focus (window-level, as real browsers do).
+    // The requestsBefore listener above stays armed across the window.
+    const refetchBaseline = requestsBefore.length;
     await simulateTabReturn(page);
 
-    // Wait for any potential requests
-    await page.waitForTimeout(1000);
-
-    // Count network requests after
-    const requestsAfter: string[] = [];
-    page.on('request', (request) => {
-      if (request.url().includes('household_members')) {
-        requestsAfter.push(request.url());
-      }
-    });
+    // Bounded refetch window instead of a fixed sleep: fail fast on the first
+    // refetch, pass when the window closes quietly.
+    try {
+      await page.waitForRequest(/household_members/, { timeout: 1000 });
+    } catch {
+      // No refetch within the window — the expected path.
+    }
 
     // There should be no new requests to household_members
     // (The initial load already happened)
-    expect(requestsAfter.length).toBeLessThanOrEqual(requestsBefore.length);
+    expect(requestsBefore.length).toBe(refetchBaseline);
   });
 
   test('cold first load still shows loading indicator', async ({ page }) => {

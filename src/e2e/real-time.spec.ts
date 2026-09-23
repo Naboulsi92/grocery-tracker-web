@@ -29,24 +29,27 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
-        await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await expect(secondItemRow.locator('.qty-value')).toContainText('2');
+      await secondPage.getByTestId('dashboard-card-items').click();
+      await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-        await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('2');
-      }
+      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await expect(secondItemRow.locator('.qty-value')).toContainText('2');
+
+      await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('2', { timeout: 10000 });
 
       await secondContext.close();
 
@@ -71,30 +74,33 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
-        await expect(secondPage.getByText(originalName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        const newName = `Article ren ${randomUUID()}`;
-        const itemRow = page.locator('.item-row').filter({ hasText: originalName });
-        await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
-        await page.getByTestId('input-item-name').fill(newName);
-        await page.getByTestId('btn-create-item').click();
+      await secondPage.getByTestId('dashboard-card-items').click();
+      await expect(secondPage.getByText(originalName)).toBeVisible({ timeout: 10000 });
 
-        await expect(page.getByText(newName)).toBeVisible();
-        await expect(secondPage.getByText(newName)).toBeVisible({ timeout: 10000 });
+      const newName = `Article ren ${randomUUID()}`;
+      const itemRow = page.locator('.item-row').filter({ hasText: originalName });
+      await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
+      await page.getByTestId('input-item-name').fill(newName);
+      await page.getByTestId('btn-create-item').click();
 
-        page.once('dialog', (dialog) => dialog.accept());
-        await page.locator('.item-row').filter({ hasText: newName }).getByTestId(/^btn-delete-item-/).click();
-      }
+      await expect(page.getByText(newName)).toBeVisible();
+      await expect(secondPage.getByText(newName)).toBeVisible({ timeout: 10000 });
+
+      page.once('dialog', (dialog) => dialog.accept());
+      await page.locator('.item-row').filter({ hasText: newName }).getByTestId(/^btn-delete-item-/).click();
 
       await secondContext.close();
     });
@@ -126,26 +132,29 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
-        await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        const itemRow = page.locator('.item-row').filter({ hasText: itemName });
-        await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
-        await page.locator('#item-category').selectOption({ label: categoryName });
-        await page.getByTestId('btn-create-item').click();
+      await secondPage.getByTestId('dashboard-card-items').click();
+      await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-        await expect(page.locator('h3').filter({ hasText: categoryName })).toBeVisible();
-        await expect(secondPage.locator('h3').filter({ hasText: categoryName })).toBeVisible({ timeout: 10000 });
-      }
+      const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+      await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
+      await page.locator('#item-category').selectOption({ label: categoryName });
+      await page.getByTestId('btn-create-item').click();
+
+      await expect(page.locator('h3').filter({ hasText: categoryName })).toBeVisible();
+      await expect(secondPage.locator('h3').filter({ hasText: categoryName })).toBeVisible({ timeout: 10000 });
 
       await secondContext.close();
 
@@ -182,28 +191,31 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /to-buy): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/to-buy');
 
-        await secondPage.getByTestId('dashboard-card-to-buy').click();
-        await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        await secondPage.goto('/home');
-        await secondPage.getByTestId('dashboard-card-items').click();
-        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await secondPage.getByTestId('dashboard-card-to-buy').click();
+      await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-        await page.goto('/home');
-        await page.getByTestId('dashboard-card-to-buy').click();
-        await expect(page.getByText(itemName)).not.toBeVisible({ timeout: 10000 });
-      }
+      await secondPage.goto('/home');
+      await secondPage.getByTestId('dashboard-card-items').click();
+      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+
+      await page.goto('/home');
+      await page.getByTestId('dashboard-card-to-buy').click();
+      await expect(page.getByText(itemName)).not.toBeVisible({ timeout: 10000 });
 
       await secondContext.close();
 
@@ -232,26 +244,31 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-        for (let i = 0; i < 5; i++) {
-          await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-          await page.waitForTimeout(50);
-        }
+      await secondPage.getByTestId('dashboard-card-items').click();
 
-        await expect(secondItemRow.locator('.qty-value')).toContainText('6');
-        await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('6');
+      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+      for (let i = 0; i < 5; i++) {
+        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+        // Intentional debounce stimulus pacing (not a settle sleep): the test
+        // needs rapid successive updates, not synchronized ones.
+        await page.waitForTimeout(50);
       }
+
+      await expect(secondItemRow.locator('.qty-value')).toContainText('6', { timeout: 10000 });
+      await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('6', { timeout: 10000 });
 
       await secondContext.close();
 
@@ -322,30 +339,33 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
-        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-        const firstPageItemRow = page.locator('.item-row').filter({ hasText: itemName });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await secondPage.getByTestId('dashboard-card-items').click();
+      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+      const firstPageItemRow = page.locator('.item-row').filter({ hasText: itemName });
 
-        await expect(secondItemRow.locator('.qty-value')).toContainText('3');
-        await expect(firstPageItemRow.locator('.qty-value')).toContainText('3');
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
 
-        await firstPageItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await expect(secondItemRow.locator('.qty-value')).toContainText('4');
-        await expect(firstPageItemRow.locator('.qty-value')).toContainText('4');
-      }
+      await expect(secondItemRow.locator('.qty-value')).toContainText('3', { timeout: 10000 });
+      await expect(firstPageItemRow.locator('.qty-value')).toContainText('3', { timeout: 10000 });
+
+      await firstPageItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await expect(secondItemRow.locator('.qty-value')).toContainText('4', { timeout: 10000 });
+      await expect(firstPageItemRow.locator('.qty-value')).toContainText('4', { timeout: 10000 });
 
       await secondContext.close();
 
@@ -398,26 +418,29 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
-        await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        const newItemName = `Article ch2 ${randomUUID()}`;
-        await secondPage.getByTestId('btn-new-item').click();
-        await secondPage.getByTestId('input-item-name').fill(newItemName);
-        await secondPage.getByTestId('btn-create-item').click();
-        await expect(secondPage.getByText(newItemName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByTestId('dashboard-card-items').click();
+      await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-        await expect(page.getByText(newItemName)).toBeVisible({ timeout: 10000 });
-      }
+      const newItemName = `Article ch2 ${randomUUID()}`;
+      await secondPage.getByTestId('btn-new-item').click();
+      await secondPage.getByTestId('input-item-name').fill(newItemName);
+      await secondPage.getByTestId('btn-create-item').click();
+      await expect(secondPage.getByText(newItemName)).toBeVisible({ timeout: 10000 });
+
+      await expect(page.getByText(newItemName)).toBeVisible({ timeout: 10000 });
 
       await secondContext.close();
 
@@ -445,30 +468,37 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
-        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-        const firstPageItemRow = page.locator('.item-row').filter({ hasText: itemName });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await page.waitForTimeout(100);
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await page.waitForTimeout(100);
+      await secondPage.getByTestId('dashboard-card-items').click();
+      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+      const firstPageItemRow = page.locator('.item-row').filter({ hasText: itemName });
 
-        await expect(secondItemRow.locator('.qty-value')).toContainText('3');
-        await expect(firstPageItemRow.locator('.qty-value')).toContainText('3');
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      // Intentional race-test pacing between interleaved updates (stimulus:
+      // the race needs overlapping in-flight updates, not lockstep sync).
+      await page.waitForTimeout(100);
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      // Intentional race-test pacing between interleaved updates (stimulus:
+      // the race needs overlapping in-flight updates, not lockstep sync).
+      await page.waitForTimeout(100);
 
-        const firstPageCount = await firstPageItemRow.count();
-        expect(firstPageCount).toBe(1);
-      }
+      await expect(secondItemRow.locator('.qty-value')).toContainText('3', { timeout: 10000 });
+      await expect(firstPageItemRow.locator('.qty-value')).toContainText('3', { timeout: 10000 });
+
+      const firstPageCount = await firstPageItemRow.count();
+      expect(firstPageCount).toBe(1);
 
       await secondContext.close();
 
@@ -689,6 +719,9 @@ test.describe('Real-time Collaboration', () => {
 
       await itemRow.getByRole('button', { name: /Réduire la quantité/ }).click();
       await expect(itemRow.locator('.qty-value')).toContainText('0', { timeout: 10000 });
+      // Quiescence window for a NEGATIVE assertion (no duplicate notification
+      // may appear): kept as a bounded sleep on purpose — returning early on
+      // the good state would void the test (Playwright has no wait-while).
       await page.waitForTimeout(1500);
       expect(await getPending(householdId)).toHaveLength(1);
 

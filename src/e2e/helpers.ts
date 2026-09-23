@@ -27,6 +27,22 @@ export async function waitForAnimationsToSettle(page: Page, timeout = 10000) {
     .toBe(0);
 }
 
+/**
+ * Bounded wait for an OPTIONAL UI signal (replaces fixed sleeps before
+ * conditional assertions): resolves `true` the moment the
+ * locator becomes visible, `false` after `timeout` with no signal. Callers
+ * keep their branching untouched; the suite just stops sleeping blindly and
+ * returns early when the signal lands.
+ */
+export async function didBecomeVisible(locator: Locator, timeout = 5000): Promise<boolean> {
+  try {
+    await expect(locator.first()).toBeVisible({ timeout });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function acceptDeleteDialog(page: Page, deleteButton: Locator) {
   await expect(deleteButton).toBeVisible();
   await expect(deleteButton).toBeEnabled();

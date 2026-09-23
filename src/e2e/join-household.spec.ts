@@ -1,15 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import {
-  e2eEnvironment,
-  fixtureRequiredReason,
-  writesDisabledReason,
-} from './environment';
+import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
 
 test.describe('Join Household Flow', () => {
   test.describe('Create Household', () => {
     test('US 1: new user can create their first household after signup', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await signUp(page, account);
       await expect(page).toHaveURL('/join-household');
       await expect(page.getByRole('heading', { name: 'Votre foyer' })).toBeVisible();
@@ -22,7 +17,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('US 6: user can choose a custom name for their household', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await signUp(page, account);
       
       const customHouseholdName = `Mon Foyer Personnalisé ${randomUUID().slice(0, 8)}`;
@@ -33,7 +28,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('US 7: user can use the default suggested household name', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await signUp(page, account);
       
       await page.getByRole('button', { name: 'Créer mon foyer' }).click();
@@ -42,7 +37,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('US 8: user sees loading indicators while household is being created', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await signUp(page, account);
       
       const householdName = `Foyer loading ${randomUUID().slice(0, 8)}`;
@@ -54,7 +49,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('US 10: user can see the household name before confirming creation', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await signUp(page, account);
       
       const previewName = `Foyer prévisualisation ${randomUUID().slice(0, 8)}`;
@@ -71,7 +66,7 @@ test.describe('Join Household Flow', () => {
 
   test.describe('Join Household with Invitation', () => {
     test('US 2: user can join an existing household with an invitation code', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       const householdName = await createHousehold(page, account);
       
       await page.getByRole('link', { name: /Membres/ }).click();
@@ -92,7 +87,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('US 9: user sees loading indicators while joining a household', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
       
       await page.getByRole('link', { name: /Membres/ }).click();
@@ -114,7 +109,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('US 5: user is redirected to the dashboard after successfully joining a household', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
       
       await page.getByRole('link', { name: /Membres/ }).click();
@@ -136,7 +131,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('US 15: user sees clear success feedback after joining a household', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       const householdName = await createHousehold(page, account);
       
       await page.getByRole('link', { name: /Membres/ }).click();
@@ -161,7 +156,7 @@ test.describe('Join Household Flow', () => {
 
   test.describe('Error Handling', () => {
     test('US 3: user sees clear error messages when the invitation is invalid', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await signUp(page, account);
       
       await page.getByLabel(/Code d'invitation complet/).fill('invalid-token-that-does-not-exist');
@@ -172,7 +167,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('US 11: user understands when an invitation has expired', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await signUp(page, account);
       
       await page.getByLabel(/Code d'invitation complet/).fill('expired-token-format');
@@ -184,7 +179,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('US 4: user can retry after a failed join attempt', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await signUp(page, account);
       
       await page.getByLabel(/Code d'invitation complet/).fill('wrong-token-1');
@@ -199,7 +194,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('US 13: user sees validation errors for empty invitation codes', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await signUp(page, account);
       
       const joinButton = page.getByRole('button', { name: 'Rejoindre le foyer' });
@@ -211,7 +206,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('US 16: user can join household with whitespace in invitation token', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
       
       await page.getByRole('link', { name: /Membres/ }).click();
@@ -234,7 +229,7 @@ test.describe('Join Household Flow', () => {
 
   test.describe('Navigation and UX', () => {
     test('US 14: user can navigate back to cancel the join process', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await signUp(page, account);
       await expect(page).toHaveURL('/join-household');
       
@@ -243,7 +238,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('shows both create and join options on the page', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await signUp(page, account);
       
       await expect(page.getByText('Créer un nouveau foyer')).toBeVisible();
@@ -253,7 +248,7 @@ test.describe('Join Household Flow', () => {
     });
 
     test('US 17: keyboard navigation through join household flow', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await signUp(page, account);
 
       // signUp leaves focus on the last-name field it just filled and Chromium

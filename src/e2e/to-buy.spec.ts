@@ -1,8 +1,7 @@
 import type { Page } from '@playwright/test';
-import { test, expect, createHousehold } from './fixtures';
+import { requireWrites, test, expect, createHousehold } from './fixtures';
 import {
   e2eEnvironment,
-  fixtureRequiredReason,
 } from './environment';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
@@ -132,9 +131,7 @@ test.describe('To-Buy Page', () => {
   let householdId: string;
 
   test.beforeEach(async ({ page, account }) => {
-    if (!e2eEnvironment.writesAllowed) {
-      test.skip(true, fixtureRequiredReason);
-    }
+    requireWrites();
     await createHousehold(page, account);
     householdId = await getHouseholdId(account);
     await clearCatalog(householdId);
@@ -218,16 +215,14 @@ test.describe('To-Buy Page', () => {
 
     await page.getByTestId('tobuy-quantity-input').fill('1');
     await page.getByTestId('tobuy-check-button').click();
-    await page.waitForTimeout(1000);
 
+    // Web-first: poll the database (source of truth) instead of a fixed sleep.
     const supabase = await adminClient();
-    const updatedItem = await supabase
-      .from('items')
-      .select('quantity')
-      .eq('id', item.id)
-      .single();
-
-    expect(updatedItem.data?.quantity).toBe(3);
+    await expect
+      .poll(async () => (await supabase.from('items').select('quantity').eq('id', item.id).single()).data?.quantity, {
+        timeout: 10000,
+      })
+      .toBe(3);
   });
 
   test('marks item as in stock when quantity exceeds threshold', async ({ page }) => {
@@ -243,16 +238,13 @@ test.describe('To-Buy Page', () => {
     await expect(page.getByText('En stock')).toBeVisible();
     await expect(page.getByTestId('tobuy-quantity-input')).toHaveCount(0);
 
-    await page.waitForTimeout(1000);
-
+    // Web-first: poll the database (source of truth) instead of a fixed sleep.
     const supabase = await adminClient();
-    const updatedItem = await supabase
-      .from('items')
-      .select('quantity')
-      .eq('id', item.id)
-      .single();
-
-    expect(updatedItem.data?.quantity).toBe(4);
+    await expect
+      .poll(async () => (await supabase.from('items').select('quantity').eq('id', item.id).single()).data?.quantity, {
+        timeout: 10000,
+      })
+      .toBe(4);
   });
 
   test('lists items exactly at the threshold (strict <= rule)', async ({ page }) => {
@@ -434,8 +426,8 @@ test.describe('To-Buy Page', () => {
     const supabase = await adminClient();
     await supabase.from('items').update({ quantity: 6 }).eq('id', item.id);
 
-    await page.waitForTimeout(1500);
-    await expect(page.getByText('Égouttoir')).toHaveCount(0);
+    // Web-first: wait on the realtime removal itself instead of a fixed sleep.
+    await expect(page.getByText('Égouttoir')).toHaveCount(0, { timeout: 10000 });
   });
 
   test('meets accessibility standards for screen readers', async ({ page }) => {

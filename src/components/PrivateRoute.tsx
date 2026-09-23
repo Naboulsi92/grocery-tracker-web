@@ -105,7 +105,7 @@ export function PrivateRoute({ children }: { children: ReactNode }) {
         {decision.outcome === 'error' ? (
           <>
             <p role="alert">{translateMessage(language, decision.message)}</p>
-            <button className="btn btn-primary" onClick={retry}>{t('offline.retry')}</button>
+            <button className="btn btn-primary" onClick={retry} data-testid="private-route-retry-button">{t('offline.retry')}</button>
           </>
         ) : (
           <>

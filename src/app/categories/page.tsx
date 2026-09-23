@@ -213,11 +213,14 @@ export default function CategoriesPage() {
     let debounceTimer: ReturnType<typeof setTimeout>;
     const channel = supabase
       .channel(`categories:${householdId}`)
+      // NOTE: no binding on category_positions here on purpose. That table is
+      // outside the supabase_realtime publication (contract: exactly
+      // {categories, items}), and binding it starves the whole channel: no
+      // categories events arrive at all (trace-proven across 5 CI runs).
+      // Positions-only changes (reorder) carry no realtime signal —
+      // acceptable, no P0 covers cross-page reorder; every other change
+      // touches categories too.
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `household_id=eq.${householdId}` }, () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => void loadCategories(), 300);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'category_positions', filter: `household_id=eq.${householdId}` }, () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => void loadCategories(), 300);
       })
@@ -286,6 +289,9 @@ export default function CategoriesPage() {
         setCategories((current) => [...current, data]);
         setPositions((prev) => ({ ...prev, [data.id]: nextPosition }));
       }
+      // Local mutation applied above: invalidate in-flight fetches so a stale
+      // response cannot overwrite it (the realtime event refetch carries a newer id).
+      requestId.current += 1;
       cancelForm();
     } catch (mutationError) {
       setError(getErrorMessage(mutationError, 'error.save_category'));
@@ -331,6 +337,9 @@ export default function CategoriesPage() {
       if (deletedName) {
         await logItemHistory(householdId, 'suppression', deletedName, supabase);
       }
+      // Local mutation applied below: invalidate in-flight fetches so a stale
+      // response cannot resurrect the deleted row.
+      requestId.current += 1;
       setCategories((current) => current.filter((category) => category.id !== id));
       setPositions((prev) => {
         const next = { ...prev };
@@ -429,7 +438,7 @@ export default function CategoriesPage() {
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             {translateMessage(language, combinedError)}
-            <button type="button" className="btn btn-secondary" onClick={() => void fetchCategories(true)}>{t('common.retry')}</button>
+            <button type="button" className="btn btn-secondary" onClick={() => void fetchCategories(true)} data-testid="btn-retry-categories">{t('common.retry')}</button>
           </div>
         )}
 
@@ -468,7 +477,7 @@ export default function CategoriesPage() {
                 {fieldNameError && <p className="field-error" role="alert" id="category-name-error" data-testid={fieldNameError === 'categories.duplicate' ? 'error-name-duplicate' : fieldNameError === 'validation.name.too_long' ? 'error-name-too-long' : 'error-name-required-letter'}>{translateMessage(language, fieldNameError)}</p>}
               </div>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button type="submit" className="btn btn-primary" disabled={mutating === 'form' || !isOnline} data-testid="btn-create-category">
+                <button type="submit" className="btn btn-primary" disabled={mutating === 'form' || !isOnline || !householdId} data-testid="btn-create-category">
                   {editingId ? t('common.save') : t('common.create')}
                 </button>
                 <button
@@ -476,6 +485,7 @@ export default function CategoriesPage() {
                   onClick={cancelForm}
                   className="btn btn-secondary"
                   disabled={mutating === 'form'}
+                  data-testid="btn-cancel-category"
                 >
                   {t('common.cancel')}
                 </button>

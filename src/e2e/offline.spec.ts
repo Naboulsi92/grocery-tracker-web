@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { createHousehold, expect, test } from './fixtures';
-import { e2eEnvironment, writesDisabledReason } from './environment';
+import { requireWrites, createHousehold, expect, test } from './fixtures';
 
 function pendingQueueCount(page: import('@playwright/test').Page) {
   // Read the IndexedDB store the queue persists to (offlineQueue.ts). The app
@@ -34,7 +33,7 @@ function pendingQueueCount(page: import('@playwright/test').Page) {
 
 test.describe('Offline read-only mode (PRD §8 #11)', () => {
   test('items page: consultation kept, every action blocked, nothing queued', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     const itemName = `Article hors-ligne ${randomUUID().slice(0, 8)}`;
@@ -68,7 +67,7 @@ test.describe('Offline read-only mode (PRD §8 #11)', () => {
   });
 
   test('to-buy page: list still consultable, quantity confirmation blocked', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     const itemName = `Article à acheter ${randomUUID().slice(0, 8)}`;
@@ -100,7 +99,7 @@ test.describe('Offline read-only mode (PRD §8 #11)', () => {
   });
 
   test('items page: offline banner shows the exact read-only text', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     const itemName = `Article bandeau ${randomUUID().slice(0, 8)}`;
@@ -129,7 +128,7 @@ test.describe('Offline read-only mode (PRD §8 #11)', () => {
     page,
     account,
   }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     const itemName = `Article resync ${randomUUID().slice(0, 8)}`;

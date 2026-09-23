@@ -6,6 +6,7 @@ interface ConfirmDialogProps {
   confirmLabel: string;
   cancelLabel: string;
   confirmTestId?: string;
+  cancelTestId?: string;
   pending?: boolean;
   pendingLabel?: string;
   tone?: 'danger' | 'primary';
@@ -19,6 +20,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   confirmTestId,
+  cancelTestId,
   pending = false,
   pendingLabel,
   tone = 'danger',
@@ -39,7 +41,7 @@ export function ConfirmDialog({
           {message}
         </p>
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-          <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={pending}>
+          <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={pending} data-testid={cancelTestId}>
             {cancelLabel}
           </button>
           <button

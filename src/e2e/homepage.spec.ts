@@ -110,7 +110,14 @@ test.describe('Homepage', () => {
     // Use locator with exact text to find the button
     const questionButton = page.locator('#faq .mk-faq-q').first();
     await questionButton.click();
-    await page.waitForTimeout(2000);
+    // Web-first: bounded hydration window instead of a fixed sleep. A slow
+    // hydrate now proceeds; only a truly dead accordion hits the skip below.
+    try {
+      await expect.poll(async () => questionButton.getAttribute('aria-expanded'), { timeout: 5000 }).toBe('true');
+    } catch {
+      console.log('FAQ accordion not working in test environment - skipping');
+      return;
+    }
     
     // Check state after click
     const afterClickState = await questionButton.getAttribute('aria-expanded');
@@ -140,7 +147,13 @@ test.describe('Homepage', () => {
     // Test first question click
     await questions.nth(0).scrollIntoViewIfNeeded();
     await questions.nth(0).click();
-    await page.waitForTimeout(1000);
+    // Web-first: bounded hydration window instead of a fixed sleep.
+    try {
+      await expect.poll(async () => questions.nth(0).getAttribute('aria-expanded'), { timeout: 5000 }).toBe('true');
+    } catch {
+      console.log('FAQ accordion not working in test environment - skipping');
+      return;
+    }
     const firstState = await questions.nth(0).getAttribute('aria-expanded');
     
     // If React is not working, skip the test
@@ -154,13 +167,13 @@ test.describe('Homepage', () => {
     
     // Click second question
     await questions.nth(1).click();
-    await page.waitForTimeout(1000);
+    await expect(questions.nth(1)).toHaveAttribute('aria-expanded', 'true', { timeout: 5000 });
     await expect(questions.nth(0)).toHaveAttribute('aria-expanded', 'false');
     await expect(questions.nth(1)).toHaveAttribute('aria-expanded', 'true');
     
     // Click first question again
     await questions.nth(0).click();
-    await page.waitForTimeout(1000);
+    await expect(questions.nth(0)).toHaveAttribute('aria-expanded', 'true', { timeout: 5000 });
     await expect(questions.nth(0)).toHaveAttribute('aria-expanded', 'true');
     await expect(questions.nth(1)).toHaveAttribute('aria-expanded', 'false');
   });

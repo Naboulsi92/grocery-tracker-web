@@ -1,9 +1,10 @@
-import { expect, signUp, test } from './fixtures';
-import { e2eEnvironment, writesDisabledReason } from './environment';
+import { expect, requireWrites, signUp, test } from './fixtures';
 
 test.describe('Signup Flow', () => {
   test('can sign up a new user', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    // PRD §8 exception: the one real-signup journey (never a seed account).
+    // Fail-fast without a writable backend — never a silent skip.
+    requireWrites();
 
     await signUp(page, account);
     await expect(page.getByRole('heading', { name: 'Votre foyer' })).toBeVisible();

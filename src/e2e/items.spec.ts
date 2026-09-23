@@ -1,16 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
 import { deleteAllItems, deleteItemRow } from './helpers';
-import {
-  e2eEnvironment,
-  fixtureRequiredReason,
-  writesDisabledReason,
-} from './environment';
 
 test.describe('Items CRUD', () => {
   test.describe('Create Item', () => {
     test('shows error message on create failure', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article E ${randomUUID()}`;
@@ -40,7 +35,7 @@ test.describe('Items CRUD', () => {
     });
 
     test('validates unit selection and display', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article unité ${randomUUID()}`;
@@ -66,7 +61,7 @@ test.describe('Items CRUD', () => {
 
   test.describe('Edit Item', () => {
     test('can edit item name (US 45)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const originalName = `Article ${randomUUID()}`;
@@ -93,7 +88,7 @@ test.describe('Items CRUD', () => {
     });
 
     test('can adjust item quantity via atomic buttons (US 46)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article qty ${randomUUID()}`;
@@ -117,7 +112,7 @@ test.describe('Items CRUD', () => {
     });
 
     test('can edit item category assignment (US 47)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const categoryName = `Catégorie ${randomUUID()}`;
@@ -152,7 +147,7 @@ test.describe('Items CRUD', () => {
     });
 
     test('can edit low stock threshold (US 48)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article seuil ${randomUUID()}`;
@@ -181,7 +176,7 @@ test.describe('Items CRUD', () => {
 
   test.describe('Atomic Operations', () => {
     test('can increment quantity atomically (US 49)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article inc ${randomUUID()}`;
@@ -205,7 +200,7 @@ test.describe('Items CRUD', () => {
     });
 
     test('can decrement quantity atomically (US 50)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article dec ${randomUUID()}`;
@@ -229,7 +224,7 @@ test.describe('Items CRUD', () => {
     });
 
     test('cannot decrement below zero', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article zero ${randomUUID()}`;
@@ -257,7 +252,7 @@ test.describe('Items CRUD', () => {
 
   test.describe('Empty State', () => {
     test('shows empty state with call-to-action when no items exist (US 51, 81)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -276,7 +271,7 @@ test.describe('Items CRUD', () => {
 
   test.describe('Error Handling', () => {
     test('shows error message on delete failure (US 53)', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article E ${randomUUID()}`;
@@ -313,7 +308,7 @@ test.describe('Items CRUD', () => {
 
   test.describe('Real-time Updates', () => {
     test('updates in real-time when items change', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       const householdName = await createHousehold(page, account);
 
       const itemName = `Article rt ${randomUUID()}`;
@@ -329,24 +324,27 @@ test.describe('Items CRUD', () => {
       await signUp(secondPage, secondAccount);
       
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
+
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
+
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
       
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
-        
-        await secondPage.getByTestId('dashboard-card-items').click();
-        await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
-        
-        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await expect(secondItemRow.locator('.qty-value')).toContainText('2');
-        
-        await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('2');
-      }
+      await secondPage.getByTestId('dashboard-card-items').click();
+      await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      
+      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await expect(secondItemRow.locator('.qty-value')).toContainText('2');
+      
+      await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('2', { timeout: 10000 });
       
       await secondContext.close();
       
@@ -357,7 +355,7 @@ test.describe('Items CRUD', () => {
 
   test.describe('Low Stock Badge', () => {
     test('displays low-stock badge correctly', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article badge ${randomUUID()}`;
@@ -390,7 +388,7 @@ test.describe('Items CRUD', () => {
       account,
       browser,
     }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -420,7 +418,7 @@ test.describe('Items CRUD', () => {
 
   test.describe('Field Validation (P1-7, #107)', () => {
     test('rejects a name without any letter', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -432,7 +430,7 @@ test.describe('Items CRUD', () => {
     });
 
     test('rejects a name longer than 50 characters', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -444,7 +442,7 @@ test.describe('Items CRUD', () => {
     });
 
     test('rejects a case-insensitive duplicate name', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const baseName = `Doublon ${randomUUID().slice(0, 8)}`;
@@ -464,7 +462,7 @@ test.describe('Items CRUD', () => {
     });
 
     test('rejects a negative quantity', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -477,7 +475,7 @@ test.describe('Items CRUD', () => {
     });
 
     test('rejects a decimal quantity', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -490,7 +488,7 @@ test.describe('Items CRUD', () => {
     });
 
     test('rejects a zero threshold', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -505,7 +503,7 @@ test.describe('Items CRUD', () => {
 
   test.describe('Unit Change (P1-8, #107)', () => {
     test('changing unit clears quantity and threshold', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -523,7 +521,7 @@ test.describe('Items CRUD', () => {
     });
 
     test('unit select offers exactly the 5 closed PRD values', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -539,7 +537,7 @@ test.describe('Items CRUD', () => {
 
   test.describe('Seed Items (P1-13, #107)', () => {
     test('new household owns the 10 forked seed items at quantity 0', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();

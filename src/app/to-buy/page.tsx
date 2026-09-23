@@ -164,7 +164,7 @@ export default function ToBuyPage() {
         {combinedError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>
             {translateMessage(language, combinedError)}
-            <button type="button" className="btn btn-secondary" onClick={() => void fetchItems(true)}>{t('common.retry')}</button>
+            <button type="button" className="btn btn-secondary" onClick={() => void fetchItems(true)} data-testid="btn-retry-tobuy">{t('common.retry')}</button>
           </div>
         )}
         {items.length === 0 && !error ? (

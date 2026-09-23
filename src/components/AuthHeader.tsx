@@ -57,6 +57,7 @@ export function AuthHeader({ showBackHome = false, showSignOut = false, title, s
           onClick={signOut}
           className="btn btn-ghost"
           aria-label={t('auth.sign_out')}
+          data-testid="auth-header-sign-out-button"
         >
           <svg
             aria-hidden="true"

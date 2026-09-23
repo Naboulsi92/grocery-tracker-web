@@ -44,7 +44,7 @@ return (
         loading={loading}
         error={error}
         trailingAction={
-          <button onClick={() => actions.refresh()} className="btn btn-secondary">
+          <button onClick={() => actions.refresh()} className="btn btn-secondary" data-testid="members-refresh-button">
             {t('common.retry')}
           </button>
         }
@@ -54,7 +54,7 @@ return (
         {error && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1rem' }}>
             {translateMessage(language, error)}
-            {!household && <button type="button" className="btn btn-secondary" onClick={() => actions.refresh()}>{t('common.retry')}</button>}
+            {!household && <button type="button" className="btn btn-secondary" onClick={() => actions.refresh()} data-testid="members-error-retry-button">{t('common.retry')}</button>}
           </div>
         )}
 
@@ -72,7 +72,7 @@ return (
               {t('members.invite_hint')}
             </p>
             {invitation.status === 'none' || invitation.status === 'creating' ? (
-              <button type="button" onClick={() => actions.createInvitation()} disabled={invitation.status === 'creating'} className="btn btn-primary">
+              <button type="button" onClick={() => actions.createInvitation()} disabled={invitation.status === 'creating'} className="btn btn-primary" data-testid="members-create-invitation-button">
                 {invitation.status === 'creating' ? t('members.creating') : t('members.create_invitation')}
               </button>
             ) : (
@@ -87,10 +87,10 @@ return (
                   tabIndex={-1}
                   aria-hidden="true"
                 />
-                <button type="button" onClick={handleCopyInvitation} disabled={invitation.status === 'revoking'} className="btn btn-secondary" aria-describedby="copy-status">
+                <button type="button" onClick={handleCopyInvitation} disabled={invitation.status === 'revoking'} className="btn btn-secondary" aria-describedby="copy-status" data-testid="members-copy-invitation-button">
                   {copied ? t('common.copied') : t('common.copy')}
                 </button>
-                <button type="button" onClick={() => actions.revokeInvitation(invitation.invitationId)} disabled={invitation.status === 'revoking'} className="btn btn-secondary">
+                <button type="button" onClick={() => actions.revokeInvitation(invitation.invitationId)} disabled={invitation.status === 'revoking'} className="btn btn-secondary" data-testid="members-revoke-invitation-button">
                   {invitation.status === 'revoking' ? t('members.revoking') : t('members.revoke')}
                 </button>
                 <span id="copy-status" className="sr-only" aria-live="polite">{copied ? t('members.copied_aria') : ''}</span>

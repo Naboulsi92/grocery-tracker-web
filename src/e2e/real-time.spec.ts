@@ -1,18 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
 import { deleteItemRow } from './helpers';
-import {
-  e2eEnvironment,
-  fixtureRequiredReason,
-  writesDisabledReason,
-} from './environment';
 
 test.describe('Real-time Collaboration', () => {
   test.describe('Real-time Item Updates (US 56)', () => {
     test('updates item quantity in real-time across browser contexts', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article rt ${randomUUID()}`;
@@ -29,24 +24,27 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
-        await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await expect(secondItemRow.locator('.qty-value')).toContainText('2');
+      await secondPage.getByTestId('dashboard-card-items').click();
+      await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-        await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('2');
-      }
+      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await expect(secondItemRow.locator('.qty-value')).toContainText('2');
+
+      await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('2', { timeout: 10000 });
 
       await secondContext.close();
 
@@ -55,7 +53,7 @@ test.describe('Real-time Collaboration', () => {
     });
 
     test('updates item name in real-time across browser contexts', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const originalName = `Article orig ${randomUUID()}`;
@@ -71,30 +69,33 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
-        await expect(secondPage.getByText(originalName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        const newName = `Article ren ${randomUUID()}`;
-        const itemRow = page.locator('.item-row').filter({ hasText: originalName });
-        await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
-        await page.getByTestId('input-item-name').fill(newName);
-        await page.getByTestId('btn-create-item').click();
+      await secondPage.getByTestId('dashboard-card-items').click();
+      await expect(secondPage.getByText(originalName)).toBeVisible({ timeout: 10000 });
 
-        await expect(page.getByText(newName)).toBeVisible();
-        await expect(secondPage.getByText(newName)).toBeVisible({ timeout: 10000 });
+      const newName = `Article ren ${randomUUID()}`;
+      const itemRow = page.locator('.item-row').filter({ hasText: originalName });
+      await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
+      await page.getByTestId('input-item-name').fill(newName);
+      await page.getByTestId('btn-create-item').click();
 
-        page.once('dialog', (dialog) => dialog.accept());
-        await page.locator('.item-row').filter({ hasText: newName }).getByTestId(/^btn-delete-item-/).click();
-      }
+      await expect(page.getByText(newName)).toBeVisible();
+      await expect(secondPage.getByText(newName)).toBeVisible({ timeout: 10000 });
+
+      page.once('dialog', (dialog) => dialog.accept());
+      await page.locator('.item-row').filter({ hasText: newName }).getByTestId(/^btn-delete-item-/).click();
 
       await secondContext.close();
     });
@@ -102,7 +103,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('Real-time Category Updates (US 57)', () => {
     test('updates category in real-time across browser contexts', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const categoryName = `Catégorie rt ${randomUUID()}`;
@@ -126,26 +127,29 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
-        await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        const itemRow = page.locator('.item-row').filter({ hasText: itemName });
-        await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
-        await page.locator('#item-category').selectOption({ label: categoryName });
-        await page.getByTestId('btn-create-item').click();
+      await secondPage.getByTestId('dashboard-card-items').click();
+      await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-        await expect(page.locator('h3').filter({ hasText: categoryName })).toBeVisible();
-        await expect(secondPage.locator('h3').filter({ hasText: categoryName })).toBeVisible({ timeout: 10000 });
-      }
+      const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+      await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
+      await page.locator('#item-category').selectOption({ label: categoryName });
+      await page.getByTestId('btn-create-item').click();
+
+      await expect(page.locator('h3').filter({ hasText: categoryName })).toBeVisible();
+      await expect(secondPage.locator('h3').filter({ hasText: categoryName })).toBeVisible({ timeout: 10000 });
 
       await secondContext.close();
 
@@ -160,7 +164,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('To-Buy List Real-time Updates (US 58)', () => {
     test('auto-updates to-buy list when items change', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article ach ${randomUUID()}`;
@@ -182,28 +186,31 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /to-buy): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/to-buy');
 
-        await secondPage.getByTestId('dashboard-card-to-buy').click();
-        await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        await secondPage.goto('/home');
-        await secondPage.getByTestId('dashboard-card-items').click();
-        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await secondPage.getByTestId('dashboard-card-to-buy').click();
+      await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-        await page.goto('/home');
-        await page.getByTestId('dashboard-card-to-buy').click();
-        await expect(page.getByText(itemName)).not.toBeVisible({ timeout: 10000 });
-      }
+      await secondPage.goto('/home');
+      await secondPage.getByTestId('dashboard-card-items').click();
+      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+
+      await page.goto('/home');
+      await page.getByTestId('dashboard-card-to-buy').click();
+      await expect(page.getByText(itemName)).not.toBeVisible({ timeout: 10000 });
 
       await secondContext.close();
 
@@ -215,7 +222,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('Debounce Mechanism (US 59, 60)', () => {
     test('prevents excessive re-fetches during rapid updates', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article deb ${randomUUID()}`;
@@ -232,26 +239,31 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-        for (let i = 0; i < 5; i++) {
-          await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-          await page.waitForTimeout(50);
-        }
+      await secondPage.getByTestId('dashboard-card-items').click();
 
-        await expect(secondItemRow.locator('.qty-value')).toContainText('6');
-        await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('6');
+      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+      for (let i = 0; i < 5; i++) {
+        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+        // Intentional debounce stimulus pacing (not a settle sleep): the test
+        // needs rapid successive updates, not synchronized ones.
+        await page.waitForTimeout(50);
       }
+
+      await expect(secondItemRow.locator('.qty-value')).toContainText('6', { timeout: 10000 });
+      await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('6', { timeout: 10000 });
 
       await secondContext.close();
 
@@ -262,7 +274,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('Multi-user Onboarding (US 70)', () => {
     test('new user sees real-time data after joining household', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       const householdName = await createHousehold(page, account);
 
       const itemNames = [
@@ -305,7 +317,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('Concurrent Updates', () => {
     test('handles concurrent updates from multiple users without race conditions', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article conc ${randomUUID()}`;
@@ -322,30 +334,33 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
-        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-        const firstPageItemRow = page.locator('.item-row').filter({ hasText: itemName });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await secondPage.getByTestId('dashboard-card-items').click();
+      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+      const firstPageItemRow = page.locator('.item-row').filter({ hasText: itemName });
 
-        await expect(secondItemRow.locator('.qty-value')).toContainText('3');
-        await expect(firstPageItemRow.locator('.qty-value')).toContainText('3');
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
 
-        await firstPageItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await expect(secondItemRow.locator('.qty-value')).toContainText('4');
-        await expect(firstPageItemRow.locator('.qty-value')).toContainText('4');
-      }
+      await expect(secondItemRow.locator('.qty-value')).toContainText('3', { timeout: 10000 });
+      await expect(firstPageItemRow.locator('.qty-value')).toContainText('3', { timeout: 10000 });
+
+      await firstPageItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      await expect(secondItemRow.locator('.qty-value')).toContainText('4', { timeout: 10000 });
+      await expect(firstPageItemRow.locator('.qty-value')).toContainText('4', { timeout: 10000 });
 
       await secondContext.close();
 
@@ -356,7 +371,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('Subscription Lifecycle', () => {
     test('validates subscription cleanup on page navigation', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
@@ -382,7 +397,7 @@ test.describe('Real-time Collaboration', () => {
     });
 
     test('validates channel creation and subscription lifecycle', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article ch ${randomUUID()}`;
@@ -398,26 +413,32 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
-        await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        const newItemName = `Article ch2 ${randomUUID()}`;
-        await secondPage.getByTestId('btn-new-item').click();
-        await secondPage.getByTestId('input-item-name').fill(newItemName);
-        await secondPage.getByTestId('btn-create-item').click();
-        await expect(secondPage.getByText(newItemName)).toBeVisible({ timeout: 10000 });
+      await secondPage.getByTestId('dashboard-card-items').click();
+      await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-        await expect(page.getByText(newItemName)).toBeVisible({ timeout: 10000 });
-      }
+      const newItemName = `Article ch2 ${randomUUID()}`;
+      await secondPage.getByTestId('btn-new-item').click();
+      await secondPage.getByTestId('input-item-name').fill(newItemName);
+      await secondPage.getByTestId('btn-create-item').click();
+      // Success closes the form: fail fast here if the submit no-ops
+      // (e.g. household not resolved yet) instead of matching the input value below.
+      await expect(secondPage.getByTestId('input-item-name')).toBeHidden({ timeout: 10000 });
+      await expect(secondPage.getByText(newItemName)).toBeVisible({ timeout: 10000 });
+
+      await expect(page.getByText(newItemName)).toBeVisible({ timeout: 10000 });
 
       await secondContext.close();
 
@@ -428,7 +449,7 @@ test.describe('Real-time Collaboration', () => {
 
   test.describe('No Duplicate Updates', () => {
     test('validates no duplicate updates or race conditions', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
 
       const itemName = `Article dup ${randomUUID()}`;
@@ -445,30 +466,37 @@ test.describe('Real-time Collaboration', () => {
       await signUp(secondPage, secondAccount);
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-      await secondPage.waitForTimeout(500);
 
-      const inviteLink = page.locator('.invite-code-text');
-      if (await inviteLink.isVisible()) {
-        const token = await inviteLink.textContent();
-        await secondPage.getByLabel(/Code d.invitation complet/).fill(token || '');
-        await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-        await secondPage.waitForURL('/home', { timeout: 20000 });
+      // Invite tokens render on /members (never on /items): fetch one via the
+      // proven onboarding pattern so the two-context flow below always runs.
+      await page.goto('/home');
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+      await page.goto('/items');
 
-        await secondPage.getByTestId('dashboard-card-items').click();
-        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-        const firstPageItemRow = page.locator('.item-row').filter({ hasText: itemName });
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await secondPage.waitForURL('/home', { timeout: 20000 });
 
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await page.waitForTimeout(100);
-        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        await page.waitForTimeout(100);
+      await secondPage.getByTestId('dashboard-card-items').click();
+      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+      const firstPageItemRow = page.locator('.item-row').filter({ hasText: itemName });
 
-        await expect(secondItemRow.locator('.qty-value')).toContainText('3');
-        await expect(firstPageItemRow.locator('.qty-value')).toContainText('3');
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      // Intentional race-test pacing between interleaved updates (stimulus:
+      // the race needs overlapping in-flight updates, not lockstep sync).
+      await page.waitForTimeout(100);
+      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+      // Intentional race-test pacing between interleaved updates (stimulus:
+      // the race needs overlapping in-flight updates, not lockstep sync).
+      await page.waitForTimeout(100);
 
-        const firstPageCount = await firstPageItemRow.count();
-        expect(firstPageCount).toBe(1);
-      }
+      await expect(secondItemRow.locator('.qty-value')).toContainText('3', { timeout: 10000 });
+      await expect(firstPageItemRow.locator('.qty-value')).toContainText('3', { timeout: 10000 });
+
+      const firstPageCount = await firstPageItemRow.count();
+      expect(firstPageCount).toBe(1);
 
       await secondContext.close();
 
@@ -550,7 +578,7 @@ test.describe('Real-time Collaboration', () => {
     }
 
     test('P1-10 — 21st history action evicts the oldest, max 20 shown, 0 history_insert_failed', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       const historyWarnings: string[] = [];
       page.on('console', (msg) => {
         if (msg.type() === 'warning' && msg.text().includes('history_insert_failed')) {
@@ -610,7 +638,7 @@ test.describe('Real-time Collaboration', () => {
     });
 
     test('P0-2 — A crosses below threshold: only B is notified, A is not', async ({ page, account, browser }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
       const admin = await adminClient();
       const actorA = await getUserIdByEmail(account.email);
@@ -665,7 +693,7 @@ test.describe('Real-time Collaboration', () => {
     });
 
     test('P0-3 — down/up/down notifies once per crossing via already_notified', async ({ page, account }) => {
-      test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+      requireWrites();
       await createHousehold(page, account);
       const admin = await adminClient();
       const actorId = await getUserIdByEmail(account.email);
@@ -689,6 +717,9 @@ test.describe('Real-time Collaboration', () => {
 
       await itemRow.getByRole('button', { name: /Réduire la quantité/ }).click();
       await expect(itemRow.locator('.qty-value')).toContainText('0', { timeout: 10000 });
+      // Quiescence window for a NEGATIVE assertion (no duplicate notification
+      // may appear): kept as a bounded sleep on purpose — returning early on
+      // the good state would void the test (Playwright has no wait-while).
       await page.waitForTimeout(1500);
       expect(await getPending(householdId)).toHaveLength(1);
 

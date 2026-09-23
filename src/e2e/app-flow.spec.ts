@@ -1,14 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import {
-  e2eEnvironment,
-  fixtureRequiredReason,
-  writesDisabledReason,
-} from './environment';
+import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
 
 test.describe('App Flow', () => {
   test('complete user flow: signup and navigate', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+    requireWrites();
     await createHousehold(page, account);
     
     await page.getByTestId('dashboard-card-categories').click();
@@ -31,7 +26,7 @@ test.describe('App Flow', () => {
   });
 
   test('can add and remove a new category', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     const categoryName = `Catégorie e2e ${randomUUID().slice(0, 8)}`;
@@ -47,7 +42,7 @@ test.describe('App Flow', () => {
   });
 
   test('can add and remove a new item', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, writesDisabledReason);
+    requireWrites();
     await createHousehold(page, account);
 
     const itemName = `Article e2e ${randomUUID()}`;
@@ -64,7 +59,7 @@ test.describe('App Flow', () => {
   });
 
   test('an invited user can join the newly created household', async ({ page, account, browser }) => {
-    test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+    requireWrites();
     const householdName = await createHousehold(page, account);
 
     await page.getByRole('link', { name: /Membres/ }).click();
@@ -94,7 +89,7 @@ test.describe('App Flow', () => {
   });
 
   test('updates an item quantity atomically through the UI', async ({ page, account }) => {
-    test.skip(!e2eEnvironment.writesAllowed, fixtureRequiredReason);
+    requireWrites();
     await createHousehold(page, account);
     await page.getByRole('link', { name: 'Articles Voir et modifier' }).click();
 

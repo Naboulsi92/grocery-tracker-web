@@ -48,7 +48,9 @@ export function AccessibleDialog({
   const titleId = useId();
   const messageId = useId();
   const onCancelRef = useRef(onCancel);
-  onCancelRef.current = onCancel;
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  });
 
   useEffect(() => {
     // Remember the trigger for focus restoration (the element focused when

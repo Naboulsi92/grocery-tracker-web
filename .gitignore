@@ -54,3 +54,8 @@ next-env.d.ts
 # local audits (generated, not committed)
 audit-*.md
 
+
+# Local E2E dev-server plumbing (never commit)
+dev-server*.log
+dev-server.pid
+playwright.local-edge.config.ts

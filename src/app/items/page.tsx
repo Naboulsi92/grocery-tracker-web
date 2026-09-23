@@ -113,7 +113,7 @@ async function handleSubmit(e: React.FormEvent) {
   setFieldThresholdError('');
   setFieldUnitError('');
 
-  if (!householdId || !formName.trim() || !formUnit || mutating || !isOnline) return;
+  if (!householdId || !formUnit || mutating || !isOnline) return;
 
   const unitErr = validateUnit(formUnit);
   if (unitErr) { setFieldUnitError(unitErr); return; }

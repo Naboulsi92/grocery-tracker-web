@@ -1921,5 +1921,25 @@ begin
 end;
 $$;
 
+-- Ticket #127 : validation letter class SQL ↔ TS ([A-Za-zÀ-ÖØ-öø-ÿŒœ]).
+-- × (U+00D7) and ÷ (U+00F7) must be rejected; accented capitals around the
+-- excluded range must pass. Mirrors src/lib/__tests__/validation.test.ts.
+do $$
+begin
+  if '×' ~ '[A-Za-zÀ-ÖØ-öø-ÿŒœ]' then
+    raise exception 'letter class accepts multiplication sign';
+  end if;
+  if '÷' ~ '[A-Za-zÀ-ÖØ-öø-ÿŒœ]' then
+    raise exception 'letter class accepts division sign';
+  end if;
+  if '×3' ~ '[A-Za-zÀ-ÖØ-öø-ÿŒœ]' then
+    raise exception 'letter class accepts ×-led name';
+  end if;
+  if not ('ÀÖØÞßàöøþÿ' ~ '[A-Za-zÀ-ÖØ-öø-ÿŒœ]') then
+    raise exception 'letter class rejects accented capitals';
+  end if;
+end;
+$$;
+
 reset role;
 rollback;

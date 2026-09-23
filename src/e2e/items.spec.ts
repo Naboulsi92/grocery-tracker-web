@@ -487,6 +487,45 @@ test.describe('Items CRUD', () => {
 
       await expect(page.getByTestId('error-threshold-required')).toBeVisible();
     });
+
+    test('shows an error on empty submit instead of silently returning (#129)', async ({ page, account }) => {
+      requireWrites();
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByLabel('Quantité', { exact: true }).fill('1');
+      await page.getByTestId('btn-create-item').click();
+
+      // No insert: the form stays open with a name error.
+      await expect(page.getByTestId('error-name-required-letter')).toBeVisible();
+      await expect(page.getByTestId('input-item-name')).toBeVisible();
+    });
+
+    test('shows the unit error in English when the locale is EN (#128)', async ({ page, account }) => {
+      requireWrites();
+      await createHousehold(page, account);
+
+      await page.getByTestId('dashboard-card-account').click();
+      await page.getByTestId('account-language-selector').selectOption('en');
+      await expect(page.getByRole('heading', { level: 1, name: 'Account settings' })).toBeVisible({
+        timeout: 10000,
+      });
+
+      await page.goto('/items');
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(`Article unit ${randomUUID().slice(0, 8)}`);
+      await page.locator('#item-unit').evaluate((select: HTMLSelectElement) => {
+        select.value = 'litre';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      await page.getByTestId('btn-create-item').click();
+
+      await expect(page.getByTestId('error-unit-invalid')).toBeVisible();
+      await expect(page.getByTestId('error-unit-invalid')).toContainText(
+        'Choose a unit from kg, g, l, ml, unit.',
+      );
+    });
   });
 
   test.describe('Unit Change (P1-8, #107)', () => {

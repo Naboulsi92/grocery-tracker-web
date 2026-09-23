@@ -286,6 +286,9 @@ export default function CategoriesPage() {
         setCategories((current) => [...current, data]);
         setPositions((prev) => ({ ...prev, [data.id]: nextPosition }));
       }
+      // Local mutation applied above: invalidate in-flight fetches so a stale
+      // response cannot overwrite it (the realtime event refetch carries a newer id).
+      requestId.current += 1;
       cancelForm();
     } catch (mutationError) {
       setError(getErrorMessage(mutationError, 'error.save_category'));
@@ -331,6 +334,9 @@ export default function CategoriesPage() {
       if (deletedName) {
         await logItemHistory(householdId, 'suppression', deletedName, supabase);
       }
+      // Local mutation applied below: invalidate in-flight fetches so a stale
+      // response cannot resurrect the deleted row.
+      requestId.current += 1;
       setCategories((current) => current.filter((category) => category.id !== id));
       setPositions((prev) => {
         const next = { ...prev };

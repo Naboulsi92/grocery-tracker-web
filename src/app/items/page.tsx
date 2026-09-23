@@ -174,6 +174,9 @@ async function handleSubmit(e: React.FormEvent) {
     try {
       const { error } = await deleteItem(id, householdId!);
       if (error) throw error;
+      // Local mutation applied below: invalidate in-flight fetches so a stale
+      // response cannot resurrect the deleted row.
+      requestId.current += 1;
       setItems((current) => current.filter((item) => item.id !== id));
     } catch (mutationError) {
       setError(getErrorMessage(mutationError, 'error.delete_item'));

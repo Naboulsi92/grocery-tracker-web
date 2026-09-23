@@ -362,11 +362,14 @@ test.describe('Categories CRUD', () => {
       await secondPage.getByTestId('dashboard-card-categories').click();
       await expect(secondPage.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
-      const newCategoryName = `Catégorie rt2 ${randomUUID()}`;
-      await secondPage.getByTestId('btn-new-category').click();
-      await secondPage.getByTestId('input-category-name').fill(newCategoryName);
-      await secondPage.getByTestId('btn-create-category').click();
-      await expect(secondPage.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
+        const newCategoryName = `Catégorie rt2 ${randomUUID()}`;
+        await secondPage.getByTestId('btn-new-category').click();
+        await secondPage.getByTestId('input-category-name').fill(newCategoryName);
+        await secondPage.getByTestId('btn-create-category').click();
+        // Success closes the form: fail fast here if the submit no-ops
+        // (e.g. household not resolved yet) instead of matching the input value below.
+        await expect(secondPage.getByTestId('input-category-name')).toBeHidden({ timeout: 10000 });
+        await expect(secondPage.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
 
       await expect(page.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
 

@@ -148,9 +148,11 @@ async function handleSubmit(e: React.FormEvent) {
         if (error) throw error;
         await fetchData();
       } else {
+        // Empty stays 1 (historical default); a literal 0 is a valid quantity
+        // (out of stock) and must survive — `parseInt(...) || 1` swallowed it.
         const { error } = await createItem(householdId, {
           ...editableItemData,
-          quantity: parseInt(formQuantity, 10) || 1,
+          quantity: formQuantity.trim() === '' ? 1 : parseInt(formQuantity, 10),
         });
         if (error) throw error;
         await fetchData();
@@ -323,7 +325,7 @@ return (
                 {fieldThresholdError && <p className="field-error" role="alert" id="item-threshold-error" data-testid="error-threshold-required">{translateMessage(language, fieldThresholdError)}</p>}
               </div>
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-                <button type="submit" className="btn btn-primary" disabled={mutating === 'form' || !isOnline} data-testid="btn-create-item">{editingId ? t('common.save') : t('common.create')}</button>
+                <button type="submit" className="btn btn-primary" disabled={mutating === 'form' || !isOnline || !householdId} data-testid="btn-create-item">{editingId ? t('common.save') : t('common.create')}</button>
                 <button type="button" onClick={resetForm} className="btn btn-secondary" disabled={mutating === 'form'} data-testid="btn-cancel-item">{t('common.cancel')}</button>
               </div>
             </form>

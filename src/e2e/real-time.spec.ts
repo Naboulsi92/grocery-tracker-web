@@ -433,6 +433,9 @@ test.describe('Real-time Collaboration', () => {
       await secondPage.getByTestId('btn-new-item').click();
       await secondPage.getByTestId('input-item-name').fill(newItemName);
       await secondPage.getByTestId('btn-create-item').click();
+      // Success closes the form: fail fast here if the submit no-ops
+      // (e.g. household not resolved yet) instead of matching the input value below.
+      await expect(secondPage.getByTestId('input-item-name')).toBeHidden({ timeout: 10000 });
       await expect(secondPage.getByText(newItemName)).toBeVisible({ timeout: 10000 });
 
       await expect(page.getByText(newItemName)).toBeVisible({ timeout: 10000 });

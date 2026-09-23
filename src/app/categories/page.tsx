@@ -213,11 +213,14 @@ export default function CategoriesPage() {
     let debounceTimer: ReturnType<typeof setTimeout>;
     const channel = supabase
       .channel(`categories:${householdId}`)
+      // NOTE: no binding on category_positions here on purpose. That table is
+      // outside the supabase_realtime publication (contract: exactly
+      // {categories, items}), and binding it starves the whole channel: no
+      // categories events arrive at all (trace-proven across 5 CI runs).
+      // Positions-only changes (reorder) carry no realtime signal —
+      // acceptable, no P0 covers cross-page reorder; every other change
+      // touches categories too.
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `household_id=eq.${householdId}` }, () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => void loadCategories(), 300);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'category_positions', filter: `household_id=eq.${householdId}` }, () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => void loadCategories(), 300);
       })

@@ -10,249 +10,169 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Grocery Tracker Web - Agent Best Practices
 
-## 🚀 Deployment & Environment
+## Deployment & Environment
 
-1. **Environment Variables for All Environments**
-   - Always add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` to **Preview**, **Production**, AND **Development** environments in Vercel
-   - This prevents failed Preview deployments and enables PR reviews
-   - Use `.env.local.example` as a template for new contributors
+### Environment variables (Preview, Production, Development)
+- Always add new variables (e.g. `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) to **Preview**, **Production**, AND **Development** in Vercel — missing Preview vars break deployments and block PR reviews.
+- Verify in the Vercel dashboard (Settings → Environment Variables) before deploying.
+- Changes apply to **new** deployments only — redeploy after changing a value, then smoke-test (`curl` homepage → `HTTP 200`).
+- Preview vars can be scoped per branch: `vercel env add <VAR> preview <branch>` (overrides the default preview value).
+- Use `.env.local.example` as a template for new contributors.
+- Full reference (Vercel/GitHub/Supabase environments, Supabase preview branching, end-to-end flow): `docs/research/github-vercel-supabase-environments.md`
 
-2. **Never Commit Secrets**
-   - `.env.local` is in `.gitignore` ✅
-   - Only commit `.env.local.example` with placeholder values
+## Git & PR Workflow
 
-3. **Verify Environment Variables Before Deploying**
-   - Check Vercel dashboard: Settings → Environment Variables
-   - Ensure variables exist for the target environment (Preview/Production)
+### Branch naming
+- `feature/<description>` for new features
+- `fix/<description>` for bug fixes
+- `docs/<description>` for documentation
 
-4. **Environment Semantics: Preview / Development / Production**
-   - Env-var changes only apply to **new** deployments — redeploy after changing a value
-   - Preview vars can be scoped per branch: `vercel env add <VAR> preview <branch>` (overrides the default preview value)
-   - Full reference (Vercel/GitHub/Supabase environments, Supabase preview branching, end-to-end flow): `docs/research/github-vercel-supabase-environments.md`
+### Descriptive PRs
+- What changed / why / how to test + `Closes #<n>`; screenshots for UI changes.
 
-## 📝 Git & PR Workflow
+### Merge procedure
+- Canonical: `gh pr merge <n> --squash --delete-branch` (squash keeps main history clean).
+- With linked worktrees `gh pr merge` fails (`fatal: 'main' is already used by worktree ...`) — merge via the API instead:
+  ```powershell
+  gh api repos/<owner>/<repo>/pulls/<n>/merge --method PUT -f merge_method=squash
+  gh api repos/<owner>/<repo>/git/refs/heads/<branch> --method DELETE
+  ```
+- Then remove the local worktree + branch (`git worktree remove ../<goal-slug>`, `git branch -D feature/<goal-slug>`) and fast-forward local main: `git pull --ff-only origin main` (safe alongside unrelated uncommitted changes as long as the merge didn't touch those files).
 
-5. **Delete Branches After Merge**
-   - After merging a PR, delete the feature branch to keep the repo clean
-   - In GitHub: Close PR → "Delete branch" button
-   - Or: `git push origin --delete <branch-name>`
+## Testing
 
-6. **Write Descriptive PRs**
-   - Include what changed, why, and how to test
-   - Link to issues: "Closes #27"
-   - Add screenshots for UI changes
-
-7. **Branch Naming Convention**
-   - `feature/<description>` for new features
-   - `fix/<description>` for bug fixes
-   - `docs/<description>` for documentation
-
-## 🧪 Testing
-
-8. **Run Tests Before Pushing**
-   ```bash
-   npm run typecheck    # TypeScript checks
-   npm test             # Unit tests
-   npx playwright test  # E2E tests
-   ```
-
-9. **Add Tests for New Features**
-   - Unit tests for new hooks/components
-   - E2E tests for critical user flows (signup, login, core features)
-   - Test both success and error cases
-
-10. **Maintain Test Coverage**
-   - Keep existing tests passing
-   - Add regression tests for bug fixes
-
-## 🔒 Security
-
-11. **Supabase Row Level Security (RLS)**
-    - Always test RLS policies with different user roles
-    - Ensure users can only access their own household data
-    - Review policies when adding new tables
-
-12. **Environment Variable Usage**
-    - Use `NEXT_PUBLIC_*` only for truly public values
-    - Never expose service role keys or secrets
-    - Validate environment variables at startup
-
-## 📊 Monitoring & CI/CD
-
-13. **GitHub Actions**
-    - Run tests on every PR
-    - Block merges if tests fail
-    - Use the existing workflow in `.github/workflows/`
-
-14. **Vercel Deploy Previews**
-    - Share preview URLs for team review
-    - Test on real devices before merging
-    - Check deployment logs for errors
-
-15. **Monitor Production**
-    - Watch Vercel deployment status
-    - Monitor Supabase dashboard for API usage
-    - Set up alerts for critical failures
-
-## 🎨 Code Quality
-
-16. **TypeScript First**
-    - Use strict mode (already enabled ✅)
-    - Avoid `any` - use proper types
-    - Define interfaces for API responses and database rows
-
-17. **Component Structure**
-    - Keep components small and focused
-    - Extract custom hooks for reusable logic
-    - Use composition over prop drilling
-
-18. **Error Handling**
-    - Handle Supabase errors gracefully
-    - Show user-friendly error messages
-    - Log errors for debugging (but not secrets!)
-
-19. **Code Comments**
-    - Comment complex logic
-    - Explain "why" not just "what"
-    - Update comments when refactoring
-
-## 📚 Documentation
-
-20. **Keep README.md Updated**
-    - Local development setup steps
-    - Environment variable requirements
-    - How to run tests
-    - Deployment process
-
-21. **Document New Features**
-    - Add to `CONTEXT.md` if they affect domain model
-    - Update API documentation if endpoints change
-    - Add ADRs for major architectural decisions
-
-## 🔄 Agent-Specific Guidelines
-
-22. **Use Parallel Sub-Agents**
-    - For code reviews: Run Standards and Spec reviews in parallel
-    - For large tasks: Split work by files/modules
-    - Always use separate branches for parallel agent work
-
-23. **Follow the Code Review Skill**
-    - Two-axis review: Standards + Spec
-    - Use `code-review` skill for PR reviews
-    - Post findings directly to PR
-
-24. **Bug Diagnosis Process**
-    - Build a tight feedback loop first (Phase 1)
-    - Don't hypothesize without a repro
-    - Use the `diagnosing-bugs` skill for hard bugs
-
-25. **Issue Tracker Integration**
-    - Use GitHub Issues for tracking work
-    - Link PRs to issues
-    - Follow the workflow in `docs/agents/issue-tracker.md`
-
-## 🎯 Goal Orchestration Workflow (how we work on issues)
-
-This is the loop that worked on tickets #60/#67 and should be reused for every issue:
-
-1. **Per-goal worktree isolation** — before any work, create a dedicated worktree:
-   `git worktree add ../<goal-slug> -b feature/<goal-slug>` (from the repo root).
-   All workers edit and verify INSIDE that worktree (absolute paths + bash `workdir`).
-   Workers commit each completed step to the branch. The judge reviews `git diff main...HEAD`.
-   This keeps parallel `/goal` sessions from interfering with each other.
-
-2. **Implement → Review → Fix → Merge loop**:
-   - Implement the ticket on the branch (worktree).
-   - Run the two-axis code review (Standards + Spec) in parallel sub-agents (see the `code-review` skill).
-   - Fix the remarks; re-review until both axes approve.
-   - If a bug is found during review: diagnose evidence-first (CI logs, repro — see the `diagnosing-bugs` skill), trace it in a GitHub bug ticket BEFORE fixing it, then fix.
-   - Final review → commit → push → open a PR (body: what changed / why / how to test + `Closes #n`).
-
-3. **PR review exchange** — post review findings as a PR comment signed with the reviewer's name; the author responds point-by-point (accept/deny, citing code evidence); reviewers concede incorrect claims. This multi-model exchange catches misunderstandings early.
-
-4. **Merge & cleanup checklist** (after both reviews approve):
-   - `gh pr merge <n> --squash --delete-branch` (squash keeps main history clean).
-   - Remove the local worktree + branch: `git worktree remove ../<goal-slug>` then `git branch -D feature/<goal-slug>`.
-   - Verify linked issues auto-closed: `gh issue view <n> --json state,stateReason`.
-   - Verify the production deployment is READY (Vercel) for the merge commit.
-   - Smoke-test the live site; check runtime errors.
-   - Create follow-up tickets for any PRE-EXISTING CI failures you hit — don't fix them in the same PR unless they're yours.
-
-5. **SQL / Supabase verification** — Supabase CLI and Docker are NOT available locally. The CI database job is the verification signal for SQL changes: it runs `psql -v ON_ERROR_STOP=1 -f supabase/tests/database/security_contract.sql`. A green database job on the PR = the security contract passes.
-
-6. **CI status (honest since #116 — do NOT attribute old numbers to new branches):**
-   - #73 (secrets scan) — CLOSED. `npm run scan:secrets` → "Secret scan passed." (audit 2026-09-19 + local 2026-09-21). Allowlist of fake E2E values in `scripts/scan-secrets.mjs:23-39`, regression test `scripts/scan-secrets.test.mjs:17-23`. E2E literals are all fakes (`src/e2e/error-states.spec.ts:25-26,41-43,58-60,75-76`, `@example.com` / `wrongpassword123` / `Password123!`).
-   - #74 (8 unit failures) — CLOSED via `b65dee0` + `279f240`. Audit 2026-09-19: 18 suites/104 jest + 5 node = 109, 0 fail. Since #116 `npm test` = `jest --runInBand quality src && node --test scripts/*.test.mjs` covers the 8 orphan suites (`src/lib/__tests__` + `src/hooks/__tests__`): local 2026-09-21 = 30 suites / 358 tests, 0 fail. Guard `npm run test:guard` (`scripts/check-test-count.mjs`, wired in `web-quality.yml:48-49`) fails below ≥26 suites / ≥280 tests; `testPathIgnorePatterns` excludes `scripts/` from Jest (`jest.config.mjs:8`).
-   - #75 (E2E auth harness) — ACTIVE WORK SITE, not an accepted failure. `npx playwright test --list` = 237 tests / 17 files (2026-09-21; 214 at audit 2026-09-19, +lifecycle.spec.ts since). No reusable session: 0 `storageState`; each spec signs up via UI against local Supabase. Without backend the suite skips instead of testing: 206 `test.skip`, 49 `No/Not authenticated|No Supabase backend`, 38 `waitForTimeout` (all counts `src/e2e/*.spec.ts`). Harness `src/e2e/environment.ts` + `src/e2e/fixtures.ts` with loopback-only guard in `web-quality.yml` (refuses non-`127.0.0.1:54321`). P1 chantier per `audit-testing.md:86-89`: `authenticatedPage` fixture + `storageState` reuse, fail (not skip) when a write-spec lacks a backend, replace `waitForTimeout` with web-first assertions.
-   - Baselines 2026-09-21 (Windows, warm): `npm run typecheck` green (exit 0), `npm run scan:secrets` PASS, `npm run lint` (= `eslint src supabase scripts`, `package.json:9`) 0 errors / 19 warnings in ~14s (cold first run ~158s; unscoped `eslint` nu >120s per `audit-qualite.md:40-43`). Rule #13 applies to NEW failures introduced by a branch.
-
-## 🛠️ MCP Tools & CLI Usage
-
-26. **GitHub CLI (`gh`)** — Use for all GitHub operations:
-    ```bash
-    # Issues
-    gh issue list --limit 20
-    gh issue view <number> --json title,body,labels
-    gh issue create --title "..." --body "..."
-    gh issue close <number> --reason completed
-    gh issue comment <number> --body "..."
-
-    # PRs
-    gh pr create --title "..." --body "..."
-    gh pr view <number> --json title,body,state
-    gh pr merge <number> --squash --delete-branch
-    gh pr list --state open
-
-    # Runs/Workflow
-    gh run list --limit 5
-    gh run view <run-id> --log-failed
-    gh run watch <run-id> --interval 30
-    ```
-
-27. **Supabase MCP** — Use for database operations (no local CLI needed):
-    - `supabase_list_tables` — Inspect schema
-    - `supabase_execute_sql` — Run queries / test functions
-    - `supabase_apply_migration` — Apply migrations to linked project
-    - `supabase_list_migrations` — Check migration status
-    - `supabase_get_advisors` — Security/performance checks
-    - `supabase_generate_typescript_types` — Sync types
-    - Prefer MCP over local `supabase` CLI for remote projects
-
-28. **Context7** — Use for up-to-date library documentation:
-    - Always call `context7_resolve-library-id` first
-    - Then `context7_query-docs` with specific questions
-    - Use for: Next.js, Supabase, Vercel, React, Tailwind, etc.
-    - Don't rely on training data for API syntax
-
-## 🎯 Quick Reference Commands
-
+### Verify before pushing
 ```bash
-# Type checking
-npm run typecheck
-
-# Run all tests
-npm test
-
-# Run E2E tests
-npx playwright test
-
-# Run specific test file
-npx playwright test src/e2e/homepage.spec.ts
-
-# Linting
-npm run lint
-
-# Build for production
-npm run build
-
-# Local development
-npm run dev
+npm run typecheck    # tsc --noEmit
+npm test             # jest --runInBand quality src && node --test scripts/*.test.mjs
+npm run lint         # eslint src supabase scripts
+npx playwright test  # E2E (Chromium engine; Edge locally, bundled Chromium on CI)
 ```
 
-## 🚨 Common Pitfalls to Avoid
+### Add tests for new features
+- Unit tests for new hooks/components; E2E tests for critical user flows (signup, login, core features); success + error cases; regression tests for bug fixes; keep the suite green.
+
+### Local E2E (Playwright CLI)
+- Config (`playwright.config.ts`): `testDir ./src/e2e`, Chromium only, `trace: 'on-first-retry'`, `baseURL` from `E2E_BASE_URL` (default `:3000`).
+- Gates (`quality/e2e-environment.ts`): `E2E_ALLOW_WRITES=true` plus local Supabase credentials (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `E2E_SUPABASE_URL`, `E2E_SUPABASE_SERVICE_ROLE_KEY`) enable write specs. Without a local backend (no Docker here) only public-page tests run and write specs skip. Remote targets require `E2E_ALLOW_REMOTE=true` + `E2E_TARGET_ENV=test|staging`.
+- Parallel sessions: never touch another session's dev `:3000` — start a dedicated server on another port (e.g. 3101) with an ephemeral config pointing `E2E_BASE_URL` at it; delete the config after use.
+- `npx playwright test --list` validates collection (parse/imports) without running — use after every new spec.
+- CI artifacts: `gh run download <id> --name playwright-report`; inspect `0-trace.trace` (mouse coordinates expose wrong layout assumptions) and `0-trace.network` (prove POST/PATCH persistence calls) with small node scripts. `test-results/` and `playwright-report/` are gitignored.
+- Local browsers: Edge only — no Chrome/Chromium here. CLI runs override the channel via an ephemeral `playwright.local-edge.config.ts` (pattern + snippet in the runbook); both MCP servers already launch Edge. CI keeps bundled Chromium.
+
+### Debugging E2E drag tests
+- Trace-first, never hypothesis-first: read the library source (`node_modules/@dnd-kit/...`) and the layout CSS (grid vs list, axis restrictions, collision inputs) BEFORE the first push — each CI roundtrip costs ~7 min.
+- If the same test fails twice on CI, switch to the `diagnosing-bugs` skill instead of stacking hypotheses (see "Bug diagnosis" under "Agent Workflow").
+
+## Security
+
+### Secrets
+- Never commit `.env.local` (gitignored) — only `.env.local.example` with placeholder values.
+- `NEXT_PUBLIC_*` only for truly public values; never expose service-role keys or secrets; validate environment variables at startup; never print secret values (Supabase secret values are write-only — regenerate if lost).
+
+### Supabase Row Level Security (RLS)
+- Always test RLS policies with different user roles; users must only access their own household data; review policies when adding new tables.
+
+## Monitoring & CI
+
+### CI signal
+- Tests run on every PR; merges are blocked on failure.
+- SQL changes are verified by the CI database job (`psql -v ON_ERROR_STOP=1 -f supabase/tests/database/security_contract.sql`) — a green database job means the security contract passes. Docker is NOT available locally.
+- History & baselines live in `docs/agents/runbooks/ci-history.md` (closed items, dated numbers). Recompute counts live; never quote archived numbers as current and never attribute old numbers to new branches. Only NEW failures introduced by a branch block it.
+- #75 (E2E auth harness) is an ACTIVE WORK SITE, not an accepted failure: no reusable session (`storageState`), each spec signs up via UI against local Supabase, and without a backend the suite skips instead of testing. Target state per `audit-testing.md`: `authenticatedPage` fixture + `storageState` reuse, fail (not skip) when a write-spec lacks a backend, replace `waitForTimeout` with web-first assertions.
+
+### Checking CI runs
+```bash
+gh run list --limit 5
+gh run view <run-id> --log-failed
+```
+- Don't block turns on `gh run watch`; prefer a bounded `Start-Sleep` + single `gh run view ... --json conclusion,jobs` status check.
+
+### Vercel deployments
+- Share Preview URLs for team review; test on real devices before merging; check deployment logs for errors.
+- After merging: verify the Production deployment for the merge commit is READY, smoke-test the live site (`HTTP 200`), check runtime errors.
+- Env-var changes need a redeploy; prefer `vercel redeploy <url>` over `vercel --prod` when the tree is dirty (see "Vercel CLI" under "Tooling Reference").
+
+### Production monitoring
+- Watch Vercel deployment status and Supabase API usage; set up alerts for critical failures.
+
+## Code Quality
+
+### TypeScript first
+- Strict mode (already enabled ✅); avoid `any` — use proper types; define interfaces for API responses and database rows.
+
+### Component structure
+- Keep components small and focused; extract custom hooks for reusable logic; use composition over prop drilling.
+
+### Error handling
+- Handle Supabase errors gracefully; show user-friendly error messages; log errors for debugging (but not secrets!).
+
+### Code comments
+- Comment complex logic; explain "why" not just "what"; update comments when refactoring.
+
+## Documentation
+
+### Keep README.md updated
+- Local development setup steps; environment variable requirements; how to run tests; deployment process.
+
+### Document new features
+- Add to `CONTEXT.md` if they affect the domain model; update API documentation if endpoints change; add ADRs for major architectural decisions.
+
+## Agent Workflow
+
+### Worktree isolation
+- Before any work, create a dedicated worktree: `git worktree add ../<goal-slug> -b feature/<goal-slug>` (from the repo root). All workers edit and verify INSIDE that worktree (absolute paths + bash `workdir`). Workers commit each completed step to the branch. This keeps parallel goal sessions from interfering with each other.
+
+### Implement
+- Load the `implement` skill when building from a spec or tickets. Work on the goal branch inside its worktree: TDD, regular `typecheck`. Split large work by files/modules into parallel sub-agents. Do NOT run the full suite yet — committing comes first (next step).
+
+### Commit the implementation (standalone step)
+- Commit the implementation BEFORE running the full suite: the commit is a checkpoint, not a certification. If tests reveal a mess, a committed tree lets you `diff`, `stash`, or reset cleanly.
+- Keep implementation (`feat:`) and test-fix (`fix:`) commits separate, so reviewers can tell feature work apart from test-driven fixes.
+- Never push red — push only when green. Squash-merge keeps `main` clean regardless of intermediate granularity.
+
+### Verify: tests first (blocking gate before review)
+- After committing the implementation, run the FULL verification suite and require it GREEN before requesting any code review:
+  ```bash
+  npm run typecheck    # tsc --noEmit
+  npm test             # jest --runInBand quality src && node --test scripts/*.test.mjs
+  npm run lint         # eslint src supabase scripts
+npx playwright test  # E2E (Chromium engine; Edge locally, bundled Chromium on CI)
+  ```
+- No review on red. If anything fails, enter the `diagnosing-bugs` loop: reproduce → diagnose evidence-first → fix → commit each fix separately → re-run the FULL suite (not just the failing test) until everything is green. Never "fix forward" inside the review.
+- For new E2E specs, validate collection first (`npx playwright test --list`), then run the affected specs locally when a backend or public-page path allows it; otherwise CI is the signal — but a red CI still routes back through `diagnosing-bugs`, never straight to review.
+
+### Code review
+- Request a review ONLY on a green tree (typecheck + tests + lint all passing — see "Verify: tests first" above). Invoke the `code-review` skill with full arguments up front: fixed point (`origin/main`, three-dot diff `git diff origin/main...HEAD`), the goal worktree as bash `workdir`, the spec (issue via `gh issue view`, PRD section refs). Bare invocations stall on clarification questions and a typo in the ref kills the run.
+- Review = read-only: never modify files, commit, or create tickets during review. Fixes require an explicit user go-ahead.
+- Two axes, Standards + Spec, run in parallel sub-agents; verdicts are per axis (`APPROVED` or a findings list), no damping. Both axes must approve the final HEAD before merge; a re-review after fixes covers the new commits.
+- Triage findings as accept (fix) or deny (PR comment with `file:line` evidence). Pre-existing-on-main items are denials, not fixes. Post the exchange as a PR comment; reviewers concede incorrect claims.
+
+### Bug diagnosis
+- Phase 1 = build a tight local feedback loop (repro) BEFORE any hypothesis; evidence-first, never theory without a repro. Load the `diagnosing-bugs` skill for stubborn bugs. If a bug surfaces during review, trace it in a GitHub bug ticket BEFORE fixing it, then fix.
+- Lesson (#113 drag saga): theorizing from CI artifacts cost 4 roundtrips (~7 min each) — switch to this skill at the 2nd CI failure on the same test.
+
+### Merge & cleanup
+- After both axes approve: merge (see "Merge procedure"), remove the worktree + branch, verify auto-close (`gh issue view <n> --json state,stateReason`), verify Vercel READY + smoke test. File follow-ups only for PRE-EXISTING CI failures — don't fix them in the same PR unless they're yours.
+
+### Issue tracker
+- GitHub Issues for tracking work; link PRs to issues; workflow in `docs/agents/issue-tracker.md`.
+
+## Tooling Reference
+
+### Agent skills location
+- Skills resolve by name via the `skill` tool from two scopes: global (`~/.agents/skills/`) and repo-local (`.agents/skills/`). Never hardcode a scope, and never install the same upstream skill twice — `agent/skills/` was removed 2026-09-23 as a byte-identical duplicate of the same `supabase/agent-skills` release.
+
+### CLI & MCP command reference
+- Full command reference lives in `docs/agents/runbooks/cli-reference.md` (GitHub CLI, Supabase MCP + CLI, Context7, Vercel CLI, Playwright and chrome-devtools MCP).
+- `.playwright-mcp/` logs are not gitignored: do NOT commit them.
+
+## Common Pitfalls to Avoid
 
 - ❌ Don't commit `.env.local` with real credentials
 - ❌ Don't merge without running tests first
+- ❌ Don't request a code review unless typecheck + tests + lint are green
+- ❌ Don't merge unless both Standards and Spec review axes approved
 - ❌ Don't add environment variables to only Production (add to Preview too!)
 - ❌ Don't leave feature branches active after merge
 - ❌ Don't use `any` in TypeScript without justification
@@ -260,12 +180,13 @@ npm run dev
 - ❌ Don't skip error handling for Supabase operations
 - ❌ Don't forget to update tests when changing behavior
 
-## ✅ Pre-Deployment Checklist
+## Pre-Deployment Checklist
 
 Before merging a PR:
 - [ ] All tests pass (unit + E2E)
 - [ ] Typecheck passes
 - [ ] Linting passes
+- [ ] Both Standards and Spec review axes approved
 - [ ] Manual testing on local dev server
 - [ ] Environment variables configured for Preview (if new variables added)
 - [ ] PR description is clear and links to issues

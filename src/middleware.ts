@@ -15,6 +15,11 @@ const PUBLIC_ROUTES = [
   '/contact',
   '/privacy',
   '/terms',
+  // Crawler files (ticket #120): served by src/app/sitemap.ts + robots.ts.
+  // The matcher lets images/js/css through but NOT .xml/.txt, so without
+  // this entry deny-default redirects them to /login.
+  '/sitemap.xml',
+  '/robots.txt',
 ];
 
 // Explicitly protected app routes (kept for documentation and to make the

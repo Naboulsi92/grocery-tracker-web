@@ -90,6 +90,15 @@ describe('middleware', () => {
     expect(content).toContain('/join-household');
   });
 
+  it('keeps crawler files public (sitemap/robots, #120)', () => {
+    const content = fs.readFileSync(middlewarePath, 'utf-8');
+
+    // The matcher lets images through but NOT .xml/.txt: without these
+    // entries deny-default redirects crawlers to /login.
+    expect(content).toContain('/sitemap.xml');
+    expect(content).toContain('/robots.txt');
+  });
+
   it('matcher comment no longer claims / and auth pages are excluded', () => {
     const content = fs.readFileSync(middlewarePath, 'utf-8');
 

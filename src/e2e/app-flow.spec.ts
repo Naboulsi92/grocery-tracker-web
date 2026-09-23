@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { confirmDeleteDialog } from './helpers';
 
 test.describe('App Flow', () => {
   test('complete user flow: signup and navigate', async ({ page, account }) => {
@@ -36,8 +37,7 @@ test.describe('App Flow', () => {
     await page.getByTestId('btn-create-category').click();
 
     await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
-    page.once('dialog', (dialog) => dialog.accept());
-    await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+    await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
     await expect(page.getByText(categoryName)).toHaveCount(0);
   });
 
@@ -52,9 +52,8 @@ test.describe('App Flow', () => {
     await page.getByTestId('btn-create-item').click();
 
     await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
-    page.once('dialog', (dialog) => dialog.accept());
     const itemRow = page.locator('.item-row').filter({ hasText: itemName });
-    await itemRow.getByTestId(/^btn-delete-item-/).click();
+    await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     await expect(page.getByText(itemName)).toHaveCount(0);
   });
 
@@ -102,7 +101,6 @@ test.describe('App Flow', () => {
     const row = page.locator('.item-row').filter({ hasText: itemName });
     await row.getByRole('button', { name: `Augmenter la quantité de ${itemName}` }).click();
     await expect(row.locator('.qty-value')).toContainText('3');
-    page.once('dialog', (dialog) => dialog.accept());
-    await row.getByTestId(/^btn-delete-item-/).click();
+    await confirmDeleteDialog(page, row.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
   });
 });

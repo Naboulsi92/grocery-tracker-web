@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import { deleteAllItems, deleteItemRow } from './helpers';
+import { confirmDeleteDialog, deleteAllItems, deleteItemRow } from './helpers';
 
 test.describe('Items CRUD', () => {
   test.describe('Create Item', () => {
@@ -54,8 +54,7 @@ test.describe('Items CRUD', () => {
       const itemRow = page.locator('.item-row').filter({ hasText: itemName });
       await expect(itemRow.locator('.qty-value')).toContainText(/^.+$/);
       
-      page.once('dialog', (dialog) => dialog.accept());
-      await itemRow.getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 
@@ -83,8 +82,7 @@ test.describe('Items CRUD', () => {
       await expect(page.getByText(newName)).toBeVisible();
       await expect(page.getByText(originalName)).toHaveCount(0);
       
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.locator('.item-row').filter({ hasText: newName }).getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: newName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
     test('can adjust item quantity via atomic buttons (US 46)', async ({ page, account }) => {
@@ -107,8 +105,7 @@ test.describe('Items CRUD', () => {
       await itemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
       await expect(itemRow.locator('.qty-value')).toContainText('5');
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await itemRow.getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
     test('can edit item category assignment (US 47)', async ({ page, account }) => {
@@ -141,9 +138,7 @@ test.describe('Items CRUD', () => {
       await deleteItemRow(page, page.locator('.item-row').filter({ hasText: itemName }));
       await page.goto('/home');
       await page.getByTestId('dashboard-card-categories').click();
-      const deleteCategoryDialog = page.waitForEvent('dialog');
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
-      await (await deleteCategoryDialog).accept();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
     });
 
     test('can edit low stock threshold (US 48)', async ({ page, account }) => {
@@ -169,8 +164,7 @@ test.describe('Items CRUD', () => {
       await expect(itemRow).not.toHaveClass(/low-stock/);
       await expect(itemRow.locator('.badge')).toHaveCount(0);
       
-      page.once('dialog', (dialog) => dialog.accept());
-      await itemRow.getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 
@@ -195,8 +189,7 @@ test.describe('Items CRUD', () => {
       await itemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
       await expect(itemRow.locator('.qty-value')).toContainText('4');
       
-      page.once('dialog', (dialog) => dialog.accept());
-      await itemRow.getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
     test('can decrement quantity atomically (US 50)', async ({ page, account }) => {
@@ -219,8 +212,7 @@ test.describe('Items CRUD', () => {
       await itemRow.getByRole('button', { name: /Réduire la quantité/ }).click();
       await expect(itemRow.locator('.qty-value')).toContainText('3');
       
-      page.once('dialog', (dialog) => dialog.accept());
-      await itemRow.getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
     test('cannot decrement below zero', async ({ page, account }) => {
@@ -245,8 +237,7 @@ test.describe('Items CRUD', () => {
       const decrementBtnAfter = itemRow.getByRole('button', { name: /Réduire la quantité/ });
       await expect(decrementBtnAfter).toBeDisabled();
       
-      page.once('dialog', (dialog) => dialog.accept());
-      await itemRow.getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 
@@ -298,9 +289,8 @@ test.describe('Items CRUD', () => {
         }
       });
 
-      page.once('dialog', (dialog) => dialog.accept());
       const itemRow = page.locator('.item-row').filter({ hasText: itemName });
-      await itemRow.getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
 
       await expect(page.locator('.auth-error')).toBeVisible();
     });
@@ -348,8 +338,7 @@ test.describe('Items CRUD', () => {
       
       await secondContext.close();
       
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 
@@ -377,8 +366,7 @@ test.describe('Items CRUD', () => {
       await expect(itemRow.locator('.badge')).toHaveCount(0);
       await expect(itemRow).not.toHaveClass(/low-stock/);
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await itemRow.getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 

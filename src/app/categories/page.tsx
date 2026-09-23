@@ -10,6 +10,7 @@ import { createClient } from '@/utils/supabase/client';
 import { getErrorMessage, getNextCategoryOrder, CATEGORY_COLUMNS, type Category } from '@/lib/inventory';
 import { hasDuplicateCustomName } from '@/lib/categories';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
+import { AccessibleDialog } from '@/components/AccessibleDialog';
 import { validateName } from '@/lib/validation';
 import { logItemHistory } from '@/lib/history';
 import { translateMessage } from '@/lib/i18n';
@@ -157,6 +158,7 @@ export default function CategoriesPage() {
   const [error, setError] = useState('');
   const [fieldNameError, setFieldNameError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState<{ id: string; count: number } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [mutating, setMutating] = useState<string | null>(null);
   const { householdId } = useAuth();
   const { t, language } = useI18n();
@@ -321,7 +323,6 @@ export default function CategoriesPage() {
       return;
     }
 
-    if (!confirm(t('categories.delete_confirm'))) return;
     setMutating(id);
 
     try {
@@ -494,6 +495,24 @@ export default function CategoriesPage() {
           </div>
         )}
 
+        {deleteTarget && (
+          <AccessibleDialog
+            title={categories.find((category) => category.id === deleteTarget)?.name ?? ''}
+            message={t('categories.delete_confirm')}
+            confirmLabel={t('common.confirm')}
+            cancelLabel={t('common.cancel')}
+            confirmTestId="category-delete-confirm"
+            cancelTestId="category-delete-cancel"
+            dialogTestId="category-delete-dialog"
+            onConfirm={() => {
+              const id = deleteTarget;
+              setDeleteTarget(null);
+              void handleDelete(id);
+            }}
+            onCancel={() => setDeleteTarget(null)}
+          />
+        )}
+
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
           <SortableContext items={categories.map((c) => c.id)} strategy={verticalListSortingStrategy}>
           {defaultCategories.length > 0 && (
@@ -509,7 +528,7 @@ export default function CategoriesPage() {
                       mutating={mutating}
                       isOnline={isOnline}
                       onEdit={startEdit}
-                      onDelete={handleDelete}
+                      onDelete={(id: string) => setDeleteTarget(id)}
                     />
                   ))}
               </div>
@@ -529,7 +548,7 @@ export default function CategoriesPage() {
                       mutating={mutating}
                       isOnline={isOnline}
                       onEdit={startEdit}
-                      onDelete={handleDelete}
+                      onDelete={(id: string) => setDeleteTarget(id)}
                     />
                   ))}
               </div>

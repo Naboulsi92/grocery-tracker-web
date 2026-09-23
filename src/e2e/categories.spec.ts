@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
 import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { confirmDeleteDialog } from './helpers';
 
 // Pointer drag straight down: .categories-grid is multi-column and the
 // DnD context restricts movement to the vertical axis, so only a vertical
@@ -80,8 +81,7 @@ test.describe('Categories CRUD', () => {
 
       await expect(page.getByTestId('error-name-duplicate')).toBeVisible();
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
     });
 
     test('validates maximum name length', async ({ page, account }) => {
@@ -122,8 +122,7 @@ test.describe('Categories CRUD', () => {
       const categoryCard = customSection.locator('.category-card').filter({ hasText: categoryName });
       await expect(categoryCard.locator('.category-icon')).toContainText('📦');
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
     });
   });
 
@@ -151,8 +150,7 @@ test.describe('Categories CRUD', () => {
       await expect(page.getByText(newName)).toBeVisible();
       await expect(page.getByText(originalName)).toHaveCount(0);
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${newName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${newName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
     });
 
     test('default categories cannot be edited or deleted', async ({ page, account }) => {
@@ -228,11 +226,7 @@ test.describe('Categories CRUD', () => {
       await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
-      const dialogPromise = page.waitForEvent('dialog');
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
-      const dialog = await dialogPromise;
-      expect(dialog.message()).toContain('Supprimer');
-      await dialog.accept();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
       await expect(page.getByText(categoryName)).toHaveCount(0);
     });
 
@@ -264,8 +258,7 @@ test.describe('Categories CRUD', () => {
         }
       });
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
 
       await expect(page.locator('.auth-error')).toBeVisible();
     });
@@ -378,8 +371,7 @@ test.describe('Categories CRUD', () => {
 
       await secondContext.close();
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) }).click();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) }), 'category-delete-confirm');
     });
   });
 
@@ -486,10 +478,9 @@ test.describe('Categories CRUD', () => {
 
       await expect(page.getByTestId('error-name-duplicate')).toBeVisible();
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page
+      await confirmDeleteDialog(page, page
         .getByRole('button', { name: new RegExp(`Supprimer la catégorie ${baseName}`) })
-        .click();
+        , 'category-delete-confirm');
     });
   });
 
@@ -519,6 +510,9 @@ test.describe('Categories CRUD', () => {
       await page
         .getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) })
         .click();
+      // Non-empty: the count check runs at confirm time, then the blocked
+      // message renders instead of deleting.
+      await page.getByTestId('category-delete-confirm').click();
 
       await expect(page.getByTestId('category-delete-blocked-message')).toBeVisible();
       await expect(page.getByTestId('error-category-not-empty')).toContainText(
@@ -529,15 +523,13 @@ test.describe('Categories CRUD', () => {
       await page.goto('/home');
       await page.getByTestId('dashboard-card-items').click();
       const itemRow = page.locator('.item-row').filter({ hasText: itemName });
-      page.once('dialog', (dialog) => dialog.accept());
-      await itemRow.getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
 
       await page.goto('/home');
       await page.getByTestId('dashboard-card-categories').click();
-      page.once('dialog', (dialog) => dialog.accept());
-      await page
+      await confirmDeleteDialog(page, page
         .getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) })
-        .click();
+        , 'category-delete-confirm');
       await expect(page.getByText(categoryName)).toHaveCount(0);
     });
   });

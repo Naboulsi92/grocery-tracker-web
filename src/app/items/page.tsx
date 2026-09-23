@@ -13,6 +13,7 @@ import { SyncingIndicator } from '@/components/SyncingIndicator';
 import { getErrorMessage, groupItems, joinInventory, CATEGORY_COLUMNS, ITEM_COLUMNS, type Category, type InventoryItem } from '@/lib/inventory';
 import { createItem, updateItem, updateItemQuantity, deleteItem } from '@/lib/itemOperations';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
+import { AccessibleDialog } from '@/components/AccessibleDialog';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useResyncOnReconnect } from '@/hooks/useResyncOnReconnect';
 import { validateName, validateQuantity, validateThreshold, validateUnit } from '@/lib/validation';
@@ -36,6 +37,7 @@ export default function ItemsPage() {
   const [fieldThresholdError, setFieldThresholdError] = useState('');
   const [fieldUnitError, setFieldUnitError] = useState('');
   const [mutating, setMutating] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const { householdId } = useAuth();
   const { isOnline } = useOnlineStatus();
   const { t, language } = useI18n();
@@ -166,8 +168,6 @@ async function handleSubmit(e: React.FormEvent) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm(t('items.delete_confirm'))) return;
-
     if (!householdId || mutating || !isOnline) return;
     setMutating(id);
     setError('');
@@ -335,6 +335,23 @@ return (
           </div>
         )}
 
+        {deleteTarget && (
+          <AccessibleDialog
+            title={items.find((item) => item.id === deleteTarget)?.name ?? ''}
+            message={t('items.delete_confirm')}
+            confirmLabel={t('common.confirm')}
+            cancelLabel={t('common.cancel')}
+            confirmTestId="item-delete-confirm"
+            cancelTestId="item-delete-cancel"
+            dialogTestId="item-delete-dialog"
+            onConfirm={() => {
+              const id = deleteTarget;
+              setDeleteTarget(null);
+              void handleDelete(id);
+            }}
+            onCancel={() => setDeleteTarget(null)}
+          />
+        )}
         {itemGroups.map(({ category, items: groupedItems }) => (
             <div key={category?.id ?? 'uncategorized'} style={{ marginBottom: '2rem' }}>
               <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -342,7 +359,7 @@ return (
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {groupedItems.map((item, index) => (
-                  <ItemRow key={item.id} item={item} index={index} disabled={mutating !== null || !isOnline} onUpdate={updateQuantity} onEdit={startEdit} onDelete={handleDelete} t={t} />
+                  <ItemRow key={item.id} item={item} index={index} disabled={mutating !== null || !isOnline} onUpdate={updateQuantity} onEdit={startEdit} onDelete={(id: string) => setDeleteTarget(id)} t={t} />
                 ))}
               </div>
             </div>

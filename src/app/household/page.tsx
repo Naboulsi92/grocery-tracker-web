@@ -6,6 +6,7 @@ import { useI18n } from '@/contexts/LanguageContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { AccessibleDialog } from '@/components/AccessibleDialog';
 import ThemeToggle from '@/components/ThemeToggle';
 import { createClient } from '@/utils/supabase/client';
 import { translateMessage } from '@/lib/i18n';
@@ -331,27 +332,18 @@ export default function HouseholdPage() {
 
       {/* Regenerate Confirmation Modal */}
       {showRegenConfirm && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="regen-dialog-title" onClick={() => setShowRegenConfirm(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 id="regen-dialog-title">{t('household.regen_title')}</h3>
-            <p className="text-muted" style={{ margin: '0.75rem 0 1.5rem' }}>
-              {t('household.regen_hint')}
-            </p>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowRegenConfirm(false)} data-testid="invite-regenerate-cancel-button">
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => void handleRegenerate()}
-                data-testid="invite-code-regenerate-confirm"
-              >
-                {t('common.confirm')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AccessibleDialog
+          title={t('household.regen_title')}
+          message={t('household.regen_hint')}
+          confirmLabel={t('common.confirm')}
+          cancelLabel={t('common.cancel')}
+          confirmTestId="invite-code-regenerate-confirm"
+          cancelTestId="invite-regenerate-cancel-button"
+          dialogTestId="invite-regenerate-dialog"
+          tone="primary"
+          onConfirm={() => void handleRegenerate()}
+          onCancel={() => setShowRegenConfirm(false)}
+        />
       )}
 
       {/* Leave Household Confirmation Modal — PRD §4.8 texte exact + Confirmer/Annuler */}

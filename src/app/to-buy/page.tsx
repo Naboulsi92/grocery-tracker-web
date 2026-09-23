@@ -159,7 +159,7 @@ export default function ToBuyPage() {
       <AuthenticatedHeader showBackLink household={household} loading={householdLoading} error={householdError} />
       <SyncingIndicator />
 
-      <main className="app-main">
+      <main className="app-main" id="main">
         <h1>{t('tobuy.title')}</h1>
         {combinedError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>

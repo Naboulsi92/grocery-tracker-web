@@ -78,8 +78,8 @@ export default function HomePage() {
         }
       />
 
-      <main className="app-main">
-        <h2>{t('home.title')}</h2>
+      <main className="app-main" id="main">
+        <h1>{t('home.title')}</h1>
         <div className="dashboard-grid">
           <Link href="/categories" className="dashboard-card animate-fade-in" style={{ animationDelay: '0ms' }} data-testid="dashboard-card-categories">
             <div className="card-icon" aria-hidden="true" style={{ background: 'var(--color-accent-muted)', color: 'var(--color-accent-hover)' }}>

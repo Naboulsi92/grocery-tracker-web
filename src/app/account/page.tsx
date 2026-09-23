@@ -243,8 +243,8 @@ export default function AccountPage() {
         error={householdError}
       />
 
-      <main className="app-main">
-        <h2 style={{ fontSize: '1.5rem', marginBottom: '1.25rem' }}>{t('account.title')}</h2>
+      <main className="app-main" id="main">
+        <h1 style={{ fontSize: '1.5rem', marginBottom: '1.25rem' }}>{t('account.title')}</h1>
 
         {restoredAccount && (
           <p className="account-feedback-success" role="status">
@@ -272,8 +272,8 @@ export default function AccountPage() {
               }}
               maxLength={50}
               autoComplete="given-name"
-              aria-invalid={!!firstNameError}
-              aria-describedby="account-first-name-error"
+                aria-invalid={!!firstNameError}
+                aria-describedby={firstNameError ? 'account-first-name-error' : undefined}
             />
             {firstNameError && <p className="notification-error field-error" role="alert" id="account-first-name-error" data-testid={firstNameError === 'validation.first_name.too_long' ? 'error-first-name-too-long' : 'error-first-name-required-letter'}>{translateMessage(language, firstNameError)}</p>}
           </div>
@@ -292,8 +292,8 @@ export default function AccountPage() {
               }}
               maxLength={50}
               autoComplete="family-name"
-              aria-invalid={!!lastNameError}
-              aria-describedby="account-last-name-error"
+                aria-invalid={!!lastNameError}
+                aria-describedby={lastNameError ? 'account-last-name-error' : undefined}
             />
             {lastNameError && <p className="notification-error field-error" role="alert" id="account-last-name-error" data-testid={lastNameError === 'validation.last_name.too_long' ? 'error-last-name-too-long' : 'error-last-name-required-letter'}>{translateMessage(language, lastNameError)}</p>}
           </div>

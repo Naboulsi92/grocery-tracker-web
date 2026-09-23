@@ -88,7 +88,7 @@ export default function SignupPage() {
     <div className="auth-container">
       <ThemeToggle />
       <LanguageToggle />
-      <div className="auth-card animate-fade-in">
+      <main id="main" className="auth-card animate-fade-in">
         <AuthHeader
           showBackHome
           title={t('signup.title')}
@@ -159,7 +159,7 @@ export default function SignupPage() {
           {t('signup.footer_prompt')}{' '}
           <Link href="/login">{t('signup.login_link')}</Link>
         </p>
+        </main>
       </div>
-    </div>
-  );
-}
+    );
+  }

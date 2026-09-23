@@ -4,15 +4,10 @@ import { expect } from './fixtures';
 /**
  * Shared deletion helpers for the items page.
  *
- * Deadlock source (trace-proven, NOT animation instability): `handleDelete`
- * opens a SYNCHRONOUS native `confirm()` as the first statement of the click
- * handler (`src/app/items/page.tsx`). The old lazy order — `waitForEvent`
- * then `click()` then `accept()` — deadlocks because the modal opens mid-click
- * (CDP input round-trip), so `click()` never resolves and `accept()` is
- * unreachable. Eager `page.once('dialog', accept)` registered BEFORE the click
- * unblocks it, mirroring every passing delete site in the suite. Animation
- * draining is kept only as a pre-click stability nicety (harmless), and
- * row-detach/count assertions after each click remain the post-conditions.
+ * Deletions go through the custom AccessibleDialog (ticket #119): no native
+ * `confirm()` anymore. Clicking delete opens the dialog; the caller confirms
+ * explicitly via its testid, then the row-detach/count assertions below are
+ * the post-conditions.
  */
 export async function waitForAnimationsToSettle(page: Page, timeout = 10000) {
   await expect
@@ -43,13 +38,20 @@ export async function didBecomeVisible(locator: Locator, timeout = 5000): Promis
   }
 }
 
-async function acceptDeleteDialog(page: Page, deleteButton: Locator) {
+/**
+ * Clicks a delete button, then confirms in the AccessibleDialog via its
+ * confirm testid. Items and categories each expose their own confirm testid
+ * (`item-delete-confirm` / `category-delete-confirm`).
+ */
+export async function confirmDeleteDialog(page: Page, deleteButton: Locator, confirmTestId: string) {
   await expect(deleteButton).toBeVisible();
   await expect(deleteButton).toBeEnabled();
   await deleteButton.scrollIntoViewIfNeeded();
   await waitForAnimationsToSettle(page);
-  page.once('dialog', (dialog) => void dialog.accept());
   await deleteButton.click();
+  const confirmButton = page.getByTestId(confirmTestId);
+  await expect(confirmButton).toBeVisible({ timeout: 10000 });
+  await confirmButton.click();
 }
 
 /**
@@ -72,7 +74,7 @@ export async function deleteAllItems(page: Page) {
   await waitForAnimationsToSettle(page);
   while (remaining > 0) {
     const rowTestId = await rows.first().getAttribute('data-testid');
-    await acceptDeleteDialog(page, rows.first().getByTestId(/^btn-delete-item-/));
+    await confirmDeleteDialog(page, rows.first().getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     if (rowTestId) {
       await expect(page.locator(`[data-testid="${rowTestId}"]`)).toHaveCount(0);
     }
@@ -88,7 +90,7 @@ export async function deleteAllItems(page: Page) {
  */
 export async function deleteItemRow(page: Page, row: Locator) {
   const rowTestId = await row.getAttribute('data-testid');
-  await acceptDeleteDialog(page, row.getByTestId(/^btn-delete-item-/));
+  await confirmDeleteDialog(page, row.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
   await waitForAnimationsToSettle(page);
   if (rowTestId) {
     await expect(page.locator(`[data-testid="${rowTestId}"]`)).toHaveCount(0);

@@ -175,21 +175,21 @@ function JoinHouseholdPageInner() {
       <div className="auth-container">
         <ThemeToggle />
         <LanguageToggle />
-        <div className="auth-card">
+        <main id="main" className="auth-card">
           <div className="loading-container" role="status">
             <div className="loading-spinner" aria-hidden="true" />
             <p>{t('common.loading')}</p>
           </div>
-        </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="auth-container">
+      <div className="auth-container">
       <ThemeToggle />
       <LanguageToggle />
-      <div className="auth-card animate-fade-in">
+      <main id="main" className="auth-card animate-fade-in">
         <AuthHeader
           showBackHome
           showSignOut
@@ -221,7 +221,7 @@ function JoinHouseholdPageInner() {
             <h2 id="profile-names-title" style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 500 }}>{t('join.names_title')}</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label className="sr-only" htmlFor="onboarding-first-name">{t('join.first_name_label')}</label>
+                <label htmlFor="onboarding-first-name">{t('join.first_name_label')}</label>
                 <input
                   id="onboarding-first-name"
                   type="text"
@@ -234,12 +234,12 @@ function JoinHouseholdPageInner() {
                   required
                   disabled={pendingAction !== null}
                   aria-invalid={!!firstNameError}
-                  aria-describedby="onboarding-first-name-error"
+                  aria-describedby={firstNameError ? 'onboarding-first-name-error' : undefined}
                 />
                 {firstNameError && <p className="field-error" role="alert" id="onboarding-first-name-error" data-testid={firstNameError === 'validation.first_name.too_long' ? 'error-onboarding-first-name-too-long' : 'error-onboarding-first-name-required-letter'}>{t(firstNameError)}</p>}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label className="sr-only" htmlFor="onboarding-last-name">{t('join.last_name_label')}</label>
+                <label htmlFor="onboarding-last-name">{t('join.last_name_label')}</label>
                 <input
                   id="onboarding-last-name"
                   type="text"
@@ -252,7 +252,7 @@ function JoinHouseholdPageInner() {
                   required
                   disabled={pendingAction !== null}
                   aria-invalid={!!lastNameError}
-                  aria-describedby="onboarding-last-name-error"
+                  aria-describedby={lastNameError ? 'onboarding-last-name-error' : undefined}
                 />
                 {lastNameError && <p className="field-error" role="alert" id="onboarding-last-name-error" data-testid={lastNameError === 'validation.last_name.too_long' ? 'error-onboarding-last-name-too-long' : 'error-onboarding-last-name-required-letter'}>{t(lastNameError)}</p>}
               </div>
@@ -262,7 +262,7 @@ function JoinHouseholdPageInner() {
           <section aria-labelledby="create-household-title">
             <h2 id="create-household-title" style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 500 }}>{t('join.create_title')}</h2>
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <label className="sr-only" htmlFor="household-name">{t('join.create_name_label')}</label>
+              <label htmlFor="household-name">{t('join.create_name_label')}</label>
               <input
                 id="household-name"
                 type="text"
@@ -270,8 +270,8 @@ function JoinHouseholdPageInner() {
                 value={householdName}
                 onChange={(event) => { setHouseholdName(event.target.value); setHouseholdNameError(''); }}
                 disabled={pendingAction !== null}
-                aria-invalid={!!householdNameError}
-                aria-describedby="household-name-error"
+                  aria-invalid={!!householdNameError}
+                  aria-describedby={householdNameError ? 'household-name-error' : undefined}
               />
               {householdNameError && <p className="field-error" role="alert" id="household-name-error" data-testid={householdNameError === 'validation.name.too_long' ? 'error-name-too-long' : 'error-name-required-letter'}>{t(householdNameError)}</p>}
               <button type="submit" disabled={pendingAction !== null} className="btn btn-primary" style={{ background: 'var(--color-accent)' }}>
@@ -285,7 +285,7 @@ function JoinHouseholdPageInner() {
           <section aria-labelledby="join-household-title">
             <h2 id="join-household-title" style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 500 }}>{t('join.join_title')}</h2>
             <form onSubmit={handleJoin} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <label className="sr-only" htmlFor="invitation-token">{t('join.join_token_label')}</label>
+              <label htmlFor="invitation-token">{t('join.join_token_label')}</label>
               <input
                 id="invitation-token"
                 type="text"
@@ -304,7 +304,7 @@ function JoinHouseholdPageInner() {
             </form>
           </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

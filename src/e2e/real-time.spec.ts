@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import { deleteItemRow } from './helpers';
+import { confirmDeleteDialog, deleteItemRow } from './helpers';
 
 test.describe('Real-time Collaboration', () => {
   test.describe('Real-time Item Updates (US 56)', () => {
@@ -48,8 +48,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondContext.close();
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
     test('updates item name in real-time across browser contexts', async ({ page, account, browser }) => {
@@ -94,8 +93,7 @@ test.describe('Real-time Collaboration', () => {
       await expect(page.getByText(newName)).toBeVisible();
       await expect(secondPage.getByText(newName)).toBeVisible({ timeout: 10000 });
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.locator('.item-row').filter({ hasText: newName }).getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: newName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
 
       await secondContext.close();
     });
@@ -156,9 +154,7 @@ test.describe('Real-time Collaboration', () => {
       await deleteItemRow(page, page.locator('.item-row').filter({ hasText: itemName }));
       await page.goto('/home');
       await page.getByTestId('dashboard-card-categories').click();
-      const deleteCategoryDialog = page.waitForEvent('dialog');
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
-      await (await deleteCategoryDialog).accept();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
     });
   });
 
@@ -215,8 +211,7 @@ test.describe('Real-time Collaboration', () => {
       await secondContext.close();
 
       await page.goto('/items');
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 
@@ -267,8 +262,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondContext.close();
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 
@@ -364,8 +358,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondContext.close();
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 
@@ -392,8 +385,7 @@ test.describe('Real-time Collaboration', () => {
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
     test('validates channel creation and subscription lifecycle', async ({ page, account, browser }) => {
@@ -442,8 +434,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondContext.close();
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 
@@ -500,8 +491,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondContext.close();
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 
@@ -685,8 +675,7 @@ test.describe('Real-time Collaboration', () => {
         const item = await getItem(householdId, itemName);
         expect(item.already_notified).toBe(true);
 
-        page.once('dialog', (dialog) => dialog.accept());
-        await itemRow.getByTestId(/^btn-delete-item-/).click();
+        await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
       } finally {
         await memberContext.close();
       }
@@ -740,8 +729,7 @@ test.describe('Real-time Collaboration', () => {
         .poll(async () => (await getPending(householdId)).length, { timeout: 15000 })
         .toBe(2);
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await itemRow.getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 });

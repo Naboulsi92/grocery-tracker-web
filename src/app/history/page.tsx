@@ -99,7 +99,7 @@ export default function HistoryPage() {
       <OfflineBanner />
       <AuthenticatedHeader showBackLink household={household} loading={householdLoading} error={householdError} />
 
-      <main className="app-main">
+      <main className="app-main" id="main">
         <h1>{t('history.title')}</h1>
 
         {combinedError && (

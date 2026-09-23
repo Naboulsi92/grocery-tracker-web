@@ -50,7 +50,7 @@ return (
         }
       />
 
-      <main className="app-main">
+      <main className="app-main" id="main">
         {error && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1rem' }}>
             {translateMessage(language, error)}
@@ -102,7 +102,7 @@ return (
 
         {household && (
           <div className="card">
-            <h2 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>{t('members.counter', { count: members.length })}</h2>
+            <h1 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>{t('members.counter', { count: members.length })}</h1>
             <div className="members-list">
               {members.map((member, index) => (
                 <div key={member.user_id} className="member-item animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>

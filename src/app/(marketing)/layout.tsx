@@ -68,7 +68,7 @@ export default function MarketingLayout({
       />
       
       <Header />
-      <main className="flex-1">
+      <main className="flex-1" id="main">
         {children}
         <ScrollTracker />
         <PageViewTracker />

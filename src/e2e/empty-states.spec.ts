@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import { deleteAllItems } from './helpers';
+import { confirmDeleteDialog, deleteAllItems } from './helpers';
 
 test.describe('Empty States', () => {
   test.describe('Categories Empty State', () => {
@@ -39,9 +39,7 @@ test.describe('Empty States', () => {
       await expect(customCards).toHaveCount(1);
       await expect(customCards.first()).toContainText(categoryName);
 
-      const deleteCategoryDialog = page.waitForEvent('dialog');
-      await page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click();
-      await (await deleteCategoryDialog).accept();
+      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
     });
 
     test('default categories cannot be deleted or renamed', async ({ page, account }) => {
@@ -101,8 +99,7 @@ test.describe('Empty States', () => {
       const itemList = page.locator('.item-row');
       await expect(itemList).toHaveCount(1);
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await itemList.getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, itemList.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
     test('empty state appears after deleting all items', async ({ page, account }) => {
@@ -273,8 +270,7 @@ test.describe('Empty States', () => {
       const itemList = page.locator('.items-list, .item-row');
       await expect(itemList).toBeVisible();
 
-      page.once('dialog', (dialog) => dialog.accept());
-      await page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).click();
+      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
     test('populated state transitions to empty after deleting all items', async ({ page, account }) => {

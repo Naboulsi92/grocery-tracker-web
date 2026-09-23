@@ -246,6 +246,7 @@ export default function HouseholdPage() {
                     onClick={() => void actions.createInvitation()}
                     disabled={invitation.status === 'creating'}
                     className="btn btn-primary"
+                    data-testid="invite-code-create-button"
                   >
                     {invitation.status === 'creating' ? t('members.creating') : t('household.generate')}
                   </button>
@@ -259,6 +260,7 @@ export default function HouseholdPage() {
                         disabled={invitation.status === 'revoking'}
                         className="btn btn-secondary"
                         aria-describedby="copy-status"
+                        data-testid="invite-code-copy-button"
                       >
                         {copied ? t('common.copied') : t('common.copy')}
                       </button>
@@ -334,7 +336,7 @@ export default function HouseholdPage() {
               {t('household.regen_hint')}
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowRegenConfirm(false)}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowRegenConfirm(false)} data-testid="invite-regenerate-cancel-button">
                 {t('common.cancel')}
               </button>
               <button
@@ -358,6 +360,7 @@ export default function HouseholdPage() {
           confirmLabel={t('common.confirm')}
           cancelLabel={t('common.cancel')}
           confirmTestId="leave-household-confirm"
+          cancelTestId="leave-household-cancel"
           pending={leaving}
           pendingLabel={t('household.leaving')}
           tone="danger"

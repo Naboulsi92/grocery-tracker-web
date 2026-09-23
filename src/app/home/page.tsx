@@ -52,7 +52,7 @@ export default function HomePage() {
         <ThemeToggle />
         <div className="loading-container">
           <p role="alert">{error ? translateMessage(language, error) : t('home.household_not_found')}</p>
-          <button type="button" className="btn btn-primary" onClick={() => refresh()}>{t('common.retry')}</button>
+          <button type="button" className="btn btn-primary" onClick={() => refresh()} data-testid="btn-retry-home">{t('common.retry')}</button>
         </div>
       </div>
     );
@@ -67,7 +67,7 @@ export default function HomePage() {
         loading={loading}
         error={error}
         trailingAction={
-          <button onClick={handleSignOut} className="btn btn-ghost">
+          <button onClick={handleSignOut} className="btn btn-ghost" data-testid="home-sign-out-button">
             <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
               <polyline points="16 17 21 12 16 7"/>
@@ -197,6 +197,7 @@ export default function HomePage() {
                   onClick={() => void unsubscribe()}
                   className="btn btn-secondary"
                   disabled={pushLoading}
+                  data-testid="home-notifications-disable-button"
                 >
                   {operation === 'disabling' ? t('home.notif_disabling') : t('home.notif_disable')}
                 </button>
@@ -205,6 +206,7 @@ export default function HomePage() {
                   onClick={() => void requestPermission()}
                   className="btn btn-secondary"
                   disabled={pushLoading}
+                  data-testid="home-notifications-enable-button"
                 >
                   {operation === 'enabling' ? t('home.notif_enabling') : t('home.notif_enable')}
                 </button>

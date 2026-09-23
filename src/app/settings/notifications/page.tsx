@@ -216,7 +216,7 @@ export default function NotificationSettingsPage() {
         {loadError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>
             <span>{translateMessage(language, loadError)}</span>
-            <button type="button" className="btn btn-secondary" onClick={() => setLoadRequest((request) => request + 1)}>
+            <button type="button" className="btn btn-secondary" onClick={() => setLoadRequest((request) => request + 1)} data-testid="notifications-retry-button">
               {t('common.retry')}
             </button>
           </div>
@@ -276,6 +276,7 @@ export default function NotificationSettingsPage() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => void handleEnablePush()}
+                  data-testid="notifications-enable-push-button"
                   disabled={pushLoading || operation !== 'idle'}
                   style={{ marginTop: '0.75rem' }}
                 >
@@ -287,6 +288,7 @@ export default function NotificationSettingsPage() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => void handleDisablePush()}
+                  data-testid="notifications-disable-push-button"
                   disabled={pushLoading || operation !== 'idle'}
                   style={{ marginTop: '0.75rem' }}
                 >

@@ -429,7 +429,7 @@ export default function CategoriesPage() {
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             {translateMessage(language, combinedError)}
-            <button type="button" className="btn btn-secondary" onClick={() => void fetchCategories(true)}>{t('common.retry')}</button>
+            <button type="button" className="btn btn-secondary" onClick={() => void fetchCategories(true)} data-testid="btn-retry-categories">{t('common.retry')}</button>
           </div>
         )}
 
@@ -476,6 +476,7 @@ export default function CategoriesPage() {
                   onClick={cancelForm}
                   className="btn btn-secondary"
                   disabled={mutating === 'form'}
+                  data-testid="btn-cancel-category"
                 >
                   {t('common.cancel')}
                 </button>

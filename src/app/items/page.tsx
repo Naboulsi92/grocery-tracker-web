@@ -252,7 +252,7 @@ return (
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             {translateMessage(language, combinedError)}
-            <button type="button" className="btn btn-secondary" onClick={() => void fetchData(true)}>{t('common.retry')}</button>
+            <button type="button" className="btn btn-secondary" onClick={() => void fetchData(true)} data-testid="btn-retry-items">{t('common.retry')}</button>
           </div>
         )}
 
@@ -282,7 +282,7 @@ return (
               </div>
               <div className="form-group">
                 <label htmlFor="item-category">{t('items.category')}</label>
-                <select id="item-category" value={formCategoryId} onChange={(e) => setFormCategoryId(e.target.value)}>
+                <select id="item-category" data-testid="input-item-category" value={formCategoryId} onChange={(e) => setFormCategoryId(e.target.value)}>
                   <option value="">{t('items.category_none')}</option>
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -291,7 +291,7 @@ return (
               </div>
               <div className="form-group">
                 <label htmlFor="item-quantity">{t('items.quantity')}</label>
-                <input id="item-quantity" type="number" value={formQuantity} onChange={(e) => { setFormQuantity(e.target.value); setFieldQuantityError(''); }} min="0" step={getUnitStep(formUnit)} aria-invalid={!!fieldQuantityError} aria-describedby="item-quantity-error" />
+                <input id="item-quantity" type="number" data-testid="input-item-quantity" value={formQuantity} onChange={(e) => { setFormQuantity(e.target.value); setFieldQuantityError(''); }} min="0" step={getUnitStep(formUnit)} aria-invalid={!!fieldQuantityError} aria-describedby="item-quantity-error" />
                 {fieldQuantityError && <p className="field-error" role="alert" id="item-quantity-error" data-testid="error-quantity-negative">{translateMessage(language, fieldQuantityError)}</p>}
               </div>
               <div className="form-group">
@@ -319,12 +319,12 @@ return (
               </div>
               <div className="form-group">
                 <label htmlFor="item-threshold">{t('items.threshold')}</label>
-                <input id="item-threshold" type="number" value={formThreshold} onChange={(e) => { setFormThreshold(e.target.value); setFieldThresholdError(''); }} min="1" step={getUnitStep(formUnit)} aria-invalid={!!fieldThresholdError} aria-describedby="item-threshold-error" />
+                <input id="item-threshold" type="number" data-testid="input-item-threshold" value={formThreshold} onChange={(e) => { setFormThreshold(e.target.value); setFieldThresholdError(''); }} min="1" step={getUnitStep(formUnit)} aria-invalid={!!fieldThresholdError} aria-describedby="item-threshold-error" />
                 {fieldThresholdError && <p className="field-error" role="alert" id="item-threshold-error" data-testid="error-threshold-required">{translateMessage(language, fieldThresholdError)}</p>}
               </div>
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                 <button type="submit" className="btn btn-primary" disabled={mutating === 'form' || !isOnline} data-testid="btn-create-item">{editingId ? t('common.save') : t('common.create')}</button>
-                <button type="button" onClick={resetForm} className="btn btn-secondary" disabled={mutating === 'form'}>{t('common.cancel')}</button>
+                <button type="button" onClick={resetForm} className="btn btn-secondary" disabled={mutating === 'form'} data-testid="btn-cancel-item">{t('common.cancel')}</button>
               </div>
             </form>
           </div>
@@ -381,11 +381,11 @@ function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, t }: { ite
       </div>
       <div className="item-controls">
         <div className="quantity-control">
-          <button onClick={() => onUpdate(item.id, -step)} className="qty-btn" disabled={disabled || item.quantity <= 0} aria-label={t('items.decrease_aria', { name: item.name })}>−</button>
+          <button onClick={() => onUpdate(item.id, -step)} className="qty-btn" disabled={disabled || item.quantity <= 0} aria-label={t('items.decrease_aria', { name: item.name })} data-testid={`btn-quantity-decrement-${item.id}`}>−</button>
           <span className="qty-value" aria-live="polite">{item.quantity} {item.unit}</span>
-          <button onClick={() => onUpdate(item.id, step)} className="qty-btn" disabled={disabled} aria-label={t('items.increase_aria', { name: item.name })}>+</button>
+          <button onClick={() => onUpdate(item.id, step)} className="qty-btn" disabled={disabled} aria-label={t('items.increase_aria', { name: item.name })} data-testid={`btn-quantity-increment-${item.id}`}>+</button>
         </div>
-        <button onClick={() => onEdit(item)} className="action-btn" disabled={disabled} aria-label={t('items.edit_aria', { name: item.name })}>
+        <button onClick={() => onEdit(item)} className="action-btn" disabled={disabled} aria-label={t('items.edit_aria', { name: item.name })} data-testid={`btn-edit-item-${item.id}`}>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>

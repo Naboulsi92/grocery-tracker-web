@@ -360,6 +360,7 @@ export default function AccountPage() {
               <label htmlFor="account-current-password">{t('account.current_password')}</label>
               <input
                 id="account-current-password"
+                data-testid="account-current-password-input"
                 type="password"
                 value={currentPassword}
                 onChange={(event) => setCurrentPassword(event.target.value)}
@@ -371,6 +372,7 @@ export default function AccountPage() {
               <label htmlFor="account-new-password">{t('account.new_password')}</label>
               <input
                 id="account-new-password"
+                data-testid="account-new-password-input"
                 type="password"
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
@@ -382,6 +384,7 @@ export default function AccountPage() {
               <label htmlFor="account-confirm-password">{t('account.confirm_new_password')}</label>
               <input
                 id="account-confirm-password"
+                data-testid="account-confirm-password-input"
                 type="password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
@@ -466,6 +469,7 @@ export default function AccountPage() {
           confirmLabel={t('account.delete')}
           cancelLabel={t('common.cancel')}
           confirmTestId="account-delete-confirm"
+          cancelTestId="account-delete-cancel"
           pending={deleting}
           pendingLabel={t('account.deleting')}
           tone="danger"

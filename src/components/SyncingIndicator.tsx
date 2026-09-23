@@ -43,7 +43,7 @@ export function SyncingIndicator() {
           <span>{t('sync.failed')}</span>
           <button
             type="button"
-            className="sync-indicator-retry"
+            className="sync-indicator-retry" data-testid="sync-retry-button"
             onClick={() => void handleRetry()}
             disabled={retrying}
           >

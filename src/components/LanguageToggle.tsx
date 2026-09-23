@@ -20,6 +20,7 @@ export default function LanguageToggle() {
           aria-label={LANGUAGE_NAMES[code]}
           title={LANGUAGE_NAMES[code]}
           onClick={() => setLanguage(code)}
+          data-testid={`language-toggle-${code}`}
         >
           {LANGUAGE_LABELS[code]}
         </button>

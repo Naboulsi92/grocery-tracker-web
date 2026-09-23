@@ -13,6 +13,7 @@ export default function ThemeToggle() {
       onClick={toggleTheme}
       className="theme-toggle"
       type="button"
+      data-testid="theme-toggle-button"
       aria-label={t('theme.aria_dark')}
       aria-pressed={isDark}
       title={t(isDark ? 'theme.enable_light' : 'theme.enable_dark')}

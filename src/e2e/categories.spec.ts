@@ -347,13 +347,16 @@ test.describe('Categories CRUD', () => {
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
 
-      // Invite tokens render on /members (never on /categories): fetch one via
-      // the proven onboarding pattern so the two-context flow below always runs.
-      await page.goto('/home');
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
-      const token = await page.locator('.invite-code-text').textContent();
-      await page.goto('/categories');
+      // Invite tokens render on /members (never on /categories): fetch one in
+      // a scratch tab via the proven onboarding pattern, so the observed
+      // /categories page (and its realtime channel) is never disturbed by
+      // navigation and the two-context flow below always runs.
+      const tokenPage = await page.context().newPage();
+      await tokenPage.goto('/home');
+      await tokenPage.getByRole('link', { name: /Membres/ }).click();
+      await tokenPage.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await tokenPage.locator('.invite-code-text').textContent();
+      await tokenPage.close();
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
       await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();

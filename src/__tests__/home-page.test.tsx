@@ -5,8 +5,15 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 const signOutMock = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 'user-1' }, householdId: 'household-1', signOut: signOutMock }),
+  useAuth: () => ({
+    user: { id: 'user-1' },
+    householdId: 'household-1',
+    signOut: signOutMock,
+    retryHousehold: jest.fn(),
+    access: { status: 'member', user: { id: 'user-1' }, householdId: 'household-1' },
+  }),
 }));
+jest.mock('next/navigation', () => ({ useRouter: () => ({ replace: jest.fn() }) }));
 jest.mock('@/utils/supabase/client', () => ({
   createClient: () => ({ from: () => ({ select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) }) }) as never,
 }));

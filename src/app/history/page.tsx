@@ -60,24 +60,20 @@ export default function HistoryPage() {
   // Resync background silencieuse à la reconnexion (PRD §4.12 + §5).
   useResyncOnReconnect(fetchHistory);
 
+  // Ticket #123 : NO realtime channel here on purpose. The `history` table is
+  // outside the supabase_realtime publication (contract: exactly
+  // {categories, items}), so the previous `history:${householdId}` channel
+  // never received anything — dead code disguised as a feature (same
+  // starvation class as #111's category_positions). History refreshes on
+  // mount and on reconnect (useResyncOnReconnect below); realtime history
+  // is a separate ticket if the need is proven.
   useEffect(() => {
     if (!householdId) return;
 
     queueMicrotask(() => void loadHistory(true));
 
-    let debounceTimer: ReturnType<typeof setTimeout>;
-    const channel = supabase
-      .channel(`history:${householdId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'history', filter: `household_id=eq.${householdId}` }, () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => void loadHistory(), 300);
-      })
-      .subscribe();
-
     return () => {
       requestId.current += 1;
-      clearTimeout(debounceTimer);
-      void supabase.removeChannel(channel);
     };
   }, [householdId, supabase]);
 

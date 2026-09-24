@@ -25,6 +25,7 @@ jest.mock('@/hooks/useHousehold', () => ({
       createInvitation: jest.fn(),
       revokeInvitation: jest.fn(),
       copyInviteCode: jest.fn(),
+      copyText: jest.fn(),
       refresh: jest.fn(),
     },
   }),

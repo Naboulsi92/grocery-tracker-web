@@ -11,7 +11,48 @@ export type InvitationState =
   | { status: 'none' }
   | { status: 'creating' }
   | { status: 'active'; invitationId: string; token: string; expiresAt: string }
-  | { status: 'revoking'; invitationId: string; token: string; expiresAt: string };
+  | { status: 'revoking'; invitationId: string; token: string; expiresAt: string }
+  // Hydrated from the read function after reload: no token by design (only a
+  // digest is stored), so a pending invitation shows metadata + actions but
+  // never the code again. Ticket #57.
+  | {
+      status: 'pending';
+      invitationId: string;
+      createdAt: string;
+      expiresAt: string;
+      consumed: boolean;
+      revoked: boolean;
+    };
+
+export interface InvitationRow {
+  invitation_id: string;
+  created_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  consumed_at: string | null;
+}
+
+/** Maps a read-function row to the pending state (pure, unit-tested). */
+export function toPendingInvitation(row: InvitationRow | undefined): InvitationState {
+  if (!row) return { status: 'none' };
+  return {
+    status: 'pending',
+    invitationId: row.invitation_id,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    consumed: row.consumed_at !== null,
+    revoked: row.revoked_at !== null,
+  };
+}
+
+/**
+ * Full shareable invite link for a raw token (ticket #57). Centralizes the
+ * format previously built inline on the household page so the members panel
+ * and the QR code cannot drift apart.
+ */
+export function buildInvitationLink(origin: string, token: string): string {
+  return `${origin.replace(/\/+$/, '')}/join-household?code=${encodeURIComponent(token)}`;
+}
 
 export function normalizeInvitationToken(value: string): string {
   return value.trim();
@@ -56,6 +97,12 @@ export function householdActionError(
   }
   if ((action === 'invite' || action === 'revoke') && error?.message?.includes('household member required')) {
     return 'errors.household.member_required';
+  }
+  // Ticket #57 : creating is owner-gated DB-side. Name the real cause instead
+  // of the generic retry prompt (the panel itself stays reachable by every
+  // member — equal-rights decision, members.spec.ts "no owner-only gate").
+  if (action === 'invite' && error?.message?.includes('household owner required')) {
+    return 'errors.household.owner_required';
   }
 
   const fallback = {

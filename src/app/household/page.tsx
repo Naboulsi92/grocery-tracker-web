@@ -10,6 +10,7 @@ import { AccessibleDialog } from '@/components/AccessibleDialog';
 import ThemeToggle from '@/components/ThemeToggle';
 import { createClient } from '@/utils/supabase/client';
 import { translateMessage } from '@/lib/i18n';
+import { buildInvitationLink } from '@/lib/household';
 import { validateName } from '@/lib/validation';
 import type { Database } from '@/types/database';
 
@@ -40,7 +41,7 @@ export default function HouseholdPage() {
   useEffect(() => {
     if (!invitationToken) return;
     let cancelled = false;
-    const joinUrl = `${window.location.origin}/join-household?code=${encodeURIComponent(invitationToken)}`;
+    const joinUrl = buildInvitationLink(window.location.origin, invitationToken);
     void import('qrcode')
       .then((mod) => {
         const QR = (mod as unknown as { default?: typeof import('qrcode') }).default ?? mod;
@@ -85,6 +86,14 @@ export default function HouseholdPage() {
     setCopied(false);
     await actions.copyInviteCode();
     setCopied(true);
+  };
+
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const handleCopyLink = async (link: string) => {
+    setLinkCopied(false);
+    const done = await actions.copyText(link);
+    setLinkCopied(done);
   };
 
   const handleRegenerate = async () => {
@@ -235,6 +244,9 @@ export default function HouseholdPage() {
               <section className="card" style={{ marginBottom: '1.5rem' }} data-testid="household-full-message">
                 <h2 style={{ marginBottom: '0.5rem', fontSize: '1.125rem' }}>{t('household.invitation')}</h2>
                 <p className="text-muted">{t('household.full')}</p>
+                {invitation.status === 'pending' && invitation.consumed && (
+                  <p data-testid="invite-accepted-note">{t('members.invite_accepted')}</p>
+                )}
               </section>
             ) : (
               <section className="card" style={{ marginBottom: '1.5rem' }}>
@@ -253,8 +265,36 @@ export default function HouseholdPage() {
                   >
                     {invitation.status === 'creating' ? t('members.creating') : t('household.generate')}
                   </button>
+                ) : invitation.status === 'pending' ? (
+                  <div data-testid="invite-pending-display">
+                    {invitation.consumed ? (
+                      <p data-testid="invite-accepted-note">{t('members.invite_accepted')}</p>
+                    ) : invitation.revoked ? (
+                      <p data-testid="invite-revoked-note">{t('members.invite_revoked')}</p>
+                    ) : (
+                      <p data-testid="invite-pending-note">
+                        {t('members.pending_created', { date: new Date(invitation.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR') })}
+                        {' '}
+                        {t('members.expires', { date: new Date(invitation.expiresAt).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR') })}
+                      </p>
+                    )}
+                  </div>
                 ) : (
                   <div data-testid="invite-code-display">
+                    <p data-testid="invite-shown-once" className="text-muted text-sm">{t('members.shown_once')}</p>
+                    <p className="text-sm" style={{ fontWeight: 600 }}>{t('members.invite_link_label')}</p>
+                    <div className="invite-code-display">
+                      <code className="invite-link-text" data-testid="invite-link">{buildInvitationLink(window.location.origin, invitation.token)}</code>
+                      <button
+                        type="button"
+                        onClick={() => void handleCopyLink(buildInvitationLink(window.location.origin, invitation.token))}
+                        disabled={invitation.status === 'revoking'}
+                        className="btn btn-secondary"
+                        data-testid="invite-code-copy-link-button"
+                      >
+                        {linkCopied ? t('common.copied') : t('members.copy_link')}
+                      </button>
+                    </div>
                     <div className="invite-code-display">
                       <code className="invite-code-text">{invitation.token}</code>
                       <button

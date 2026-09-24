@@ -54,7 +54,9 @@ test.describe('Members Page', () => {
       };
     });
 
-    const copyButton = page.getByRole('button', { name: 'Copier' });
+    // Two copy buttons now share the 'Copier' prefix (token + link): target
+    // the token one precisely by testid.
+    const copyButton = page.getByTestId('members-copy-invitation-button');
     await expect(copyButton).toBeVisible();
     await copyButton.click();
 
@@ -242,5 +244,69 @@ test.describe('Members Page', () => {
     const secondInvitationToken = await secondToken.textContent();
 
     expect(firstInvitationToken).not.toBe(secondInvitationToken);
+  });
+
+  test('creation shows a full link and a shown-once notice (ticket #57)', async ({ page, account }) => {
+    requireWrites();
+    await createHousehold(page, account);
+
+    await page.getByRole('link', { name: /Membres/ }).click();
+    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+
+    const token = page.locator('.invite-code-text');
+    await expect(token).not.toBeEmpty();
+    const invitationToken = await token.textContent();
+
+    const link = page.getByTestId('invite-link');
+    await expect(link).not.toBeEmpty();
+    const linkText = await link.textContent();
+    expect(linkText).toContain('/join-household?code=');
+    expect(linkText).toContain(encodeURIComponent(invitationToken!));
+
+    await expect(page.getByTestId('invite-shown-once')).toBeVisible();
+  });
+
+  test('reload shows the pending invitation without the token (ticket #57)', async ({ page, account }) => {
+    requireWrites();
+    await createHousehold(page, account);
+
+    await page.getByRole('link', { name: /Membres/ }).click();
+    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    await expect(page.locator('.invite-code-text')).not.toBeEmpty();
+
+    await page.reload();
+
+    // Pending view: metadata only, the token is never re-displayed.
+    await expect(page.getByTestId('invite-pending-display')).toBeVisible();
+    await expect(page.getByTestId('invite-pending-note')).toBeVisible();
+    await expect(page.locator('.invite-code-text')).toHaveCount(0);
+
+    // Revocation from the pending view returns to the create affordance.
+    await page.getByRole('button', { name: 'Révoquer' }).click();
+    await expect(page.getByRole('button', { name: 'Créer une invitation' })).toBeVisible();
+  });
+
+  test('accepted invitation shows an accepted note after reload (ticket #57)', async ({ page, account, browser }) => {
+    requireWrites();
+    await createHousehold(page, account);
+
+    await page.getByRole('link', { name: /Membres/ }).click();
+    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    const invitationToken = await page.locator('.invite-code-text').textContent();
+
+    const memberContext = await browser.newContext();
+    const memberPage = await memberContext.newPage();
+    try {
+      await signUp(memberPage, createAccount('e2e-member'));
+      await memberPage.getByLabel(/Code d.invitation complet/).fill(invitationToken!);
+      await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+      await memberPage.waitForURL('/home', { timeout: 20000 });
+    } finally {
+      await memberContext.close();
+    }
+
+    await page.reload();
+    await expect(page.getByTestId('invite-accepted-note')).toBeVisible();
+    await expect(page.locator('.invite-code-text')).toHaveCount(0);
   });
 });

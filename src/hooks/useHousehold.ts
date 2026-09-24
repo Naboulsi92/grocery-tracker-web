@@ -8,6 +8,7 @@ import {
   householdActionError,
   leaveHousehold,
   mergeHouseholdMembers,
+  toPendingInvitation,
   type HouseholdMember,
   type InvitationState,
 } from '@/lib/household';
@@ -32,6 +33,7 @@ interface UseHouseholdResult {
     createInvitation: () => Promise<void>;
     revokeInvitation: (invitationId: string) => Promise<void>;
     copyInviteCode: () => Promise<boolean>;
+    copyText: (text: string) => Promise<boolean>;
     leave: (userId: string) => Promise<{ error: string | null }>;
     refresh: () => void;
   };
@@ -93,6 +95,18 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
       setHousehold(householdResult.data);
       setMembers(mergeHouseholdMembers(memberships, profilesResult.data ?? [], language));
       setLoading(false);
+
+      // Ticket #57 : hydrate the live invitation from the read function so it
+      // survives a reload. Only fills the 'none' state — a fresh 'active'
+      // token (or an in-flight transition) is never clobbered. A failed read
+      // degrades to 'none' (panel shows the create button, as before).
+      const { data: invitationRows } = (await supabase.rpc('get_household_invitation', {
+        p_household_id: householdId,
+      })) ?? {};
+      if (!active) return;
+      setInvitation((current) =>
+        current.status === 'none' ? toPendingInvitation(invitationRows?.[0]) : current
+      );
     }
 
     void fetchData();
@@ -124,10 +138,14 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
   }, [householdId, supabase]);
 
   const revokeInvitation = useCallback(async (invitationId: string) => {
-    if (invitation.status !== 'active') return;
-    const activeInvitation = invitation;
+    if (invitation.status !== 'active' && invitation.status !== 'pending') return;
+    const previousInvitation = invitation;
     setError('');
-    setInvitation({ ...activeInvitation, status: 'revoking' });
+    setInvitation(
+      invitation.status === 'active'
+        ? { ...invitation, status: 'revoking' }
+        : { status: 'none' }
+    );
 
     const { data: revoked, error: revokeError } = await supabase.rpc('revoke_household_invitation', {
       p_invitation_id: invitationId,
@@ -135,24 +153,30 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
 
     if (revokeError || !revoked) {
       setError(householdActionError('revoke', revokeError));
-      setInvitation(activeInvitation);
+      setInvitation(previousInvitation);
       return;
     }
 
+    // Back to 'none' with an immediate create affordance. The revoked row
+    // surfaces as a pending(revoked) note on the next reload via hydration.
     setInvitation({ status: 'none' });
   }, [invitation, supabase]);
 
-  const copyInviteCode = useCallback(async () => {
-    if (invitation.status !== 'active') return false;
+  const copyText = useCallback(async (text: string) => {
     setError('');
     try {
-      await navigator.clipboard.writeText(invitation.token);
+      await navigator.clipboard.writeText(text);
       return true;
     } catch (copyError) {
       setError(householdActionError('copy', copyError instanceof Error ? copyError : null));
       return false;
     }
-  }, [invitation]);
+  }, []);
+
+  const copyInviteCode = useCallback(async () => {
+    if (invitation.status !== 'active') return false;
+    return copyText(invitation.token);
+  }, [invitation, copyText]);
 
   // PRD §4.8 : après départ, 0 lecture inventaire — on vide l'état local
   // immédiatement (avant même signOut/redirect), la RLS refusant ensuite
@@ -180,7 +204,8 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
     actions: {
       createInvitation,
       revokeInvitation,
-      copyInviteCode: copyInviteCode,
+      copyInviteCode,
+      copyText,
       leave,
       refresh,
     },

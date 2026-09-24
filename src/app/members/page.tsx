@@ -8,20 +8,29 @@ import { useI18n } from '@/contexts/LanguageContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import ThemeToggle from '@/components/ThemeToggle';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
+import { buildInvitationLink } from '@/lib/household';
 import { translateMessage } from '@/lib/i18n';
 
 export default function MembersPage() {
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const { user, householdId } = useAuth();
   const { t, language } = useI18n();
   const { household, members, loading, error, invitation, actions } = useHousehold(householdId ?? '', { language });
 
   const isHouseholdFull = members.length >= 2;
+  const locale = language === 'en' ? 'en-US' : 'fr-FR';
 
   const handleCopyInvitation = async () => {
     setCopied(false);
     const copied = await actions.copyInviteCode();
     setCopied(copied);
+  };
+
+  const handleCopyLink = async (link: string) => {
+    setLinkCopied(false);
+    const done = await actions.copyText(link);
+    setLinkCopied(done);
   };
 
   if (loading) {
@@ -62,6 +71,9 @@ return (
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <h2 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>{t('members.invitation')}</h2>
             <p data-testid="household-full-message">{t('members.full')}</p>
+            {invitation.status === 'pending' && invitation.consumed && (
+              <p data-testid="invite-accepted-note">{t('members.invite_accepted')}</p>
+            )}
           </div>
         )}
 
@@ -72,11 +84,45 @@ return (
               {t('members.invite_hint')}
             </p>
             {invitation.status === 'none' || invitation.status === 'creating' ? (
-              <button type="button" onClick={() => actions.createInvitation()} disabled={invitation.status === 'creating'} className="btn btn-primary" data-testid="members-create-invitation-button">
-                {invitation.status === 'creating' ? t('members.creating') : t('members.create_invitation')}
-              </button>
+              <>
+                <button type="button" onClick={() => actions.createInvitation()} disabled={invitation.status === 'creating'} className="btn btn-primary" data-testid="members-create-invitation-button">
+                  {invitation.status === 'creating' ? t('members.creating') : t('members.create_invitation')}
+                </button>
+                <p className="text-muted" style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>{t('members.retires_previous')}</p>
+              </>
+            ) : invitation.status === 'pending' ? (
+              <div className="invite-code-display" data-testid="invite-pending-display">
+                {invitation.consumed ? (
+                  <p data-testid="invite-accepted-note">{t('members.invite_accepted')}</p>
+                ) : invitation.revoked ? (
+                  <p data-testid="invite-revoked-note">{t('members.invite_revoked')}</p>
+                ) : new Date(invitation.expiresAt) <= new Date() ? (
+                  <p data-testid="invite-expired-note">{t('members.invite_expired')}</p>
+                ) : (
+                  <p data-testid="invite-pending-note">
+                    {t('members.pending_created', { date: new Date(invitation.createdAt).toLocaleDateString(locale) })}
+                    {' '}
+                    {t('members.expires', { date: new Date(invitation.expiresAt).toLocaleDateString(locale) })}
+                  </p>
+                )}
+                {invitation.consumed || invitation.revoked || new Date(invitation.expiresAt) <= new Date() ? (
+                  <button type="button" onClick={() => actions.createInvitation()} className="btn btn-primary" data-testid="members-create-invitation-button">
+                    {t('members.create_new')}
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => actions.revokeInvitation(invitation.invitationId)} className="btn btn-secondary" data-testid="members-revoke-invitation-button">
+                    {t('members.revoke')}
+                  </button>
+                )}
+              </div>
             ) : (
               <div className="invite-code-display">
+                <p data-testid="invite-shown-once" style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>{t('members.shown_once')}</p>
+                <p style={{ fontSize: '0.875rem', fontWeight: 600 }}>{t('members.invite_link_label')}</p>
+                <code className="invite-link-text" style={{ overflowWrap: 'anywhere' }} data-testid="invite-link">{buildInvitationLink(window.location.origin, invitation.token)}</code>
+                <button type="button" onClick={() => void handleCopyLink(buildInvitationLink(window.location.origin, invitation.token))} disabled={invitation.status === 'revoking'} className="btn btn-secondary" data-testid="members-copy-link-button">
+                  {linkCopied ? t('common.copied') : t('members.copy_link')}
+                </button>
                 <code className="invite-code-text" style={{ overflowWrap: 'anywhere' }}>{invitation.token}</code>
                 <input
                   type="text"

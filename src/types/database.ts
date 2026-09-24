@@ -115,6 +115,7 @@ export type Database = {
       consume_household_invitation: { Args: { p_token: string }; Returns: string };
       create_household: { Args: { p_name: string }; Returns: string };
       create_household_invitation: { Args: { p_expires_in?: string; p_household_id: string }; Returns: { expires_at: string; invitation_id: string; token: string }[] };
+      get_household_invitation: { Args: { p_household_id: string }; Returns: { invitation_id: string; created_at: string; expires_at: string; revoked_at: string | null; consumed_at: string | null }[] };
       revoke_household_invitation: { Args: { p_invitation_id: string }; Returns: boolean };
       leave_household: { Args: Record<string, never>; Returns: boolean };
     };

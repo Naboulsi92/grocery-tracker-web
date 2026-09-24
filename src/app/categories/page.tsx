@@ -8,6 +8,8 @@ import { useI18n } from '@/contexts/LanguageContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import { createClient } from '@/utils/supabase/client';
 import { getErrorMessage, getNextCategoryOrder, CATEGORY_COLUMNS, type Category } from '@/lib/inventory';
+import { applyCategoryPatch } from '@/lib/realtimePatch';
+import { useHouseholdRealtime } from '@/hooks/useHouseholdRealtime';
 import { hasDuplicateCustomName } from '@/lib/categories';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { AccessibleDialog } from '@/components/AccessibleDialog';
@@ -207,31 +209,46 @@ export default function CategoriesPage() {
   // Resync background silencieuse à la reconnexion (PRD §4.12 + §5).
   useResyncOnReconnect(fetchCategories);
 
+  // Ticket #123 : multiplexed channel + incremental patches. fetchCategories
+  // stays as the full-resync fallback (initial load, reconnect, patch
+  // failure). Items-table events are ignored: this page renders no items.
+  // NOTE: no binding on category_positions on purpose. That table is
+  // outside the supabase_realtime publication (contract: exactly
+  // {categories, items}), and binding it starves the whole channel: no
+  // categories events arrive at all (trace-proven across 5 CI runs in #111).
+  // Positions-only changes (reorder) carry no realtime signal — acceptable,
+  // no P0 covers cross-page reorder; every other change touches categories
+  // too, and order converges on the next full fetch.
+  useHouseholdRealtime({
+    supabase,
+    householdId: householdId ?? '',
+    enabled: Boolean(householdId),
+    onPatch: (patch) => {
+      if (patch.table !== 'categories') return;
+      if (patch.event === 'DELETE' && typeof patch.oldRecord?.id === 'string') {
+        const deletedId = patch.oldRecord.id;
+        setPositions((current) => {
+          const next = { ...current };
+          delete next[deletedId];
+          return next;
+        });
+      }
+      setCategories((current) => applyCategoryPatch(current, patch));
+    },
+    // loadCategories (useEffectEvent) is effect-scoped only: the resync
+    // fallback calls the underlying useCallback instead.
+    onResyncNeeded: () => {
+      void fetchCategories();
+    },
+  });
+
   useEffect(() => {
     if (!householdId) return;
 
     queueMicrotask(() => void loadCategories(true));
 
-    let debounceTimer: ReturnType<typeof setTimeout>;
-    const channel = supabase
-      .channel(`categories:${householdId}`)
-      // NOTE: no binding on category_positions here on purpose. That table is
-      // outside the supabase_realtime publication (contract: exactly
-      // {categories, items}), and binding it starves the whole channel: no
-      // categories events arrive at all (trace-proven across 5 CI runs).
-      // Positions-only changes (reorder) carry no realtime signal —
-      // acceptable, no P0 covers cross-page reorder; every other change
-      // touches categories too.
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `household_id=eq.${householdId}` }, () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => void loadCategories(), 300);
-      })
-      .subscribe();
-
     return () => {
       requestId.current += 1;
-      clearTimeout(debounceTimer);
-      void supabase.removeChannel(channel);
     };
   }, [householdId, supabase]);
 

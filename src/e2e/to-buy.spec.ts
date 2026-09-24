@@ -288,8 +288,10 @@ test.describe('To-Buy Page', () => {
 
     // Ticket #123 : un changement distant arrive en patch, pas en refetch —
     // le coché reste visible avec son badge jusqu'à quitter l'écran, et la
-    // quantité affichée se met à jour (4 → 5). Aucune requête GET items ne
-    // doit partir : le test échoue si c'est le cas.
+    // quantité affichée se met à jour. Trois updates rapides convergent vers
+    // la dernière valeur (4 → 5 → 6 → 7) avec zéro GET items : N events →
+    // 0 reload. Aucune requête GET items ne doit partir : le test échoue
+    // si c'est le cas.
     let refetchFired = false;
     page.on('request', (request) => {
       if (request.url().includes('/rest/v1/items') && request.method() === 'GET') {
@@ -298,9 +300,11 @@ test.describe('To-Buy Page', () => {
     });
     const supabase = await adminClient();
     await supabase.from('items').update({ quantity: 5 }).eq('id', item.id);
+    await supabase.from('items').update({ quantity: 6 }).eq('id', item.id);
+    await supabase.from('items').update({ quantity: 7 }).eq('id', item.id);
 
     await expect(page.getByText('Beurre')).toBeVisible();
-    await expect(page.getByText('5/3 unite')).toBeVisible();
+    await expect(page.getByText('7/3 unite')).toBeVisible();
     await expect(page.locator('.badge-success')).toBeVisible();
     expect(refetchFired).toBe(false);
   });

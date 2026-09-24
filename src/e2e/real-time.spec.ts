@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import { confirmDeleteDialog, deleteItemRow } from './helpers';
+import { confirmDeleteDialog, deleteItemRow, fetchInviteToken } from './helpers';
 
 test.describe('Real-time Collaboration', () => {
   test.describe('Real-time Item Updates (US 56)', () => {
@@ -27,13 +27,10 @@ test.describe('Real-time Collaboration', () => {
 
       // Invite tokens render on /members (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
-      await page.goto('/home');
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
-      const token = await page.locator('.invite-code-text').textContent();
+      const token = await fetchInviteToken(page);
       await page.goto('/items');
 
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
       await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await secondPage.waitForURL('/home', { timeout: 20000 });
 
@@ -71,13 +68,10 @@ test.describe('Real-time Collaboration', () => {
 
       // Invite tokens render on /members (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
-      await page.goto('/home');
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
-      const token = await page.locator('.invite-code-text').textContent();
+      const token = await fetchInviteToken(page);
       await page.goto('/items');
 
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
       await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await secondPage.waitForURL('/home', { timeout: 20000 });
 
@@ -128,13 +122,10 @@ test.describe('Real-time Collaboration', () => {
 
       // Invite tokens render on /members (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
-      await page.goto('/home');
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
-      const token = await page.locator('.invite-code-text').textContent();
+      const token = await fetchInviteToken(page);
       await page.goto('/items');
 
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
       await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await secondPage.waitForURL('/home', { timeout: 20000 });
 
@@ -185,13 +176,10 @@ test.describe('Real-time Collaboration', () => {
 
       // Invite tokens render on /members (never on /to-buy): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
-      await page.goto('/home');
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
-      const token = await page.locator('.invite-code-text').textContent();
+      const token = await fetchInviteToken(page);
       await page.goto('/to-buy');
 
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
       await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await secondPage.waitForURL('/home', { timeout: 20000 });
 
@@ -237,13 +225,10 @@ test.describe('Real-time Collaboration', () => {
 
       // Invite tokens render on /members (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
-      await page.goto('/home');
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
-      const token = await page.locator('.invite-code-text').textContent();
+      const token = await fetchInviteToken(page);
       await page.goto('/items');
 
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
       await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await secondPage.waitForURL('/home', { timeout: 20000 });
 
@@ -331,13 +316,10 @@ test.describe('Real-time Collaboration', () => {
 
       // Invite tokens render on /members (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
-      await page.goto('/home');
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
-      const token = await page.locator('.invite-code-text').textContent();
+      const token = await fetchInviteToken(page);
       await page.goto('/items');
 
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
       await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await secondPage.waitForURL('/home', { timeout: 20000 });
 
@@ -408,13 +390,10 @@ test.describe('Real-time Collaboration', () => {
 
       // Invite tokens render on /members (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
-      await page.goto('/home');
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
-      const token = await page.locator('.invite-code-text').textContent();
+      const token = await fetchInviteToken(page);
       await page.goto('/items');
 
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
       await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await secondPage.waitForURL('/home', { timeout: 20000 });
 
@@ -460,13 +439,10 @@ test.describe('Real-time Collaboration', () => {
 
       // Invite tokens render on /members (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
-      await page.goto('/home');
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
-      const token = await page.locator('.invite-code-text').textContent();
+      const token = await fetchInviteToken(page);
       await page.goto('/items');
 
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
       await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await secondPage.waitForURL('/home', { timeout: 20000 });
 

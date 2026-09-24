@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
 import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import { confirmDeleteDialog } from './helpers';
+import { confirmDeleteDialog, fetchInviteToken } from './helpers';
 
 // Pointer drag straight down: .categories-grid is multi-column and the
 // DnD context restricts movement to the vertical axis, so only a vertical
@@ -349,17 +349,13 @@ test.describe('Categories CRUD', () => {
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
 
       // Invite tokens render on /members (never on /categories): fetch one in
-      // a scratch tab via the proven onboarding pattern, so the observed
-      // /categories page (and its realtime channel) is never disturbed by
-      // navigation and the two-context flow below always runs.
+      // a scratch tab, so the observed /categories page (and its realtime
+      // channel) is never disturbed by navigation.
       const tokenPage = await page.context().newPage();
-      await tokenPage.goto('/home');
-      await tokenPage.getByRole('link', { name: /Membres/ }).click();
-      await tokenPage.getByRole('button', { name: 'Créer une invitation' }).click();
-      const token = await tokenPage.locator('.invite-code-text').textContent();
+      const token = await fetchInviteToken(tokenPage);
       await tokenPage.close();
 
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
       await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await secondPage.waitForURL('/home', { timeout: 20000 });
 

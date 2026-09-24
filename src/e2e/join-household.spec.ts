@@ -86,6 +86,45 @@ test.describe('Join Household Flow', () => {
       }
     });
 
+    test('US 22: invite link survives the signup detour with the code prefilled (ticket #58)', async ({ page, account, browser }) => {
+      requireWrites();
+      await createHousehold(page, account);
+
+      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      const token = await page.locator('.invite-code-text').textContent();
+
+      const inviteeContext = await browser.newContext();
+      const inviteePage = await inviteeContext.newPage();
+      const inviteeAccount = createAccount('e2e-invite-link');
+      try {
+        // Anonymous invitee opens the shared link: bounced to login with ?next=.
+        await inviteePage.goto(`/join-household?code=${encodeURIComponent(token!)}`);
+        await inviteePage.waitForURL(/\/login\?next=.*join-household/, { timeout: 15000 });
+
+        // No account yet: through to signup, ?next= preserved.
+        await inviteePage.getByRole('link', { name: "S'inscrire" }).click();
+        await inviteePage.waitForURL(/\/signup\?next=.*join-household/, { timeout: 15000 });
+
+        await inviteePage.getByLabel('Email').fill(inviteeAccount.email);
+        await inviteePage.getByLabel('Mot de passe', { exact: true }).fill(inviteeAccount.password);
+        await inviteePage.getByLabel('Confirmer le mot de passe').fill(inviteeAccount.password);
+        await inviteePage.getByRole('button', { name: "S'inscrire" }).click();
+
+        // Back on the invitation with the code prefilled — no transcription.
+        await inviteePage.waitForURL(/\/join-household\?code=/, { timeout: 20000 });
+        await expect(inviteePage.getByTestId('invite-token-input')).toHaveValue(token!);
+
+        // Names + single-action join lands on the dashboard.
+        await inviteePage.getByTestId('onboarding-first-name-input').fill(inviteeAccount.firstName);
+        await inviteePage.getByTestId('onboarding-last-name-input').fill(inviteeAccount.lastName);
+        await inviteePage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+        await inviteePage.waitForURL('/home', { timeout: 20000 });
+      } finally {
+        await inviteeContext.close();
+      }
+    });
+
     test('US 9: user sees loading indicators while joining a household', async ({ page, account, browser }) => {
       requireWrites();
       await createHousehold(page, account);

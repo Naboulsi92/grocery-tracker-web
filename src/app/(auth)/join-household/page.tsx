@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { householdActionError, normalizeInvitationToken } from '@/lib/household';
+import { joinWithCode, loginWithNext, peekPendingInvite, stashPendingInvite, takePendingInvite } from '@/lib/invite-detour';
 import { translateMessage } from '@/lib/i18n';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -51,15 +52,27 @@ function JoinHouseholdPageInner() {
   // for genuinely unknown tokens (those don't count toward the lockout).
   const isLockedOut = lockoutSeconds > 0;
 
-  // Deep-link prefill: /join-household?code=... or ?invite=... (shared invite QR)
+  // Deep-link prefill: /join-household?code=... or ?invite=... (shared invite QR),
+  // else the token stashed before the sign-in/sign-up detour (ticket #58).
   const [invitationToken, setInvitationToken] = useState(
-    () => searchParams.get('code') ?? searchParams.get('invite') ?? '',
+    () => searchParams.get('code') ?? searchParams.get('invite') ?? peekPendingInvite() ?? '',
   );
 
   useEffect(() => {
-    if (access.status === 'anonymous') router.replace('/login');
+    if (access.status === 'anonymous') {
+      // Stash first: the detour through login/signup must bring the invitee
+      // back with the token even if query params get lost on the way.
+      const token = searchParams.get('code') ?? searchParams.get('invite') ?? '';
+      if (token.trim()) {
+        const code = normalizeInvitationToken(token);
+        stashPendingInvite(code);
+        router.replace(loginWithNext(joinWithCode(code)));
+      } else {
+        router.replace('/login');
+      }
+    }
     if (access.status === 'member') router.replace('/home');
-  }, [access.status, router]);
+  }, [access.status, router, searchParams]);
 
   useEffect(() => {
     if (lockoutSeconds <= 0) {
@@ -157,6 +170,8 @@ function JoinHouseholdPageInner() {
       return;
     }
 
+    // Detour complete: the stashed token served its purpose.
+    takePendingInvite();
     finishOnboarding();
   };
 

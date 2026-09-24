@@ -5,9 +5,14 @@ import Link from 'next/link';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
 import { BrandIcon } from '@/components/BrandIcon';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Ticket #48 : session-aware header. While resolving, keep the anonymous
+  // links (no flash for visitors); once signed in, offer the dashboard.
+  const { user, loading } = useAuth();
+  const signedIn = !loading && user !== null;
 
   return (
     <header className="mk-header">
@@ -20,12 +25,20 @@ export function Header() {
         </Link>
 
         <div className="mk-nav-links">
-          <Link href="/login" className="mk-nav-link">
-            Login
-          </Link>
-          <Link href="/signup" className="mk-nav-cta">
-            Signup
-          </Link>
+          {signedIn ? (
+            <Link href="/home" className="mk-nav-cta" data-testid="mk-dashboard-link">
+              Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="mk-nav-link">
+                Login
+              </Link>
+              <Link href="/signup" className="mk-nav-cta">
+                Signup
+              </Link>
+            </>
+          )}
         </div>
 
         <div className="mk-nav-end">
@@ -50,20 +63,33 @@ export function Header() {
 
       {mobileMenuOpen && (
         <div className="mk-mobile-menu">
-          <Link
-            href="/login"
-            className="mk-nav-link"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            Login
-          </Link>
-          <Link
-            href="/signup"
-            className="mk-nav-link"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            Signup
-          </Link>
+          {signedIn ? (
+            <Link
+              href="/home"
+              className="mk-nav-link"
+              onClick={() => setMobileMenuOpen(false)}
+              data-testid="mk-dashboard-link-mobile"
+            >
+              Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="mk-nav-link"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Login
+              </Link>
+              <Link
+                href="/signup"
+                className="mk-nav-link"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Signup
+              </Link>
+            </>
+          )}
         </div>
       )}
     </header>

@@ -10,7 +10,9 @@ import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SyncingIndicator } from '@/components/SyncingIndicator';
-import { getErrorMessage, getLowStockItems, joinInventory, CATEGORY_COLUMNS, ITEM_COLUMNS, type InventoryItem } from '@/lib/inventory';
+import { getErrorMessage, getLowStockItems, joinInventory, CATEGORY_COLUMNS, ITEM_COLUMNS, type Category, type InventoryItem } from '@/lib/inventory';
+import { applyCategoryPatch, applyToBuyPatch } from '@/lib/realtimePatch';
+import { useHouseholdRealtime } from '@/hooks/useHouseholdRealtime';
 import { updateItemQuantity } from '@/lib/itemOperations';
 import { validateQuantity } from '@/lib/validation';
 import { getUnitStep } from '@/types/units';
@@ -21,6 +23,9 @@ import { translateMessage } from '@/lib/i18n';
 
 export default function ToBuyPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
+  // Raw categories are not rendered here, but item patches arrive as raw
+  // rows and must be joined before merging — hence kept in state.
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [mutatingId, setMutatingId] = useState<string | null>(null);
@@ -59,7 +64,9 @@ export default function ToBuyPage() {
       const queryError = itemsRes.error ?? categoriesRes.error;
       if (queryError) throw queryError;
       if (currentRequest !== requestId.current) return;
-      const lowStockItems = getLowStockItems(joinInventory(itemsRes.data ?? [], categoriesRes.data ?? []));
+      const nextCategories = categoriesRes.data ?? [];
+      setCategories(nextCategories);
+      const lowStockItems = getLowStockItems(joinInventory(itemsRes.data ?? [], nextCategories));
       setItems((current) => {
         const keptChecked = current.filter((item) => checkedIdsRef.current.has(item.id));
         if (keptChecked.length === 0) return lowStockItems;
@@ -82,28 +89,35 @@ export default function ToBuyPage() {
   // Resync background silencieuse à la reconnexion (PRD §4.12 + §5).
   useResyncOnReconnect(fetchItems);
 
+  // Ticket #123 : multiplexed channel + incremental patches. fetchItems stays
+  // as the full-resync fallback (initial load, reconnect, patch failure).
+  useHouseholdRealtime({
+    supabase,
+    householdId: householdId ?? '',
+    enabled: Boolean(householdId),
+    onPatch: (patch) => {
+      if (patch.table === 'categories') {
+        setCategories((current) => applyCategoryPatch(current, patch));
+        return;
+      }
+      setItems((current) =>
+        applyToBuyPatch(current, categories, patch, (id) => checkedIdsRef.current.has(id))
+      );
+    },
+    // loadItems (useEffectEvent) is effect-scoped only: the resync fallback
+    // calls the underlying useCallback instead.
+    onResyncNeeded: () => {
+      void fetchItems();
+    },
+  });
+
   useEffect(() => {
     if (!householdId) return;
 
     queueMicrotask(() => void loadItems(true));
 
-    let debounceTimer: ReturnType<typeof setTimeout>;
-    const channel = supabase
-      .channel(`tobuy:${householdId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'items', filter: `household_id=eq.${householdId}` }, () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => void loadItems(), 300);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories', filter: `household_id=eq.${householdId}` }, () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => void loadItems(), 300);
-      })
-      .subscribe();
-
     return () => {
       requestId.current += 1;
-      clearTimeout(debounceTimer);
-      void supabase.removeChannel(channel);
     };
   }, [householdId, supabase]);
 

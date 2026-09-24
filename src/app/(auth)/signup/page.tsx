@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
+import { translateMessage } from '@/lib/i18n';
+import { mapAuthErrorToKey } from '@/lib/authErrors';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
 import { AuthHeader } from '@/components/AuthHeader';
@@ -21,7 +23,7 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp, access, loading: authLoading } = useAuth();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const { isOnline } = useOnlineStatus();
   const router = useRouter();
 
@@ -77,7 +79,7 @@ export default function SignupPage() {
     const { error } = await signUp(email, password);
 
     if (error) {
-      setError(error.message);
+      setError(mapAuthErrorToKey(error));
       setLoading(false);
     } else {
       router.push('/join-household');
@@ -95,7 +97,7 @@ export default function SignupPage() {
           subtitle={t('signup.subtitle')}
         />
         
-        {error && <ErrorBanner message={error} />}
+        {error && <ErrorBanner message={translateMessage(language, error)} />}
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">

@@ -404,7 +404,7 @@ test.describe('Accessibility', () => {
         return { contrast, color, bgColor };
       });
       if (contrastInfo) {
-        expect(contrastInfo.contrast).toBeGreaterThan(3);
+        expect(contrastInfo.contrast).toBeGreaterThan(4.5);
       }
     });
 
@@ -441,7 +441,7 @@ test.describe('Accessibility', () => {
         return { contrast, color, bgColor };
       });
       if (contrastInfo) {
-        expect(contrastInfo.contrast).toBeGreaterThan(3);
+        expect(contrastInfo.contrast).toBeGreaterThan(4.5);
       }
     });
   });

@@ -3,12 +3,13 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { translateMessage } from '@/lib/i18n';
 import { mapAuthErrorToKey } from '@/lib/authErrors';
+import { resolvePostAuthRedirect } from '@/lib/invite-detour';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
 import { AuthHeader } from '@/components/AuthHeader';
@@ -18,6 +19,14 @@ import { OfflineBlockedScreen } from '@/components/OfflineBlockedScreen';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -26,12 +35,16 @@ export default function LoginPage() {
   const { t, language } = useI18n();
   const { isOnline } = useOnlineStatus();
   const router = useRouter();
+  // Invitation detour (ticket #58): ?next= carries the join URL across the
+  // auth screens. Single-consumption storage fallback lives in the resolver.
+  const searchParams = useSearchParams();
+  const nextParam = searchParams.get('next');
 
   useEffect(() => {
     if (!authLoading && user) {
-      router.push('/home');
+      router.push(resolvePostAuthRedirect(nextParam, '/home'));
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, nextParam]);
 
   if (!isOnline) {
     return (
@@ -69,7 +82,7 @@ export default function LoginPage() {
       setError(mapAuthErrorToKey(error));
       setLoading(false);
     } else {
-      router.push('/home');
+      router.push(resolvePostAuthRedirect(nextParam, '/home'));
     }
   };
 
@@ -135,7 +148,7 @@ export default function LoginPage() {
 
         <p className="auth-footer">
           {t('login.footer_prompt')}{' '}
-          <Link href="/signup">{t('login.signup_link')}</Link>
+          <Link href={nextParam ? `/signup?next=${encodeURIComponent(nextParam)}` : '/signup'}>{t('login.signup_link')}</Link>
         </p>
         </main>
       </div>

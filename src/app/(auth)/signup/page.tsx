@@ -2,13 +2,14 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { translateMessage } from '@/lib/i18n';
 import { mapAuthErrorToKey } from '@/lib/authErrors';
+import { resolvePostAuthRedirect } from '@/lib/invite-detour';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
 import { AuthHeader } from '@/components/AuthHeader';
@@ -17,6 +18,14 @@ import { OfflineBlockedScreen } from '@/components/OfflineBlockedScreen';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupPageInner />
+    </Suspense>
+  );
+}
+
+function SignupPageInner() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -26,14 +35,18 @@ export default function SignupPage() {
   const { t, language } = useI18n();
   const { isOnline } = useOnlineStatus();
   const router = useRouter();
+  // Invitation detour (ticket #58): honored on both the auto-redirect and
+  // the post-submit push, so a ?next= join URL survives account creation.
+  const searchParams = useSearchParams();
+  const nextParam = searchParams.get('next');
 
   useEffect(() => {
     if (!authLoading && access.status === 'member') {
-      router.replace('/home');
+      router.replace(resolvePostAuthRedirect(nextParam, '/home'));
     } else if (!authLoading && access.status === 'no-household') {
-      router.replace('/join-household');
+      router.replace(resolvePostAuthRedirect(nextParam, '/join-household'));
     }
-  }, [access.status, authLoading, router]);
+  }, [access.status, authLoading, router, nextParam]);
 
   if (!isOnline) {
     return (
@@ -82,7 +95,7 @@ export default function SignupPage() {
       setError(mapAuthErrorToKey(error));
       setLoading(false);
     } else {
-      router.push('/join-household');
+      router.push(resolvePostAuthRedirect(nextParam, '/join-household'));
     }
   };
 
@@ -159,7 +172,7 @@ export default function SignupPage() {
 
         <p className="auth-footer">
           {t('signup.footer_prompt')}{' '}
-          <Link href="/login">{t('signup.login_link')}</Link>
+          <Link href={nextParam ? `/login?next=${encodeURIComponent(nextParam)}` : '/login'}>{t('signup.login_link')}</Link>
         </p>
         </main>
       </div>

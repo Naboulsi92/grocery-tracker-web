@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useHousehold } from '@/hooks/useHousehold';
+import { resolveDashboardShell } from '@/lib/dashboard-shell';
 import { translateMessage } from '@/lib/i18n';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -11,9 +14,81 @@ import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { OfflineBanner } from '@/components/OfflineBanner';
 
 export default function HomePage() {
-  const { user, householdId, signOut } = useAuth();
+  // Ticket #56 : the dashboard is the authenticated shell, not a guarded
+  // route — it resolves the access state itself instead of bouncing
+  // no-household users to onboarding (the former infinite loop).
+  const { access, retryHousehold, signOut } = useAuth();
+  const { t } = useI18n();
+  const router = useRouter();
+  const outcome = resolveDashboardShell(access).outcome;
+
+  useEffect(() => {
+    if (outcome === 'login') {
+      router.replace('/login');
+    }
+  }, [outcome, router]);
+
+  if (outcome === 'loading' || outcome === 'login') {
+    return (
+      <div className="page-container">
+        <OfflineBanner />
+        <ThemeToggle />
+        <div className="loading-container" role="status">
+          <div className="loading-spinner" aria-hidden="true"></div>
+          <p>{t('common.loading')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (outcome === 'error') {
+    return (
+      <div className="page-container">
+        <OfflineBanner />
+        <ThemeToggle />
+        <div className="loading-container">
+          <p role="alert">{t('home.access_error')}</p>
+          <button type="button" className="btn btn-primary" onClick={() => retryHousehold()} data-testid="btn-retry-home-access">{t('common.retry')}</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (outcome === 'onboarding') {
+    const handleSignOut = async () => {
+      await signOut();
+    };
+    return (
+      <div className="page-container">
+        <OfflineBanner />
+        <AuthenticatedHeader
+          household={null}
+          loading={false}
+          trailingAction={
+            <button onClick={handleSignOut} className="btn btn-ghost" data-testid="onboarding-sign-out-button">
+              {t('auth.sign_out')}
+            </button>
+          }
+        />
+
+        <main className="app-main" id="main">
+          <h1>{t('home.onboarding_title')}</h1>
+          <p className="text-muted" style={{ marginBottom: '1.5rem' }}>{t('home.onboarding_sub')}</p>
+          <Link href="/join-household" className="btn btn-primary" data-testid="onboarding-join-button">
+            {t('home.onboarding_join')}
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
+  return <MemberDashboard householdId={access.status === 'member' ? access.householdId : ''} />;
+}
+
+function MemberDashboard({ householdId }: { householdId: string }) {
+  const { user, signOut } = useAuth();
   const { t, language } = useI18n();
-  const { household, loading, error, actions: { refresh } } = useHousehold(householdId || '');
+  const { household, loading, error, actions: { refresh } } = useHousehold(householdId);
   const {
     permission,
     localSubscription,

@@ -156,6 +156,28 @@ describe('useHouseholdRealtime', () => {
     expect(onResyncNeeded).toHaveBeenCalledWith('channel-error');
   });
 
+  it('opens nothing until enabled with a household id', async () => {
+    const { rerender } = renderHook(
+      ({ enabled, id }) =>
+        useHouseholdRealtime({
+          supabase: mockSupabase,
+          householdId: id,
+          enabled,
+          onPatch,
+          onResyncNeeded,
+        }),
+      { initialProps: { enabled: false, id: householdId } }
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(mockSupabase.channel).not.toHaveBeenCalled();
+
+    rerender({ enabled: true, id: householdId });
+    await waitFor(() => {
+      expect(mockSupabase.channel).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('removes the channel on unmount and never fires a stale resync', async () => {
     const { unmount } = render(50);
 

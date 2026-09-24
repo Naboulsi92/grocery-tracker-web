@@ -27,6 +27,11 @@ interface UseHouseholdRealtimeOptions {
   supabase: SupabaseClient;
   householdId: string;
   debounceMs?: number;
+  /**
+   * Pages render before auth resolves `householdId`. Pass `enabled: false`
+   * (or an empty id) until then so no channel is opened on a bogus topic.
+   */
+  enabled?: boolean;
   onPatch: (patch: RealtimePatch) => void;
   onResyncNeeded: (reason: ResyncReason) => void;
 }
@@ -51,6 +56,7 @@ export function useHouseholdRealtime({
   supabase,
   householdId,
   debounceMs = 300,
+  enabled = true,
   onPatch,
   onResyncNeeded,
 }: UseHouseholdRealtimeOptions) {
@@ -64,6 +70,8 @@ export function useHouseholdRealtime({
   });
 
   useEffect(() => {
+    if (!enabled || !householdId) return;
+
     let resyncId = 0;
     let resyncTimer: ReturnType<typeof setTimeout> | undefined;
     const scheduleResync = (reason: ResyncReason) => {
@@ -125,7 +133,7 @@ export function useHouseholdRealtime({
       clearTimeout(resyncTimer);
       void supabase.removeChannel(channel);
     };
-  }, [supabase, householdId, debounceMs]);
+  }, [supabase, householdId, debounceMs, enabled]);
 
   return { status };
 }

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import { confirmDeleteDialog, deleteAllItems, deleteItemRow } from './helpers';
+import { confirmDeleteDialog, deleteAllItems, deleteItemRow, fetchInviteToken } from './helpers';
 
 test.describe('Items CRUD', () => {
   test.describe('Create Item', () => {
@@ -317,13 +317,10 @@ test.describe('Items CRUD', () => {
 
       // Invite tokens render on /members (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
-      await page.goto('/home');
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
-      const token = await page.locator('.invite-code-text').textContent();
+      const token = await fetchInviteToken(page);
       await page.goto('/items');
 
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token ?? '');
+      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
       await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await secondPage.waitForURL('/home', { timeout: 20000 });
       

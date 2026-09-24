@@ -23,6 +23,22 @@ export async function waitForAnimationsToSettle(page: Page, timeout = 10000) {
 }
 
 /**
+ * Reads a fresh invitation token via the members page (ticket #145).
+ * Centralizes the two-context token fetch so multi-user tests stop
+ * copy-pasting the goto/members/create/read sequence. Throws on an empty
+ * token instead of letting callers join with ''' (fail-fast, never a
+ * vacuous pass).
+ */
+export async function fetchInviteToken(page: Page): Promise<string> {
+  await page.goto('/home');
+  await page.getByRole('link', { name: /Membres/ }).click();
+  await page.getByRole('button', { name: 'Créer une invitation' }).click();
+  const token = await page.locator('.invite-code-text').textContent();
+  if (!token) throw new Error('Invite token was empty.');
+  return token;
+}
+
+/**
  * Bounded wait for an OPTIONAL UI signal (replaces fixed sleeps before
  * conditional assertions): resolves `true` the moment the
  * locator becomes visible, `false` after `timeout` with no signal. Callers

@@ -6,7 +6,10 @@ const push = jest.fn();
 const replace = jest.fn();
 const signUp = jest.fn();
 
-jest.mock('next/navigation', () => ({ useRouter: () => ({ push, replace }) }));
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push, replace }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ access: { status: 'signed-out' }, loading: false, signUp }),
 }));

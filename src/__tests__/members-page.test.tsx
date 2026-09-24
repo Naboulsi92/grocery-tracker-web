@@ -83,6 +83,9 @@ describe('MembersPage', () => {
       expires_at: '2026-09-07T10:00:00Z',
     };
     rpc
+      // Mount hydration (read function, no pending invitation) comes first,
+      // then create, then revoke — mirroring the hook's call order.
+      .mockResolvedValueOnce({ data: [], error: null })
       .mockResolvedValueOnce({ data: [invitation], error: null })
       .mockResolvedValueOnce({ data: true, error: null });
 

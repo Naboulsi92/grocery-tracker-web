@@ -54,7 +54,9 @@ test.describe('Members Page', () => {
       };
     });
 
-    const copyButton = page.getByRole('button', { name: 'Copier' });
+    // Two copy buttons now share the 'Copier' prefix (token + link): target
+    // the token one precisely by testid.
+    const copyButton = page.getByTestId('members-copy-invitation-button');
     await expect(copyButton).toBeVisible();
     await copyButton.click();
 

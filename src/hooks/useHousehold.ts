@@ -98,10 +98,11 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
 
       // Ticket #57 : hydrate the live invitation from the read function so it
       // survives a reload. Only fills the 'none' state — a fresh 'active'
-      // token (or an in-flight transition) is never clobbered.
-      const { data: invitationRows } = await supabase.rpc('get_household_invitation', {
+      // token (or an in-flight transition) is never clobbered. A failed read
+      // degrades to 'none' (panel shows the create button, as before).
+      const { data: invitationRows } = (await supabase.rpc('get_household_invitation', {
         p_household_id: householdId,
-      });
+      })) ?? {};
       if (!active) return;
       setInvitation((current) =>
         current.status === 'none' ? toPendingInvitation(invitationRows?.[0]) : current

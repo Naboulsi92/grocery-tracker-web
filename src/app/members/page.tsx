@@ -71,6 +71,9 @@ return (
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <h2 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>{t('members.invitation')}</h2>
             <p data-testid="household-full-message">{t('members.full')}</p>
+            {invitation.status === 'pending' && invitation.consumed && (
+              <p data-testid="invite-accepted-note">{t('members.invite_accepted')}</p>
+            )}
           </div>
         )}
 

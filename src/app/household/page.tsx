@@ -244,6 +244,9 @@ export default function HouseholdPage() {
               <section className="card" style={{ marginBottom: '1.5rem' }} data-testid="household-full-message">
                 <h2 style={{ marginBottom: '0.5rem', fontSize: '1.125rem' }}>{t('household.invitation')}</h2>
                 <p className="text-muted">{t('household.full')}</p>
+                {invitation.status === 'pending' && invitation.consumed && (
+                  <p data-testid="invite-accepted-note">{t('members.invite_accepted')}</p>
+                )}
               </section>
             ) : (
               <section className="card" style={{ marginBottom: '1.5rem' }}>

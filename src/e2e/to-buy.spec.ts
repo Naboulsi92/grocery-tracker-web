@@ -282,23 +282,27 @@ test.describe('To-Buy Page', () => {
     await expect(page.getByText('Beurre')).toBeVisible();
   });
 
-  test('keeps the checked item visible with its badge across a realtime refetch', async ({ page }) => {
+  test('keeps the checked item visible with its badge on a realtime patch (no refetch)', async ({ page }) => {
     const item = await stockBeurreAndConfirm(page, householdId, '2');
     await expect(page.locator('.badge-success')).toBeVisible();
 
-    // Un refetch (realtime) ne doit pas faire perdre le coché : l'article
-    // reste visible avec son badge jusqu'à quitter l'écran. On attend le
-    // refetch lui-même (requête GET items) plutôt qu'un délai arbitraire.
-    const refetch = page.waitForRequest(
-      (request) => request.url().includes('/rest/v1/items') && request.method() === 'GET',
-      { timeout: 15000 },
-    );
+    // Ticket #123 : un changement distant arrive en patch, pas en refetch —
+    // le coché reste visible avec son badge jusqu'à quitter l'écran, et la
+    // quantité affichée se met à jour (4 → 5). Aucune requête GET items ne
+    // doit partir : le test échoue si c'est le cas.
+    let refetchFired = false;
+    page.on('request', (request) => {
+      if (request.url().includes('/rest/v1/items') && request.method() === 'GET') {
+        refetchFired = true;
+      }
+    });
     const supabase = await adminClient();
     await supabase.from('items').update({ quantity: 5 }).eq('id', item.id);
-    await refetch;
 
     await expect(page.getByText('Beurre')).toBeVisible();
+    await expect(page.getByText('5/3 unite')).toBeVisible();
     await expect(page.locator('.badge-success')).toBeVisible();
+    expect(refetchFired).toBe(false);
   });
 
   test('checked item is gone after reopening the screen', async ({ page }) => {

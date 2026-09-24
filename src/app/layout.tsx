@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 import { getSiteUrl } from '@/lib/site-url';
+import { dmSans, outfit } from './fonts';
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
@@ -40,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang="fr" suppressHydrationWarning className={`${dmSans.variable} ${outfit.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: langScript }} />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />

@@ -4,6 +4,7 @@ import {
   applyCategoryPatch,
   applyItemPatch,
   applyToBuyPatch,
+  clearEmbeddedCategory,
   refreshEmbeddedCategories,
 } from '@/lib/realtimePatch';
 
@@ -139,6 +140,14 @@ describe('refreshEmbeddedCategories', () => {
     });
     expect(next[0]?.category?.name).toBe('Frais');
     expect(next[1]?.category?.name).toBe('Sec');
+  });
+});
+
+describe('clearEmbeddedCategory', () => {
+  it('drops the ghost category object of a deleted category', () => {
+    const next = clearEmbeddedCategory(joined(), 'c1');
+    expect(next[0]?.category).toBeUndefined();
+    expect(next[0]?.category_id).toBe('c1');
   });
 });
 

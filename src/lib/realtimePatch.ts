@@ -102,6 +102,16 @@ export function refreshEmbeddedCategories(
 }
 
 /**
+ * Drops the embedded category of rows whose category was deleted
+ * (deletion is normally blocked while items reference it, but a remote
+ * delete must never leave a ghost category object behind).
+ */
+export function clearEmbeddedCategory(current: InventoryItem[], categoryId: string): InventoryItem[] {
+  return current.map((item) =>
+    item.category_id === categoryId ? { ...item, category: undefined } : item
+  );
+}
+/**
  * To-buy variant: same upsert/LWW core, plus the page's low-stock contract
  * (mirrors `fetchItems`): a row that is neither low-stock nor checked-out
  * leaves the list; a checked row stays (updated) even above its threshold.

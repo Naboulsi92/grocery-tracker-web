@@ -16,7 +16,7 @@ test.describe('Dashboard shell (ticket #56)', () => {
     await expect(page.getByTestId('hero-households-text')).toBeVisible();
   });
 
-  test('member without a household gets the onboarding prompt on the dashboard', async ({ page, browser }) => {
+  test('member without a household gets the onboarding prompt on the dashboard', async ({ browser }) => {
     requireWrites();
     const freshContext = await browser.newContext();
     const freshPage = await freshContext.newPage();
@@ -36,7 +36,7 @@ test.describe('Dashboard shell (ticket #56)', () => {
     }
   });
 
-  test('member without a household is still bounced from data screens', async ({ page, browser }) => {
+  test('member without a household is still bounced from data screens', async ({ browser }) => {
     requireWrites();
     const freshContext = await browser.newContext();
     const freshPage = await freshContext.newPage();

@@ -65,6 +65,45 @@ export function usePushManager() {
     return () => { active = false; };
   }, [support]);
 
+  // Ticket #88 : the cached permission must track the browser, not just our
+  // own requestPermission() calls. Permission granted outside the app flow
+  // (browser settings, another tab) otherwise leaves `permission` stale and
+  // `isLoading` stuck. Live via the Permissions API where available, with a
+  // focus/visibility re-read as fallback (covers settings changes on return).
+  useEffect(() => {
+    if (support !== 'supported') return;
+
+    const syncPermission = () => {
+      setPermission(Notification.permission);
+    };
+
+    let cancelled = false;
+    let status: PermissionStatus | null = null;
+    if ('permissions' in navigator && typeof navigator.permissions.query === 'function') {
+      void navigator.permissions
+        .query({ name: 'notifications' as PermissionName })
+        .then((permissionStatus) => {
+          if (cancelled) return;
+          status = permissionStatus;
+          status.addEventListener('change', syncPermission);
+        })
+        .catch(() => {});
+    }
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') syncPermission();
+    };
+    window.addEventListener('focus', syncPermission);
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      cancelled = true;
+      status?.removeEventListener('change', syncPermission);
+      window.removeEventListener('focus', syncPermission);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [support]);
+
   const requestPermission = useCallback(async (): Promise<NotificationPermission> => {
     if (support !== 'supported') {
       throw new Error('Ce navigateur ne prend pas en charge les notifications push.');

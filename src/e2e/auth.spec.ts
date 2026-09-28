@@ -73,16 +73,17 @@ test.describe('Navigation', () => {
 
   test('home page redirects to login when not authenticated', async ({ page }) => {
     await page.goto('/home');
-    await expect(page).toHaveURL('/login');
+    // Ticket #71 : the destination survives via ?next=.
+    await expect(page).toHaveURL('/login?next=%2Fhome');
   });
 
   test('categories page redirects to login when not authenticated', async ({ page }) => {
     await page.goto('/categories');
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL('/login?next=%2Fcategories');
   });
 
   test('items page redirects to login when not authenticated', async ({ page }) => {
     await page.goto('/items');
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL('/login?next=%2Fitems');
   });
 });

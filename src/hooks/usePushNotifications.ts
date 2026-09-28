@@ -121,8 +121,9 @@ export function usePushNotifications(userId: string | null) {
       await pushManager.unsubscribe();
 
       if (endpoint) {
-        // Désactivation locale prioritaire : même si le serveur est injoignable,
-        // on désactive localement et on expose l'erreur via sync.error (voir ligne 152)
+        // Optimistic UI (ADR 0008) : la désactivation locale prime. Même si
+        // le serveur est injoignable, on retourne un succès local et on
+        // expose l'erreur distante via l'état de synchronisation (retry).
         const { error } = await sync.actions.remove(endpoint);
         if (error) {
           setOperation('idle');

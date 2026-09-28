@@ -92,12 +92,24 @@ describe('usePushNotifications', () => {
     expect(result.current).toMatchObject({ localSubscription: 'subscribed', serverSync: 'synced' });
   });
 
-  it('subscribes when the browser permission is granted even if the hook state is stale', async () => {
+  it('refuses to subscribe on stale hook state until a liveness signal arrives (ticket #88)', async () => {
     const { result } = renderHook(() => usePushNotifications('user-1'));
     await waitFor(() => expect(result.current.localSubscription).toBe('unsubscribed'));
 
+    // Browser granted externally, but no liveness signal reached the hook yet:
+    // single source of truth says no.
     (Notification as { permission: NotificationPermission }).permission = 'granted';
+    await act(async () => {
+      const response = await result.current.subscribe();
+      expect(response.error?.message).toContain("Autorisez d'abord");
+    });
+    expect(subscribe).not.toHaveBeenCalled();
 
+    // The liveness signal syncs the hook state: now it succeeds.
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
     await act(async () => {
       expect(await result.current.subscribe()).toEqual({ error: null });
     });
@@ -140,6 +152,29 @@ describe('usePushNotifications', () => {
     expect(result.current.error).toContain('Réessayez');
     expect(JSON.stringify(warn.mock.calls)).not.toContain('database connection details');
     warn.mockRestore();
+  });
+
+  it('picks up an externally granted permission without requestPermission (ticket #88)', async () => {
+    const { result } = renderHook(() => usePushNotifications('user-1'));
+    await waitFor(() => expect(result.current.isSupported).toBe(true));
+
+    // Permission starts 'default': loading reflects the unknown state.
+    expect(result.current.isLoading).toBe(true);
+
+    // External grant (browser settings, another tab): the hook is not called.
+    act(() => {
+      (Notification as { permission: NotificationPermission }).permission = 'granted';
+      window.dispatchEvent(new Event('focus'));
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(requestPermission).not.toHaveBeenCalled();
+
+    // subscribe() gates on the hook's live permission state and succeeds.
+    await act(async () => {
+      expect(await result.current.subscribe()).toEqual({ error: null });
+    });
+    expect(subscribe).toHaveBeenCalled();
   });
 
   it('returns a recoverable error when VAPID configuration is missing', async () => {

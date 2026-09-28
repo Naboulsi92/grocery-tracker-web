@@ -91,7 +91,10 @@ export function usePushNotifications(userId: string | null) {
     if (!isSupported) {
       return { error: new Error('Ce navigateur ne prend pas en charge les notifications push.') };
     }
-    if (Notification.permission !== 'granted') {
+    // Ticket #88 : gate on the hook's live permission state (single source of
+    // truth) instead of reaching past usePushManager to the Notification
+    // global. The cached state now tracks external grants.
+    if (pushManager.permission !== 'granted') {
       return { error: new Error('Autorisez d\'abord les notifications.') };
     }
     if (!userId) {
@@ -105,7 +108,7 @@ export function usePushNotifications(userId: string | null) {
     const result = await subscribeCurrentDevice();
     setOperation('idle');
     return result;
-  }, [isSupported, userId, subscribeCurrentDevice]);
+  }, [isSupported, userId, pushManager, subscribeCurrentDevice]);
 
   const unsubscribe = useCallback(async () => {
     if (!isSupported) {

@@ -393,7 +393,8 @@ test.describe('Error States', () => {
         test.skip(true, 'No Supabase backend available - auth loading never completes');
       }
 
-      await expect(page).toHaveURL('/login');
+      // Ticket #71 : the destination survives via ?next=.
+      await expect(page).toHaveURL('/login?next=%2Fhome');
     });
 
     test('redirects to login when accessing items without auth', async ({ page }) => {
@@ -405,7 +406,7 @@ test.describe('Error States', () => {
         test.skip(true, 'No Supabase backend available - auth loading never completes');
       }
 
-      await expect(page).toHaveURL('/login');
+      await expect(page).toHaveURL('/login?next=%2Fitems');
     });
 
     test('redirects to login when accessing categories without auth', async ({ page }) => {
@@ -417,7 +418,7 @@ test.describe('Error States', () => {
         test.skip(true, 'No Supabase backend available - auth loading never completes');
       }
 
-      await expect(page).toHaveURL('/login');
+      await expect(page).toHaveURL('/login?next=%2Fcategories');
     });
 
     test('redirects to login when accessing members without auth', async ({ page }) => {
@@ -429,7 +430,7 @@ test.describe('Error States', () => {
         test.skip(true, 'No Supabase backend available - auth loading never completes');
       }
 
-      await expect(page).toHaveURL('/login');
+      await expect(page).toHaveURL('/login?next=%2Fmembers');
     });
 
     test('redirects to login when accessing to-buy without auth', async ({ page }) => {
@@ -441,7 +442,7 @@ test.describe('Error States', () => {
         test.skip(true, 'No Supabase backend available - auth loading never completes');
       }
 
-      await expect(page).toHaveURL('/login');
+      await expect(page).toHaveURL('/login?next=%2Fto-buy');
     });
   });
 

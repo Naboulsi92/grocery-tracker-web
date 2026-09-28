@@ -109,8 +109,11 @@ export async function middleware(request: NextRequest) {
 
   if (!session) {
     const loginUrl = new URL('/login', request.url);
-    // Don't add redirectTo parameter to keep existing tests passing
-    // Client-side redirects handle post-auth navigation
+    // Ticket #71 : preserve the destination in the validated ?next= parameter
+    // the client auth screens already honor (invite-detour). The client
+    // validates same-origin on consumption, so no open redirect is possible.
+    const here = new URL(request.url);
+    loginUrl.searchParams.set('next', here.pathname + here.search);
     return NextResponse.redirect(loginUrl);
   }
 

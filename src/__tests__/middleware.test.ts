@@ -176,7 +176,8 @@ describe('middleware deny-default behavior (#115)', () => {
 
       expect(NextResponse.redirect).toHaveBeenCalledTimes(1);
       expect(result.status).toBe(307);
-      expect(result.url).toBe('http://localhost:3000/login');
+      // Ticket #71 : the destination survives sign-in via ?next=.
+      expect(result.url).toBe(`http://localhost:3000/login?next=${encodeURIComponent(pathname)}`);
     }
   );
 
@@ -186,7 +187,9 @@ describe('middleware deny-default behavior (#115)', () => {
     )) as unknown as RedirectResult;
 
     expect(result.status).toBe(307);
-    expect(result.url).toBe('http://localhost:3000/login');
+    expect(result.url).toBe(
+      'http://localhost:3000/login?next=%2Fsettings%2Fnotifications%2Femail'
+    );
   });
 
   it.each(['/', '/login', '/signup', '/join-household'])(

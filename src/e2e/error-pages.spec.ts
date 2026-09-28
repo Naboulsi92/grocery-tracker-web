@@ -9,7 +9,9 @@ import { test, expect } from './fixtures';
 test.describe('Error pages (#122)', () => {
   test('unknown URL fails closed to login', async ({ page }) => {
     await page.goto('/cette-page-nexiste-pas-12345');
-    await expect(page).toHaveURL('/login', { timeout: 15000 });
+    // Ticket #71 : deny-default still fails closed to sign-in, now carrying
+    // the attempted destination in ?next=.
+    await expect(page).toHaveURL('/login?next=%2Fcette-page-nexiste-pas-12345', { timeout: 15000 });
     await expect(page.getByRole('heading', { level: 1, name: 'Connexion' })).toBeVisible();
   });
 });

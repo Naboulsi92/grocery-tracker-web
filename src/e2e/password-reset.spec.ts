@@ -2,12 +2,6 @@ import { requireWrites, createAccount, expect, signUp, test } from './fixtures';
 
 const INBUCKET_URL = 'http://127.0.0.1:54324';
 
-interface InbucketMessage {
-  id: string;
-  to: string[];
-  subject: string;
-}
-
 /** Polls the local catch-all mailbox for a message to an address. */
 async function waitForEmail(toEmail: string): Promise<string> {
   let html = '';

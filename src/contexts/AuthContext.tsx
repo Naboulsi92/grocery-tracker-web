@@ -25,6 +25,8 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  requestPasswordReset: (email: string, redirectTo: string) => Promise<{ error: Error | null }>;
+  updateRecoveryPassword: (password: string) => Promise<{ error: Error | null }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -144,6 +146,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  // Ticket #164 : thin wrappers mirroring signIn/signUp (keeps page tests
+  // mockable the same way).
+  const requestPasswordReset = async (email: string, redirectTo: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    return { error };
+  };
+
+  const updateRecoveryPassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    return { error };
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -155,6 +169,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      requestPasswordReset,
+      updateRecoveryPassword,
     }}>
       {children}
     </AuthContext.Provider>

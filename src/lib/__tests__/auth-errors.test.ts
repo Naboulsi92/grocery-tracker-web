@@ -30,6 +30,22 @@ describe('mapAuthErrorToKey (ticket #122)', () => {
     expect(mapAuthErrorToKey({ message: 'Failed to fetch' })).toBe(AUTH_ERROR_KEYS.NETWORK_KEY);
   });
 
+  it('maps rate limiting (ticket #164)', () => {
+    expect(mapAuthErrorToKey({ message: 'over_email_send_rate_limit' })).toBe(
+      AUTH_ERROR_KEYS.RATE_LIMITED_KEY
+    );
+    expect(mapAuthErrorToKey({ message: 'Too many requests' })).toBe(
+      AUTH_ERROR_KEYS.RATE_LIMITED_KEY
+    );
+  });
+
+  it('maps expired or invalid recovery links (ticket #164)', () => {
+    expect(mapAuthErrorToKey({ message: 'Token has expired or is invalid' })).toBe(
+      AUTH_ERROR_KEYS.RESET_EXPIRED_KEY
+    );
+    expect(mapAuthErrorToKey({ message: 'otp expired' })).toBe(AUTH_ERROR_KEYS.RESET_EXPIRED_KEY);
+  });
+
   it('falls back to unknown for null, empty and unrecognized shapes', () => {
     expect(mapAuthErrorToKey(null)).toBe(AUTH_ERROR_KEYS.UNKNOWN_KEY);
     expect(mapAuthErrorToKey({})).toBe(AUTH_ERROR_KEYS.UNKNOWN_KEY);

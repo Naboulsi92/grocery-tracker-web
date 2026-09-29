@@ -160,21 +160,15 @@ begin
   if has_function_privilege('public', 'public.email_exists(text)', 'EXECUTE') then
     raise exception 'public can execute public.email_exists(text)';
   end if;
+  -- Ticket #164: email_exists must stay boolean-only (probe returns boolean,
+  -- proving no email content leaks through the disclosure surface).
+  if (select pg_typeof(public.email_exists('contract-probe@example.test'))::text) <> 'boolean' then
+    raise exception 'public.email_exists(text) must return boolean';
+  end if;
   if has_schema_privilege('authenticated', 'private', 'USAGE') then
     raise exception 'authenticated can resolve private RLS helpers directly';
   end if;
-
--- Ticket #164: email_exists must stay boolean-only (probe returns boolean,
--- proving no email content leaks through the disclosure surface).
-do $$
-declare result_type text;
-begin
-  select pg_typeof(public.email_exists('contract-probe@example.test'))::text into result_type;
-  if result_type <> 'boolean' then
-    raise exception 'public.email_exists(text) must return boolean';
-  end if;
-end;
-$$;  if to_regprocedure('private.is_household_member(uuid,uuid)') is not null
+  if to_regprocedure('private.is_household_member(uuid,uuid)') is not null
     or to_regprocedure('private.is_household_owner(uuid,uuid)') is not null
     or to_regprocedure('private.shares_household(uuid,uuid)') is not null then
     raise exception 'private RLS helper accepts arbitrary user identities';

@@ -36,9 +36,11 @@ test.describe('Password reset (ticket #164)', () => {
   }) => {
     requireWrites();
     await page.goto('/forgot-password');
-    await page.getByTestId('forgot-email-input').fill('ghost-unknown@example.test');
+    // RFC 2606 reserved domain: never a real credential (secret scanner).
+    await page.getByTestId('forgot-email-input').fill('ghost-unknown@example.com');
     await page.getByTestId('forgot-submit-button').click();
-    await expect(page.getByRole('alert')).toContainText("Aucun compte n'existe avec cet email");
+    // Scoped to the app banner: Next's route announcer also carries role=alert.
+    await expect(page.locator('.auth-error')).toContainText("Aucun compte n'existe avec cet email");
   });
 
   test('full loop: recovery link, new password, login with it (decision 6)', async ({
@@ -50,25 +52,28 @@ test.describe('Password reset (ticket #164)', () => {
     await signUp(page, account);
     const newPassword = `${account.password}-new1`;
 
-    // No inbox in CI: mint the recovery link via the Admin API, then rewrite
-    // its host to the app under test (same code path as the emailed link).
+    // No inbox in CI: mint the recovery link via the Admin API and follow it
+    // as-is. It points at GoTrue (/auth/v1/verify), which exchanges the
+    // token and redirects to our callback — never rewrite its host to the
+    // app (that path does not exist there and the middleware would bounce
+    // it to /login).
     const admin = await adminClient();
+    // redirectTo aligned with the app under test (both localhost and
+    // 127.0.0.1 are allowlisted in supabase/config.toml).
+    const appBase = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
     const { data, error } = await admin.auth.admin.generateLink({
       type: 'recovery',
       email: account.email,
-      options: { redirectTo: 'http://localhost:3000/auth/callback?next=%2Freset-password' },
+      options: { redirectTo: `${appBase}/auth/callback?next=%2Freset-password` },
     });
     expect(error).toBeNull();
     expect(data.properties).not.toBeNull();
-    const appBase = new URL(page.url()).origin;
-    const url = new URL(data.properties!.action_link);
-    url.protocol = new URL(appBase).protocol;
-    url.host = new URL(appBase).host;
+    const recoveryLink = data.properties!.action_link;
 
     const context = await browser.newContext();
     const recoveryPage = await context.newPage();
     try {
-      await recoveryPage.goto(url.toString());
+      await recoveryPage.goto(recoveryLink);
       await expect(recoveryPage.getByTestId('reset-new-password-input')).toBeVisible(
         { timeout: 20000 }
       );

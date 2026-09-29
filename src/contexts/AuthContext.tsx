@@ -27,6 +27,10 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   requestPasswordReset: (email: string, redirectTo: string) => Promise<{ error: Error | null }>;
   updateRecoveryPassword: (password: string) => Promise<{ error: Error | null }>;
+  signInWithProvider: (
+    provider: 'google' | 'apple',
+    redirectTo: string
+  ) => Promise<{ error: Error | null }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -158,6 +162,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  // Ticket #166 : thin wrapper mirroring signIn/signUp. Apple requests name
+  // + email scopes (delivered on first consent only — onboarding prefill is
+  // best-effort). No prompt:consent (minimal clicks; documented decision).
+  const signInWithProvider = async (provider: 'google' | 'apple', redirectTo: string) => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo,
+        scopes: provider === 'apple' ? 'name email' : undefined,
+      },
+    });
+    return { error };
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -171,6 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       requestPasswordReset,
       updateRecoveryPassword,
+      signInWithProvider,
     }}>
       {children}
     </AuthContext.Provider>

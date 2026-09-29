@@ -52,6 +52,34 @@ function JoinHouseholdPageInner() {
   // for genuinely unknown tokens (those don't count toward the lockout).
   const isLockedOut = lockoutSeconds > 0;
 
+  // Ticket #166 : OAuth newcomers often arrive with a profile (Google
+  // always, Apple on first consent only). Best-effort prefill — never
+  // overwrites user edits. setState-in-effect is intentional here: profile
+  // data arrives asynchronously via auth (not render inputs), and the ref
+  // guard makes it run exactly once.
+  const prefilledRef = useRef(false);
+  useEffect(() => {
+    if (prefilledRef.current || !user || firstName || lastName) return;
+    prefilledRef.current = true;
+    const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const given = typeof metadata.given_name === 'string' ? metadata.given_name : '';
+    const family = typeof metadata.family_name === 'string' ? metadata.family_name : '';
+    // Prefer current `name` over legacy `full_name` (marked for deprecation).
+    const full =
+      typeof metadata.name === 'string' && metadata.name
+        ? metadata.name
+        : typeof metadata.full_name === 'string'
+          ? metadata.full_name
+          : '';
+    // Prefer split given/family (Apple-style); fall back to full-name
+    // heuristic (Google-style user corrects in the form; validation applies).
+    const first = given || full.split(' ').slice(0, 1).join(' ');
+    const last = family || full.split(' ').slice(1).join(' ');
+    // Async auth arrival, once-only via ref guard (see above): not a cascade.
+    if (first) setFirstName(first.slice(0, 50)); // eslint-disable-line react-hooks/set-state-in-effect
+    if (last) setLastName(last.slice(0, 50));
+  }, [user, firstName, lastName]);
+
   // Deep-link prefill: /join-household?code=... or ?invite=... (shared invite QR),
   // else the token stashed before the sign-in/sign-up detour (ticket #58).
   const [invitationToken, setInvitationToken] = useState(

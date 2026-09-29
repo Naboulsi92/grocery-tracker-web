@@ -11,6 +11,8 @@ export const AUTH_ERROR_KEYS = {
   USER_EXISTS_KEY: 'errors.auth.user_exists',
   WEAK_PASSWORD_KEY: 'errors.auth.weak_password',
   RATE_LIMITED_KEY: 'errors.auth.rate_limited',
+  OAUTH_FAILED_KEY: 'errors.auth.oauth_failed',
+  OAUTH_CONFLICT_KEY: 'errors.auth.oauth_conflict',
   RESET_EXPIRED_KEY: 'errors.auth.reset_expired',
   NETWORK_KEY: 'errors.auth.network_error',
   UNKNOWN_KEY: 'errors.auth.unknown',
@@ -27,6 +29,24 @@ export function mapAuthErrorToKey(error: { message?: string } | null | undefined
   }
   if (message.includes('user already registered') || message.includes('already been registered')) {
     return AUTH_ERROR_KEYS.USER_EXISTS_KEY;
+  }
+  // Ticket #166 : same-email conflicts surface as identity errors on the
+  // OAuth path (distinct message from the email-signup user_exists case).
+  // There is no "allow duplicate emails" setting in Supabase Auth: linking is
+  // automatic when the email is confirmed, an error otherwise.
+  if (
+    message.includes('identity is already linked') ||
+    message.includes('identity already exists') ||
+    message.includes('identities exist')
+  ) {
+    return AUTH_ERROR_KEYS.OAUTH_CONFLICT_KEY;
+  }
+  if (
+    message.includes('oauth') ||
+    message.includes('external provider') ||
+    message.includes('provider error')
+  ) {
+    return AUTH_ERROR_KEYS.OAUTH_FAILED_KEY;
   }
   if (
     message.includes('password should be') ||

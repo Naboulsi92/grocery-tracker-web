@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { translateMessage } from '@/lib/i18n';
+import { getAuthProvider, providerDisplayName } from '@/lib/auth-provider';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useHousehold } from '@/hooks/useHousehold';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -352,6 +353,12 @@ export default function AccountPage() {
 
         <section className="card account-section">
           <h2 className="account-section-title">{t('account.password_section')}</h2>
+          {getAuthProvider(user) !== 'email' ? (
+            <p className="text-muted account-section-hint" data-testid="account-oauth-notice">
+              {t('account.password_oauth_notice', { provider: providerDisplayName(getAuthProvider(user)) })}
+            </p>
+          ) : (
+          <>
           <p className="text-muted account-section-hint">
             {t('account.password_hint')}
           </p>
@@ -405,6 +412,8 @@ export default function AccountPage() {
               {passwordSaving ? t('account.changing') : t('account.change_password')}
             </button>
           </form>
+          </>
+          )}
         </section>
 
         <section className="card account-section">

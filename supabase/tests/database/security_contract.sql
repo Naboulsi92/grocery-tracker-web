@@ -165,6 +165,20 @@ begin
   if (select pg_typeof(public.email_exists('contract-probe@example.test'))::text) <> 'boolean' then
     raise exception 'public.email_exists(text) must return boolean';
   end if;
+  -- Ticket #166 (OAuth): auth_provider_for_email is the same narrow style —
+  -- four-value enum or NULL, granted anon + authenticated, revoked public.
+  if not has_function_privilege('anon', 'public.auth_provider_for_email(text)', 'EXECUTE') then
+    raise exception 'anon cannot execute public.auth_provider_for_email(text)';
+  end if;
+  if not has_function_privilege('authenticated', 'public.auth_provider_for_email(text)', 'EXECUTE') then
+    raise exception 'authenticated cannot execute public.auth_provider_for_email(text)';
+  end if;
+  if has_function_privilege('public', 'public.auth_provider_for_email(text)', 'EXECUTE') then
+    raise exception 'public can execute public.auth_provider_for_email(text)';
+  end if;
+  if (select pg_typeof(public.auth_provider_for_email('contract-probe@example.test'))::text) <> 'text' then
+    raise exception 'public.auth_provider_for_email(text) must return text';
+  end if;
   if has_schema_privilege('authenticated', 'private', 'USAGE') then
     raise exception 'authenticated can resolve private RLS helpers directly';
   end if;

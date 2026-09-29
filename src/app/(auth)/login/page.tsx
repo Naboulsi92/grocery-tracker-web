@@ -13,6 +13,7 @@ import { resolvePostAuthRedirect } from '@/lib/invite-detour';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
 import { AuthHeader } from '@/components/AuthHeader';
+import { OAuthButtons } from '@/components/OAuthButtons';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import { SessionErrorBanner } from '@/components/SessionErrorBanner';
 import { OfflineBlockedScreen } from '@/components/OfflineBlockedScreen';
@@ -31,7 +32,7 @@ function LoginPageInner() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, user, loading: authLoading } = useAuth();
+  const { signIn, signInWithProvider, user, loading: authLoading } = useAuth();
   const { t, language } = useI18n();
   const { isOnline } = useOnlineStatus();
   const router = useRouter();
@@ -96,7 +97,13 @@ function LoginPageInner() {
           title={t('login.title')}
           subtitle={t('login.subtitle')}
         />
-        
+
+        <OAuthButtons
+          nextParam={nextParam}
+          signInWithProvider={signInWithProvider}
+          onError={setError}
+        />
+
         {error && <ErrorBanner message={translateMessage(language, error)} />}
 
         <Suspense fallback={null}>

@@ -68,6 +68,12 @@ test.describe('Password reset (ticket #164)', () => {
     });
     expect(error).toBeNull();
     expect(data.properties).not.toBeNull();
+    // Pin the generation contract before navigating: GoTrue host shape +
+    // echoed redirect_to (all token-free). If either fails, generation —
+    // not navigation — dropped the destination.
+    const generated = new URL(data.properties!.action_link);
+    expect(generated.pathname).toBe('/auth/v1/verify');
+    expect(data.properties!.redirect_to).toContain('/auth/callback');
     const recoveryLink = data.properties!.action_link;
 
     const context = await browser.newContext();

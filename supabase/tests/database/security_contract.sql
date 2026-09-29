@@ -147,10 +147,34 @@ begin
   if has_function_privilege('authenticated', 'public.invalidate_invitations_on_departure()', 'EXECUTE') then
     raise exception 'authenticated can execute trigger function public.invalidate_invitations_on_departure()';
   end if;
+  -- Ticket #164 (forgot password): email_exists is the single deliberate
+  -- disclosure surface for the human-validated decision "unknown email shows
+  -- an explicit error". It must stay boolean-only (no email leakage), granted
+  -- to anon (public screen) + authenticated, revoked from public.
+  if not has_function_privilege('anon', 'public.email_exists(text)', 'EXECUTE') then
+    raise exception 'anon cannot execute public.email_exists(text)';
+  end if;
+  if not has_function_privilege('authenticated', 'public.email_exists(text)', 'EXECUTE') then
+    raise exception 'authenticated cannot execute public.email_exists(text)';
+  end if;
+  if has_function_privilege('public', 'public.email_exists(text)', 'EXECUTE') then
+    raise exception 'public can execute public.email_exists(text)';
+  end if;
   if has_schema_privilege('authenticated', 'private', 'USAGE') then
     raise exception 'authenticated can resolve private RLS helpers directly';
   end if;
-  if to_regprocedure('private.is_household_member(uuid,uuid)') is not null
+
+-- Ticket #164: email_exists must stay boolean-only (probe returns boolean,
+-- proving no email content leaks through the disclosure surface).
+do $$
+declare result_type text;
+begin
+  select pg_typeof(public.email_exists('contract-probe@example.test'))::text into result_type;
+  if result_type <> 'boolean' then
+    raise exception 'public.email_exists(text) must return boolean';
+  end if;
+end;
+$$;  if to_regprocedure('private.is_household_member(uuid,uuid)') is not null
     or to_regprocedure('private.is_household_owner(uuid,uuid)') is not null
     or to_regprocedure('private.shares_household(uuid,uuid)') is not null then
     raise exception 'private RLS helper accepts arbitrary user identities';

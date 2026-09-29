@@ -10,6 +10,11 @@ const PUBLIC_ROUTES = [
   '/login',
   '/signup',
   '/join-household',
+  // Ticket #164 : password recovery must be reachable anonymously (the email
+  // link opens with no session) — and the callback must run to create one.
+  '/forgot-password',
+  '/reset-password',
+  '/auth/callback',
   // Marketing pages (route group (marketing))
   '/about',
   '/contact',

@@ -10,6 +10,8 @@ export const AUTH_ERROR_KEYS = {
   EMAIL_NOT_CONFIRMED_KEY: 'errors.auth.email_not_confirmed',
   USER_EXISTS_KEY: 'errors.auth.user_exists',
   WEAK_PASSWORD_KEY: 'errors.auth.weak_password',
+  RATE_LIMITED_KEY: 'errors.auth.rate_limited',
+  RESET_EXPIRED_KEY: 'errors.auth.reset_expired',
   NETWORK_KEY: 'errors.auth.network_error',
   UNKNOWN_KEY: 'errors.auth.unknown',
 } as const;
@@ -32,6 +34,21 @@ export function mapAuthErrorToKey(error: { message?: string } | null | undefined
     message.includes('weak password')
   ) {
     return AUTH_ERROR_KEYS.WEAK_PASSWORD_KEY;
+  }
+  if (
+    message.includes('over_email_send_rate_limit') ||
+    message.includes('email rate limit') ||
+    message.includes('rate limit') ||
+    message.includes('too many requests')
+  ) {
+    return AUTH_ERROR_KEYS.RATE_LIMITED_KEY;
+  }
+  if (
+    message.includes('expired') ||
+    message.includes('invalid token') ||
+    message.includes('code verifier')
+  ) {
+    return AUTH_ERROR_KEYS.RESET_EXPIRED_KEY;
   }
   if (
     message.includes('failed to fetch') ||

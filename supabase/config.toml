@@ -12,7 +12,10 @@ major_version = 17
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"
-additional_redirect_urls = ["http://127.0.0.1:3000"]
+# Ticket #164 : recovery redirectTo targets the app host, which varies
+# (127.0.0.1 under Playwright, localhost in dev). Preview/Production hosts
+# must be allowlisted in the Supabase dashboard (Auth > URL configuration).
+additional_redirect_urls = ["http://127.0.0.1:3000", "http://localhost:3000"]
 
 [auth.email]
 enable_confirmations = false

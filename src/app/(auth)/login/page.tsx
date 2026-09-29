@@ -150,6 +150,9 @@ function LoginPageInner() {
           {t('login.footer_prompt')}{' '}
           <Link href={nextParam ? `/signup?next=${encodeURIComponent(nextParam)}` : '/signup'}>{t('login.signup_link')}</Link>
         </p>
+        <p className="auth-footer">
+          <Link href={nextParam ? `/forgot-password?next=${encodeURIComponent(nextParam)}` : '/forgot-password'}>{t('login.forgot_password')}</Link>
+        </p>
         </main>
       </div>
     );

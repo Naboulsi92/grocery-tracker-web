@@ -6,42 +6,41 @@ import { mapAuthErrorToKey } from '@/lib/authErrors';
 import { buildOAuthCallbackUrl, stashOAuthNext } from '@/lib/oauth-redirect';
 import { getSiteUrl } from '@/lib/site-url';
 
-type OAuthProvider = 'google' | 'apple';
-
 interface OAuthButtonsProps {
   nextParam: string | null;
-  signInWithProvider: (provider: OAuthProvider, redirectTo: string) => Promise<{ error: Error | null }>;
+  signInWithProvider: (provider: 'google', redirectTo: string) => Promise<{ error: Error | null }>;
   onError: (key: string) => void;
 }
 
 /**
- * Shared provider buttons (ticket #166, PRD §3). Rendered above the email
- * form on both login and signup. Providers first is the convention; the
- * email form below stays untouched. Tested in oauth-buttons.test.tsx.
+ * Provider button (ticket #166). Google only: Sign in with Apple is cut
+ * until the paid Developer Program is justified (see issue #166) — the
+ * plumbing (provider detection, gating, stash) stays generic for re-adding
+ * it later. Rendered above the email form on both login and signup.
  */
 export function OAuthButtons({ nextParam, signInWithProvider, onError }: OAuthButtonsProps) {
   const { t } = useI18n();
-  const [pending, setPending] = useState<OAuthProvider | null>(null);
+  const [pending, setPending] = useState(false);
 
-  const start = async (provider: OAuthProvider) => {
+  const start = async () => {
     if (pending) return;
-    setPending(provider);
+    setPending(true);
     try {
       // Stash first: same-tab sessionStorage survives the provider
       // round-trip even if GoTrue drops ?next= (proven fragile).
       stashOAuthNext(nextParam);
       const { error } = await signInWithProvider(
-        provider,
+        'google',
         buildOAuthCallbackUrl(getSiteUrl(), nextParam)
       );
       if (error) {
         onError(mapAuthErrorToKey(error));
-        setPending(null);
+        setPending(false);
       }
-      // Success navigates away (provider) — no setPending(null) needed.
+      // Success navigates away (provider) — no setPending(false) needed.
     } catch {
       onError('errors.auth.oauth_failed');
-      setPending(null);
+      setPending(false);
     }
   };
 
@@ -49,14 +48,14 @@ export function OAuthButtons({ nextParam, signInWithProvider, onError }: OAuthBu
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       <button
         type="button"
-        onClick={() => void start('google')}
-        disabled={pending !== null}
+        onClick={() => void start()}
+        disabled={pending}
         className="btn btn-secondary"
         data-testid="oauth-google-button"
         aria-label={t('oauth.continue_google')}
         style={{ background: '#fff', color: '#1f2937', border: '1px solid var(--color-border)' }}
       >
-        {pending === 'google' ? (
+        {pending ? (
           <span className="spinner" aria-hidden="true"></span>
         ) : (
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24">
@@ -66,25 +65,7 @@ export function OAuthButtons({ nextParam, signInWithProvider, onError }: OAuthBu
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z" />
           </svg>
         )}
-        {pending === 'google' ? t('oauth.initiating') : t('oauth.continue_google')}
-      </button>
-      <button
-        type="button"
-        onClick={() => void start('apple')}
-        disabled={pending !== null}
-        className="btn btn-secondary"
-        data-testid="oauth-apple-button"
-        aria-label={t('oauth.continue_apple')}
-        style={{ background: '#000', color: '#fff', border: '1px solid #000' }}
-      >
-        {pending === 'apple' ? (
-          <span className="spinner" aria-hidden="true"></span>
-        ) : (
-          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8.98-.2 1.92-.87 3.03-.83 1.32.11 2.31.63 2.96 1.57-2.71 1.63-2.26 5.21.45 6.21-.5 1.28-1.14 2.55-2.52 3.22zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-          </svg>
-        )}
-        {pending === 'apple' ? t('oauth.initiating') : t('oauth.continue_apple')}
+        {pending ? t('oauth.initiating') : t('oauth.continue_google')}
       </button>
       <div className="divider"><span>{t('oauth.divider')}</span></div>
     </div>

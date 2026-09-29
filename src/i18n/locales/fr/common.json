@@ -33,7 +33,6 @@
   "login.forgot_password": "Mot de passe oublié ?",
   "oauth.divider": "ou",
   "oauth.continue_google": "Continuer avec Google",
-  "oauth.continue_apple": "Continuer avec Apple",
   "oauth.initiating": "Redirection…",
   "account.password_oauth_notice": "Votre compte utilise {provider} pour se connecter : aucun mot de passe à changer ici.",
   "forgot.oauth_notice": "Cet email utilise la connexion {provider} : aucun mot de passe à réinitialiser.",

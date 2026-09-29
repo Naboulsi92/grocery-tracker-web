@@ -33,7 +33,6 @@
   "login.forgot_password": "Forgot your password?",
   "oauth.divider": "or",
   "oauth.continue_google": "Continue with Google",
-  "oauth.continue_apple": "Continue with Apple",
   "oauth.initiating": "Redirecting…",
   "account.password_oauth_notice": "Your account signs in with {provider}: there is no password to change here.",
   "forgot.oauth_notice": "This email signs in with {provider}: there is no password to reset.",

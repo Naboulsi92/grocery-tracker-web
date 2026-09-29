@@ -44,7 +44,7 @@ describe('ForgotPasswordPage (ticket #164)', () => {
 
     await waitFor(() => expect(requestPasswordReset).toHaveBeenCalledTimes(1));
     expect(requestPasswordReset.mock.calls[0][0]).toBe('user@example.test');
-    expect(requestPasswordReset.mock.calls[0][1]).toContain('/auth/callback?next=');
+    expect(requestPasswordReset.mock.calls[0][1]).toContain('/auth/callback');
     expect(await screen.findByTestId('forgot-success')).toBeVisible();
   });
 

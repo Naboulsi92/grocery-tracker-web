@@ -1,13 +1,42 @@
 import { requireWrites, createAccount, expect, signUp, test } from './fixtures';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
-async function adminClient() {
-  const supabaseURL = process.env.E2E_SUPABASE_URL;
-  const serviceRoleKey = process.env.E2E_SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseURL || !serviceRoleKey) {
-    throw new Error('Database writes require E2E_SUPABASE_URL and E2E_SUPABASE_SERVICE_ROLE_KEY');
-  }
-  return createSupabaseClient(supabaseURL, serviceRoleKey);
+const INBUCKET_URL = 'http://127.0.0.1:54324';
+
+interface InbucketMessage {
+  id: string;
+  to: string[];
+  subject: string;
+}
+
+/** Polls the local catch-all mailbox for the newest message to an address. */
+async function waitForEmail(toEmail: string): Promise<string> {
+  let found: InbucketMessage | null = null;
+  await expect
+    .poll(
+      async () => {
+        const response = await fetch(`${INBUCKET_URL}/api/v1/mailbox`);
+        if (!response.ok) return null;
+        const messages = (await response.json()) as InbucketMessage[];
+        found =
+          messages.find((message) =>
+            message.to.some((recipient) => recipient.toLowerCase().includes(toEmail.toLowerCase()))
+          ) ?? null;
+        return found?.id ?? null;
+      },
+      { timeout: 60000 }
+    )
+    .not.toBeNull();
+  const detailResponse = await fetch(`${INBUCKET_URL}/api/v1/mailbox/${found!.id}`);
+  const detail = (await detailResponse.json()) as {
+    body: { html: string; text: string };
+  };
+  const html = detail.body.html || '';
+  const text = detail.body.text || '';
+  const match =
+    html.match(/https?:\/\/[^\s"']*\/verify[^\s"']*/) ??
+    text.match(/https?:\/\/\S*\/verify\S*/);
+  if (!match) throw new Error('No recovery link found in the caught email.');
+  return match[0].replace(/&amp;/g, '&');
 }
 
 test.describe('Password reset (ticket #164)', () => {
@@ -43,7 +72,7 @@ test.describe('Password reset (ticket #164)', () => {
     await expect(page.locator('.auth-error')).toContainText("Aucun compte n'existe avec cet email");
   });
 
-  test('full loop: recovery link, new password, login with it (decision 6)', async ({
+  test('full loop: forgot form, real email, new password, login with it (decision 6)', async ({
     page,
     browser,
   }) => {
@@ -52,32 +81,18 @@ test.describe('Password reset (ticket #164)', () => {
     await signUp(page, account);
     const newPassword = `${account.password}-new1`;
 
-    // No inbox in CI: mint the recovery link via the Admin API and follow it
-    // as-is. It points at GoTrue (/auth/v1/verify), which exchanges the
-    // token and redirects to our callback — never rewrite its host to the
-    // app (that path does not exist there and the middleware would bounce
-    // it to /login).
-    const admin = await adminClient();
-    // redirectTo aligned with the app under test (both localhost and
-    // 127.0.0.1 are allowlisted in supabase/config.toml). Deliberately bare:
-    // GoTrue silently falls back to site_url on nested-query redirect URLs,
-    // and the reset page lands on /login anyway (decision 6) — a forwarded
-    // destination adds failure surface for zero value here.
-    const appBase = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
-    const { data, error } = await admin.auth.admin.generateLink({
-      type: 'recovery',
-      email: account.email,
-      options: { redirectTo: `${appBase}/auth/callback` },
-    });
-    expect(error).toBeNull();
-    expect(data.properties).not.toBeNull();
-    // Pin the generation contract before navigating: GoTrue host shape +
-    // echoed redirect_to (all token-free). If either fails, generation —
-    // not navigation — dropped the destination.
-    const generated = new URL(data.properties!.action_link);
-    expect(generated.pathname).toBe('/auth/v1/verify');
-    expect(data.properties!.redirect_to).toContain('/auth/callback');
-    const recoveryLink = data.properties!.action_link;
+    // Real user path, no Admin API: submit the forgot form (the known email
+    // passes the DB existence check), then catch the actual email in the
+    // local Inbucket mailbox and follow its recovery link. This exercises the
+    // shipped redirectTo end to end — the admin generateLink endpoint
+    // demonstrably drops custom redirect_to (silent site_url fallback), so it
+    // cannot prove this flow.
+    await page.goto('/forgot-password');
+    await page.getByTestId('forgot-email-input').fill(account.email);
+    await page.getByTestId('forgot-submit-button').click();
+    await expect(page.getByTestId('forgot-success')).toBeVisible();
+
+    const recoveryLink = await waitForEmail(account.email);
 
     const context = await browser.newContext();
     const recoveryPage = await context.newPage();

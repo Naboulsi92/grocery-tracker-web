@@ -14,23 +14,12 @@ describe('normalizeEmail (ticket #164)', () => {
 });
 
 describe('buildPasswordResetRedirect (ticket #164)', () => {
-  it('forwards the reset page without a destination', () => {
-    expect(buildPasswordResetRedirect('https://example.com', null)).toBe(
-      'https://example.com/auth/callback?next=%2Freset-password'
+  it('points at the bare callback (nested queries break GoTrue fallback)', () => {
+    expect(buildPasswordResetRedirect('https://example.com')).toBe(
+      'https://example.com/auth/callback'
     );
-  });
-
-  it('forwards an original destination nested inside', () => {
-    // Double-encoded by construction: the callback decodes once (reset page
-    // with ?next=%2Fitems), the reset page decodes again (/items).
-    expect(buildPasswordResetRedirect('https://example.com/', '/items')).toBe(
-      'https://example.com/auth/callback?next=%2Freset-password%3Fnext%3D%252Fitems'
-    );
-  });
-
-  it('drops unsafe destinations', () => {
-    expect(buildPasswordResetRedirect('https://example.com', 'https://evil.com')).toBe(
-      'https://example.com/auth/callback?next=%2Freset-password'
+    expect(buildPasswordResetRedirect('https://example.com/')).toBe(
+      'https://example.com/auth/callback'
     );
   });
 });

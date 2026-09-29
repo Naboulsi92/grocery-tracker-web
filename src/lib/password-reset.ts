@@ -19,13 +19,12 @@ export function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
 }
 
-/** redirectTo for resetPasswordForEmail: callback forwarding the reset page. */
-export function buildPasswordResetRedirect(siteUrl: string, next: string | null): string {
-  const inner =
-    isSafeNextPath(next) && next !== RESET_PASSWORD_PATH
-      ? `${RESET_PASSWORD_PATH}?next=${encodeURIComponent(next)}`
-      : RESET_PASSWORD_PATH;
-  return `${siteUrl.replace(/\/+$/, '')}${AUTH_CALLBACK_PATH}?next=${encodeURIComponent(inner)}`;
+/** redirectTo for resetPasswordForEmail: the callback, bare on purpose. GoTrue
+ * silently falls back to site_url on nested-query redirect URLs, and the
+ * reset page lands on /login anyway (decision 6) — a forwarded destination
+ * adds failure surface for zero value here. */
+export function buildPasswordResetRedirect(siteUrl: string): string {
+  return `${siteUrl.replace(/\/+$/, '')}${AUTH_CALLBACK_PATH}`;
 }
 
 /**

@@ -100,7 +100,7 @@ function ForgotPasswordPageInner() {
 
     const { error } = await requestPasswordReset(
       normalized,
-      buildPasswordResetRedirect(getSiteUrl(), nextParam)
+      buildPasswordResetRedirect(getSiteUrl())
     );
     setLoading(false);
 

@@ -59,12 +59,15 @@ test.describe('Password reset (ticket #164)', () => {
     // it to /login).
     const admin = await adminClient();
     // redirectTo aligned with the app under test (both localhost and
-    // 127.0.0.1 are allowlisted in supabase/config.toml).
+    // 127.0.0.1 are allowlisted in supabase/config.toml). Deliberately bare:
+    // GoTrue silently falls back to site_url on nested-query redirect URLs,
+    // and the reset page lands on /login anyway (decision 6) — a forwarded
+    // destination adds failure surface for zero value here.
     const appBase = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
     const { data, error } = await admin.auth.admin.generateLink({
       type: 'recovery',
       email: account.email,
-      options: { redirectTo: `${appBase}/auth/callback?next=%2Freset-password` },
+      options: { redirectTo: `${appBase}/auth/callback` },
     });
     expect(error).toBeNull();
     expect(data.properties).not.toBeNull();

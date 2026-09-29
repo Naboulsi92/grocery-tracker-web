@@ -18,17 +18,17 @@ function renderButtons(nextParam: string | null = null) {
   );
 }
 
-describe('OAuthButtons (ticket #166)', () => {
+describe('OAuthButtons (ticket #166, Google only)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     sessionStorage.clear();
     signInWithProvider.mockResolvedValue({ error: null });
   });
 
-  it('renders both provider buttons with a divider', () => {
+  it('renders the Google button with a divider', () => {
     renderButtons();
     expect(screen.getByTestId('oauth-google-button')).toBeVisible();
-    expect(screen.getByTestId('oauth-apple-button')).toBeVisible();
+    expect(screen.queryByTestId('oauth-apple-button')).not.toBeInTheDocument();
   });
 
   it('starts Google with the callback URL and stashes the destination', async () => {
@@ -43,11 +43,11 @@ describe('OAuthButtons (ticket #166)', () => {
     expect(sessionStorage.getItem('grocery.post-oauth-next')).toBe('/items');
   });
 
-  it('disables both buttons while initiating and surfaces provider errors', async () => {
+  it('disables the button while initiating and surfaces provider errors', async () => {
     signInWithProvider.mockResolvedValue({ error: { message: 'oauth boom' } });
     renderButtons();
 
-    fireEvent.click(screen.getByTestId('oauth-apple-button'));
+    fireEvent.click(screen.getByTestId('oauth-google-button'));
     await waitFor(() => expect(onError).toHaveBeenCalledWith('errors.auth.oauth_failed'));
     expect(screen.getByTestId('oauth-google-button')).toBeEnabled();
   });

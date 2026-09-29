@@ -8,35 +8,37 @@ interface InbucketMessage {
   subject: string;
 }
 
-/** Polls the local catch-all mailbox for the newest message to an address. */
+/** Polls the local catch-all mailbox for a message to an address. */
 async function waitForEmail(toEmail: string): Promise<string> {
-  let found: InbucketMessage | null = null;
+  let html = '';
   await expect
     .poll(
       async () => {
-        const response = await fetch(`${INBUCKET_URL}/api/v1/mailbox`);
-        if (!response.ok) return null;
-        const messages = (await response.json()) as InbucketMessage[];
-        found =
-          messages.find((message) =>
-            message.to.some((recipient) => recipient.toLowerCase().includes(toEmail.toLowerCase()))
-          ) ?? null;
-        return found?.id ?? null;
+        // Inbucket REST: GET /api/v1/mailbox/{address} -> { messages: [...] }.
+        const listResponse = await fetch(
+          `${INBUCKET_URL}/api/v1/mailbox/${encodeURIComponent(toEmail)}`
+        );
+        if (!listResponse.ok) return null;
+        const list = (await listResponse.json()) as {
+          messages?: { id: string }[];
+        };
+        const latest = list.messages?.[0];
+        if (!latest) return null;
+        const detailResponse = await fetch(
+          `${INBUCKET_URL}/api/v1/mailbox/${encodeURIComponent(toEmail)}/${latest.id}`
+        );
+        if (!detailResponse.ok) return null;
+        const detail = (await detailResponse.json()) as {
+          body: { html: string; text: string };
+        };
+        html = detail.body.html || detail.body.text || '';
+        const match = html.match(/https?:\/\/[^\s"']*\/verify[^\s"']*/);
+        return match?.[0].replace(/&amp;/g, '&') ?? null;
       },
       { timeout: 60000 }
     )
     .not.toBeNull();
-  const detailResponse = await fetch(`${INBUCKET_URL}/api/v1/mailbox/${found!.id}`);
-  const detail = (await detailResponse.json()) as {
-    body: { html: string; text: string };
-  };
-  const html = detail.body.html || '';
-  const text = detail.body.text || '';
-  const match =
-    html.match(/https?:\/\/[^\s"']*\/verify[^\s"']*/) ??
-    text.match(/https?:\/\/\S*\/verify\S*/);
-  if (!match) throw new Error('No recovery link found in the caught email.');
-  return match[0].replace(/&amp;/g, '&');
+  return html.match(/https?:\/\/[^\s"']*\/verify[^\s"']*/)?.[0].replace(/&amp;/g, '&') ?? '';
 }
 
 test.describe('Password reset (ticket #164)', () => {

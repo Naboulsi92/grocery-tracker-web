@@ -10,6 +10,7 @@ import { useI18n } from '@/contexts/LanguageContext';
 import { translateMessage } from '@/lib/i18n';
 import { mapAuthErrorToKey } from '@/lib/authErrors';
 import { buildPasswordResetRedirect, normalizeEmail } from '@/lib/password-reset';
+import { providerDisplayName, type AuthProvider } from '@/lib/auth-provider';
 import { getSiteUrl } from '@/lib/site-url';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -32,6 +33,7 @@ export default function ForgotPasswordPage() {
 function ForgotPasswordPageInner() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [oauthProvider, setOauthProvider] = useState<AuthProvider | null>(null);
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -98,6 +100,24 @@ function ForgotPasswordPageInner() {
       return;
     }
 
+    // Ticket #166, PRD email-only : un compte provider n'a pas de mot de
+    // passe à réinitialiser — notice explicative au lieu de l'envoi (qui
+    // ajouterait par effet de bord une identité email au compte OAuth).
+    const { data: provider, error: providerError } = await supabase.rpc(
+      'auth_provider_for_email',
+      { p_email: normalized }
+    );
+    if (providerError) {
+      setError(mapAuthErrorToKey(providerError));
+      setLoading(false);
+      return;
+    }
+    if (provider === 'google' || provider === 'apple') {
+      setOauthProvider(provider);
+      setLoading(false);
+      return;
+    }
+
     const { error } = await requestPasswordReset(
       normalized,
       buildPasswordResetRedirect(getSiteUrl())
@@ -127,7 +147,16 @@ function ForgotPasswordPageInner() {
 
         {error && <ErrorBanner message={translateMessage(language, error)} />}
 
-        {sent ? (
+        {oauthProvider ? (
+          <div data-testid="forgot-oauth-notice">
+            <p className="text-muted" style={{ marginBottom: '1.5rem' }}>
+              {t('forgot.oauth_notice', { provider: providerDisplayName(oauthProvider) })}
+            </p>
+            <Link href={backToLogin} className="btn btn-secondary">
+              {t('forgot.back_to_login')}
+            </Link>
+          </div>
+        ) : sent ? (
           <div data-testid="forgot-success">
             <h2 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>{t('forgot.success_title')}</h2>
             <p className="text-muted" style={{ marginBottom: '1.5rem' }}>{t('forgot.success_message')}</p>

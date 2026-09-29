@@ -13,6 +13,7 @@ import { resolvePostAuthRedirect } from '@/lib/invite-detour';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
 import { AuthHeader } from '@/components/AuthHeader';
+import { OAuthButtons } from '@/components/OAuthButtons';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import { OfflineBlockedScreen } from '@/components/OfflineBlockedScreen';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -31,7 +32,7 @@ function SignupPageInner() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signUp, access, loading: authLoading } = useAuth();
+  const { signUp, signInWithProvider, access, loading: authLoading } = useAuth();
   const { t, language } = useI18n();
   const { isOnline } = useOnlineStatus();
   const router = useRouter();
@@ -109,7 +110,13 @@ function SignupPageInner() {
           title={t('signup.title')}
           subtitle={t('signup.subtitle')}
         />
-        
+
+        <OAuthButtons
+          nextParam={nextParam}
+          signInWithProvider={signInWithProvider}
+          onError={setError}
+        />
+
         {error && <ErrorBanner message={translateMessage(language, error)} />}
 
         <form onSubmit={handleSubmit} className="auth-form">

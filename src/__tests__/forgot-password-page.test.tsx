@@ -48,6 +48,16 @@ describe('ForgotPasswordPage (ticket #164)', () => {
     expect(await screen.findByTestId('forgot-success')).toBeVisible();
   });
 
+  it('shows a provider notice instead of sending for OAuth accounts (ticket #166)', async () => {
+    rpc
+      .mockResolvedValueOnce({ data: true, error: null })
+      .mockResolvedValueOnce({ data: 'google', error: null });
+    submit('user@example.test');
+
+    expect(await screen.findByTestId('forgot-oauth-notice')).toHaveTextContent('Google');
+    expect(requestPasswordReset).not.toHaveBeenCalled();
+  });
+
   it('maps a rate-limit failure instead of succeeding', async () => {
     requestPasswordReset.mockResolvedValue({ error: { message: 'over_email_send_rate_limit' } });
     submit('user@example.test');

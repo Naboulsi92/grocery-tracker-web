@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { translateMessage } from '@/lib/i18n';
 import { mapAuthErrorToKey } from '@/lib/authErrors';
+import { getAuthProvider } from '@/lib/auth-provider';
 import { validateNewPassword } from '@/lib/account';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -35,6 +36,7 @@ function ResetPasswordPageInner() {
   const [redirectPending, setRedirectPending] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [hasSession, setHasSession] = useState(false);
+  const [isProviderAccount, setIsProviderAccount] = useState(false);
   const { access, updateRecoveryPassword, signOut } = useAuth();
   const { t, language } = useI18n();
   const { isOnline } = useOnlineStatus();
@@ -52,6 +54,9 @@ function ResetPasswordPageInner() {
     void supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
       setHasSession(data.session !== null);
+      // Ticket #166, belt-and-braces : un compte provider ne devrait jamais
+      // détenir de session de récupération — sans formulaire dans ce cas.
+      setIsProviderAccount(getAuthProvider(data.session?.user ?? null) !== 'email');
       setSessionChecked(true);
     });
     return () => {
@@ -93,7 +98,7 @@ function ResetPasswordPageInner() {
     );
   }
 
-  if (callbackError || !hasSession) {
+  if (callbackError || !hasSession || isProviderAccount) {
     return (
       <div className="auth-container">
         <ThemeToggle />

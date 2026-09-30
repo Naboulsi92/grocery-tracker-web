@@ -40,6 +40,10 @@ describe('OAuthButtons (ticket #166, Google only)', () => {
       'google',
       expect.stringContaining('/auth/callback?next=')
     );
+    // Ticket #169 : the callback host is the live browser origin, never an
+    // env-derived fallback (which resolved to localhost in production).
+    const redirectTo = signInWithProvider.mock.calls[0][1] as string;
+    expect(redirectTo.startsWith(window.location.origin)).toBe(true);
     expect(sessionStorage.getItem('grocery.post-oauth-next')).toBe('/items');
   });
 

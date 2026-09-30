@@ -63,6 +63,22 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // Ticket #171 : GoTrue silently falls back to the Site URL (/) — keeping
+  // ?code= / ?error= — when redirectTo is not allow-listed (new Vercel
+  // alias, missing dashboard entry). Proven live: /?code=<uuid> painted
+  // the full marketing page ~2s (anonymous header) before the browser
+  // client recovered the session. Bounce to the real callback owner with
+  // the query intact, server-side, so marketing never paints. Only / can
+  // receive this fallback (it IS the Site URL).
+  if (pathname === '/') {
+    const params = request.nextUrl.searchParams;
+    if (params.has('code') || params.has('error')) {
+      const callback = new URL('/auth/callback', request.url);
+      callback.search = request.nextUrl.search;
+      return NextResponse.redirect(callback);
+    }
+  }
+
   // Deny-default: every route not explicitly public requires authentication.
   // The explicit list above documents the known private pages; the
   // !isPublicRoute fallback closes the gap for any route forgotten there.

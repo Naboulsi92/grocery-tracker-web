@@ -152,10 +152,10 @@ describe('middleware deny-default behavior (#115)', () => {
   const mockGetSession = jest.fn();
   const mockCreateServerClient = createServerClient as jest.Mock;
 
-  function makeRequest(pathname: string): NextRequest {
+  function makeRequest(pathname: string, search = ''): NextRequest {
     return {
-      nextUrl: { pathname },
-      url: `http://localhost:3000${pathname}`,
+      nextUrl: { pathname, search, searchParams: new URLSearchParams(search) },
+      url: `http://localhost:3000${pathname}${search}`,
       cookies: { getAll: () => [], set: jest.fn() },
     } as unknown as NextRequest;
   }
@@ -208,6 +208,25 @@ describe('middleware deny-default behavior (#115)', () => {
     });
 
     await middleware(makeRequest('/account'));
+
+    expect(NextResponse.redirect).not.toHaveBeenCalled();
+  });
+
+  // Ticket #171 : GoTrue Site-URL fallback (/?code= / ?error=) never paints
+  // marketing — the middleware bounces it to the callback owner server-side.
+  it.each(['?code=ba8d6b66-4c0f-4d20-b6cc-9d053661d232', '?error=access_denied'])(
+    'bounces GoTrue fallback %s from / to /auth/callback with query intact',
+    async search => {
+      const result = (await middleware(makeRequest('/', search))) as unknown as RedirectResult;
+
+      expect(NextResponse.redirect).toHaveBeenCalledTimes(1);
+      expect(result.status).toBe(307);
+      expect(result.url).toBe(`http://localhost:3000/auth/callback${search}`);
+    }
+  );
+
+  it('leaves /login?code= alone (guard is Site-URL-only)', async () => {
+    await middleware(makeRequest('/login', '?code=stale'));
 
     expect(NextResponse.redirect).not.toHaveBeenCalled();
   });

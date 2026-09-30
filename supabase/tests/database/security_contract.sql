@@ -10,13 +10,14 @@ values
 
 do $$
 begin
-  -- Realtime publication must be EXACTLY {categories, items}: inventory tables
-  -- present, every other public table (incl. units/history) absent.
+  -- Realtime publication must be EXACTLY {categories, household_members,
+  -- items}: inventory tables + the live roster (#173), every other public
+  -- table (incl. units/history) absent.
   if (select coalesce(array_agg(tablename::text order by tablename::text), '{}'::text[])
       from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public')
-     <> array['categories', 'items']::text[] then
-    raise exception 'Realtime publication must be exactly {categories, items}';
+     <> array['categories', 'household_members', 'items']::text[] then
+    raise exception 'Realtime publication must be exactly {categories, household_members, items}';
   end if;
   if exists (
     select 1 from pg_class
@@ -1209,7 +1210,8 @@ begin
   ) then
     raise exception 'history_cap_trigger must exist and be enabled';
   end if;
-  -- history hors realtime (la publication exactement {categories, items} est assertée plus haut).
+  -- history hors realtime (la publication exactement {categories,
+  -- household_members, items} est assertée plus haut).
   if exists (
     select 1 from pg_publication_tables
     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'history'

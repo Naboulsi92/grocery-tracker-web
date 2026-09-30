@@ -36,6 +36,17 @@ function query(result: unknown) {
   return builder;
 }
 
+// Ticket #173 : useHousehold subscribes the live roster channel — the mock
+// client needs channel/removeChannel stubs at every site.
+function withChannel(client: Record<string, unknown>) {
+  const channelStub = { on: jest.fn().mockReturnThis(), subscribe: jest.fn() };
+  return {
+    ...client,
+    channel: jest.fn().mockReturnValue(channelStub),
+    removeChannel: jest.fn(),
+  } as never;
+}
+
 describe('MembersPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -62,7 +73,7 @@ describe('MembersPage', () => {
       if (table === 'household_members') return memberships;
       return profiles;
     });
-    jest.mocked(createClient).mockReturnValue({ from, rpc } as never);
+    jest.mocked(createClient).mockReturnValue(withChannel({ from, rpc }));
   });
 
   it('loads the household and exposes members through accessible content', async () => {
@@ -103,7 +114,7 @@ describe('MembersPage', () => {
       if (table === 'household_members') return memberships;
       return profiles;
     });
-    jest.mocked(createClient).mockReturnValue({ from, rpc } as never);
+    jest.mocked(createClient).mockReturnValue(withChannel({ from, rpc }));
 
     renderWithLanguage(<MembersPage />);
 
@@ -123,7 +134,7 @@ describe('MembersPage', () => {
     const failedHousehold = query({ data: null, error: { message: 'service indisponible' } });
     const memberships = query({ data: [], error: null });
     const from = jest.fn((table: string) => table === 'households' ? failedHousehold : memberships);
-    jest.mocked(createClient).mockReturnValue({ from, rpc } as never);
+    jest.mocked(createClient).mockReturnValue(withChannel({ from, rpc }));
     renderWithLanguage(<MembersPage />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Impossible de charger le foyer. Vous pouvez réessayer.');

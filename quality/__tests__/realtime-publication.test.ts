@@ -6,7 +6,13 @@ const REPO_ROOT = join(__dirname, '..', '..');
 const SRC_ROOT = join(REPO_ROOT, 'src');
 // Mirrors the `supabase_realtime` publication membership enforced DB-side by
 // supabase/tests/database/security_contract.sql:13.
-const PUBLISHED_TABLES = ['categories', 'items'];
+const PUBLISHED_TABLES = ['categories', 'household_members', 'items'];
+// Files allowed to open realtime channels: the inventory pipeline (#123)
+// plus the live roster (#173). Anything else is an ad-hoc pipeline.
+const CHANNEL_OWNERS = [
+  join(SRC_ROOT, 'hooks', 'useHouseholdRealtime.ts'),
+  join(SRC_ROOT, 'hooks', 'useHouseholdMembersLive.ts'),
+];
 
 function sourceFiles(dir: string, files: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -20,14 +26,21 @@ function sourceFiles(dir: string, files: string[] = []): string[] {
   return files;
 }
 
-describe('realtime publication guard (ticket #123)', () => {
-  it('freezes the realtime table allowlist to the publication {categories, items}', () => {
-    expect([...REALTIME_TABLES]).toEqual(PUBLISHED_TABLES);
+describe('realtime publication guard (tickets #123 + #173)', () => {
+  it('freezes the inventory pipeline allowlist to {categories, items}', () => {
+    expect([...REALTIME_TABLES]).toEqual(['categories', 'items']);
   });
 
-  it('opens realtime channels only from useHouseholdRealtime (zero ad-hoc pipelines)', () => {
+  it('publishes exactly the pipeline tables plus the live roster', () => {
+    expect(PUBLISHED_TABLES).toEqual(['categories', 'household_members', 'items']);
+    for (const table of REALTIME_TABLES) {
+      expect(PUBLISHED_TABLES).toContain(table);
+    }
+  });
+
+  it('opens realtime channels only from the pipeline owners (zero ad-hoc pipelines)', () => {
     const offenders = sourceFiles(SRC_ROOT)
-      .filter((file) => file !== join(SRC_ROOT, 'hooks', 'useHouseholdRealtime.ts'))
+      .filter((file) => !CHANNEL_OWNERS.includes(file))
       .filter((file) => readFileSync(file, 'utf8').includes('.channel('))
       .map((file) => relative(REPO_ROOT, file));
     expect(offenders).toEqual([]);

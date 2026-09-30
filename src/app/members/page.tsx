@@ -52,11 +52,6 @@ return (
         household={household}
         loading={loading}
         error={error}
-        trailingAction={
-          <button onClick={() => actions.refresh()} className="btn btn-secondary" data-testid="members-refresh-button">
-            {t('common.retry')}
-          </button>
-        }
       />
 
       <main className="app-main" id="main">

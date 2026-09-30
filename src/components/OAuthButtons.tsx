@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useI18n } from '@/contexts/LanguageContext';
 import { mapAuthErrorToKey } from '@/lib/authErrors';
 import { buildOAuthCallbackUrl, stashOAuthNext } from '@/lib/oauth-redirect';
-import { getSiteUrl } from '@/lib/site-url';
 
 interface OAuthButtonsProps {
   nextParam: string | null;
@@ -29,9 +28,14 @@ export function OAuthButtons({ nextParam, signInWithProvider, onError }: OAuthBu
       // Stash first: same-tab sessionStorage survives the provider
       // round-trip even if GoTrue drops ?next= (proven fragile).
       stashOAuthNext(nextParam);
+      // Ticket #169 : window.location.origin, never getSiteUrl(). Site URL
+      // helpers resolve build-time env (VERCEL_URL is not inlined into the
+      // browser bundle, NEXT_PUBLIC_SITE_URL is unset) and fall back to
+      // localhost — exactly the prod bug this fixes. The click runs in the
+      // browser, so the current origin is always the right host.
       const { error } = await signInWithProvider(
         'google',
-        buildOAuthCallbackUrl(getSiteUrl(), nextParam)
+        buildOAuthCallbackUrl(window.location.origin, nextParam)
       );
       if (error) {
         onError(mapAuthErrorToKey(error));

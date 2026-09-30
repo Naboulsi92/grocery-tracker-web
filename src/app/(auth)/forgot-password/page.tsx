@@ -11,7 +11,6 @@ import { translateMessage } from '@/lib/i18n';
 import { mapAuthErrorToKey } from '@/lib/authErrors';
 import { buildPasswordResetRedirect, normalizeEmail } from '@/lib/password-reset';
 import { providerDisplayName, type AuthProvider } from '@/lib/auth-provider';
-import { getSiteUrl } from '@/lib/site-url';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
@@ -118,9 +117,11 @@ function ForgotPasswordPageInner() {
       return;
     }
 
+    // Ticket #169 : same localhost trap as OAuth — window.location.origin is
+    // the only host that is always right client-side (see OAuthButtons).
     const { error } = await requestPasswordReset(
       normalized,
-      buildPasswordResetRedirect(getSiteUrl())
+      buildPasswordResetRedirect(window.location.origin)
     );
     setLoading(false);
 

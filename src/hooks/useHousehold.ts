@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import type { Language } from '@/lib/i18n';
+import { useHouseholdMembersLive } from '@/hooks/useHouseholdMembersLive';
 import {
   householdActionError,
   leaveHousehold,
@@ -194,6 +195,17 @@ export function useHousehold(householdId: string, options: UseHouseholdOptions =
     setInvitation({ status: 'none' });
     return { error: null };
   }, [supabase]);
+
+  // Ticket #173 : live roster — the other member joining/leaving refetches
+  // silently (PRD §4.12, no manual refresh). Own id first: without a
+  // household there is nothing to subscribe to (and RLS would deliver
+  // nothing anyway).
+  useHouseholdMembersLive({
+    supabase,
+    householdId,
+    enabled: householdId !== '',
+    onMembersChanged: refresh,
+  });
 
   return {
     household,

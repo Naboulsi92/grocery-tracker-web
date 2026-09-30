@@ -143,10 +143,12 @@ async function handleSubmit(e: React.FormEvent) {
   );
   if (duplicateItem) { setFieldNameError('items.duplicate'); return; }
 
-  if (!editingId) {
-    const qtyErr = validateQuantity(formQuantity);
-    if (qtyErr) { setFieldQuantityError(qtyErr); return; }
-  }
+  // Ticket #175 : quantity is validated AND saved in both modes (it used to
+  // be silently dropped on edit). Empty keeps the historical create default
+  // (1); on edit an emptied field keeps the current quantity — clearing is
+  // treated as "untouched", never as NaN.
+  const qtyErr = validateQuantity(formQuantity);
+  if (qtyErr) { setFieldQuantityError(qtyErr); return; }
 
   const thresholdVal = parseInt(formThreshold, 10);
   const thresholdErr = validateThreshold(thresholdVal);
@@ -154,11 +156,18 @@ async function handleSubmit(e: React.FormEvent) {
 
   setMutating('form');
 
+  // Ticket #175 : the edited quantity travels with the update (see above for
+  // the empty-field rule). A literal 0 stays a valid quantity (out of stock)
+  // and must survive — `parseInt(...) || 1` would swallow it.
+  const editingCurrentQuantity = editingId
+    ? items.find((item) => item.id === editingId)?.quantity ?? 1
+    : 1;
   const editableItemData = {
     name: formName.trim(),
     unit: formUnit,
     category_id: formCategoryId || null,
     low_stock_threshold: thresholdVal,
+    quantity: formQuantity.trim() === '' ? editingCurrentQuantity : parseInt(formQuantity, 10),
   };
 
     try {
@@ -167,12 +176,7 @@ async function handleSubmit(e: React.FormEvent) {
         if (error) throw error;
         await fetchData();
       } else {
-        // Empty stays 1 (historical default); a literal 0 is a valid quantity
-        // (out of stock) and must survive — `parseInt(...) || 1` swallowed it.
-        const { error } = await createItem(householdId, {
-          ...editableItemData,
-          quantity: formQuantity.trim() === '' ? 1 : parseInt(formQuantity, 10),
-        });
+        const { error } = await createItem(householdId, editableItemData);
         if (error) throw error;
         await fetchData();
       }

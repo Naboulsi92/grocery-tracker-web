@@ -23,6 +23,7 @@ type FakeResponses = {
   update?: { error?: FakeError };
   delete?: { error?: FakeError };
   rpc?: { error?: FakeError };
+  rpcImpl?: (fn: string, args: Record<string, unknown>) => Promise<{ error?: FakeError }>;
 };
 
 type Operation = () => Promise<ItemOperationError>;
@@ -54,7 +55,7 @@ function makeSupabase(responses: FakeResponses = {}): SupabaseClient {
         }),
       };
     },
-    rpc: async () => responses.rpc ?? ok,
+    rpc: responses.rpcImpl ?? (async () => responses.rpc ?? ok),
   };
   return client as unknown as SupabaseClient;
 }
@@ -210,5 +211,48 @@ describe('offline queue trigger — PRD §4.12 / §9', () => {
     expect(result.error).not.toBeNull();
     expect(result.queued).toBeUndefined();
     expect(mockEnqueueAction).toHaveBeenCalledTimes(1);
+  });
+
+  // Ticket #175 : editing an item's quantity persists it through the adjust
+  // RPC (clients hold no direct UPDATE grant on quantity) using the live
+  // delta — the page symptom is "save drops the edited number".
+  describe('updateItem quantity (ticket #175)', () => {
+    const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
+    const clientWith = (quantity: number) => {
+      rpcCalls.length = 0;
+      return makeSupabase({
+        select: { data: { ...currentRow, quantity }, error: null },
+        rpcImpl: async (fn: string, args: Record<string, unknown>) => {
+          rpcCalls.push({ fn, args });
+          return { error: null };
+        },
+      });
+    };
+
+    it('persists an edited quantity via adjust_item_quantity with the live delta', async () => {
+      const result = await updateItem('item-1', 'home-1', { name: 'Pain', quantity: 5 }, clientWith(2));
+
+      expect(result.error).toBeNull();
+      expect(rpcCalls).toEqual([
+        { fn: 'adjust_item_quantity', args: { p_item_id: 'item-1', p_delta: 3 } },
+      ]);
+    });
+
+    it('skips the adjust RPC when the quantity is unchanged', async () => {
+      const result = await updateItem('item-1', 'home-1', { name: 'Pain', quantity: 2 }, clientWith(2));
+
+      expect(result.error).toBeNull();
+      expect(rpcCalls).toEqual([]);
+    });
+
+    it('carries quantity in the offline payload when the write fails mid-flight', async () => {
+      const client = makeSupabase({ select: { data: { ...currentRow, quantity: 2 }, error: null }, update: { error: connectivityError } });
+      const result = await updateItem('item-1', 'home-1', { name: 'Pain', quantity: 5 }, client);
+
+      expect(result).toEqual({ error: null, queued: true });
+      const enqueued = lastEnqueuedPayload();
+      expect(enqueued.type).toBe('update');
+      expect(enqueued.payload).toMatchObject({ itemId: 'item-1', quantity: 5 });
+    });
   });
 });

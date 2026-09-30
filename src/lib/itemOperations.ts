@@ -126,6 +126,7 @@ export async function updateItem(
     unit?: Unit;
     category_id?: string | null;
     low_stock_threshold?: number;
+    quantity?: number;
   },
   supabase?: SupabaseClient
 ): Promise<ItemOperationError> {
@@ -199,6 +200,27 @@ export async function updateItem(
       logItemOperationError('update', quantityError);
       if (isConnectivityError(quantityError)) return enqueueUpdate();
       return { error: new Error(itemActionError('update', quantityError)) };
+    }
+  }
+
+  // Ticket #175 : an edited quantity persists through the same adjust RPC
+  // (no direct UPDATE grant — see above). The delta is computed against the
+  // live value: post-zeroing when the unit changed (zeroed above), current
+  // otherwise. A concurrent change between the read and the RPC shifts the
+  // base but converges to the user's edited absolute (LWW, silent).
+  if (data.quantity !== undefined) {
+    const base = unitChanged ? 0 : current.quantity;
+    const delta = data.quantity - base;
+    if (delta !== 0) {
+      const { error: quantityError } = await client.rpc('adjust_item_quantity', {
+        p_item_id: itemId,
+        p_delta: delta,
+      });
+      if (quantityError) {
+        logItemOperationError('update', quantityError);
+        if (isConnectivityError(quantityError)) return enqueueUpdate();
+        return { error: new Error(itemActionError('update', quantityError)) };
+      }
     }
   }
 

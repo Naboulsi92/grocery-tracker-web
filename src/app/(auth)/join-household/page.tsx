@@ -12,7 +12,7 @@ import { translateMessage } from '@/lib/i18n';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
-import { AuthHeader } from '@/components/AuthHeader';
+import { AuthHeader, BackHomeLink } from '@/components/AuthHeader';
 import { OfflineBlockedScreen } from '@/components/OfflineBlockedScreen';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { validateName } from '@/lib/validation';
@@ -232,9 +232,9 @@ function JoinHouseholdPageInner() {
       <div className="auth-container">
       <ThemeToggle />
       <LanguageToggle />
+      <BackHomeLink />
       <main id="main" className="auth-card animate-fade-in">
         <AuthHeader
-          showBackHome
           showSignOut
           title={t('join.title')}
           subtitle={t('join.subtitle')}

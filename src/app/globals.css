@@ -401,6 +401,45 @@ input::placeholder {
   margin-bottom: 2rem;
 }
 
+/* Back-home pill (ticket #197): floating top-left control, mirroring the
+   theme-toggle family (surface/border/full-radius/shadow, accent hover,
+   :active press feedback, --ease-out transitions). Fixed positioning lifts
+   it out of the centered card on all auth screens at once. */
+.back-home-link {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 44px;
+  padding: 0 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+}
+
+.back-home-link:hover {
+  background: var(--color-surface-elevated);
+  color: var(--color-accent);
+}
+
+.back-home-link:active {
+  transform: scale(0.95);
+}
+
+.back-home-link:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 .auth-icon {
   width: 64px;
   height: 64px;

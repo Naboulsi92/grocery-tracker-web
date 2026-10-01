@@ -12,7 +12,7 @@ import { mapAuthErrorToKey } from '@/lib/authErrors';
 import { resolvePostAuthRedirect } from '@/lib/invite-detour';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
-import { AuthHeader } from '@/components/AuthHeader';
+import { AuthHeader, BackHomeLink } from '@/components/AuthHeader';
 import { OAuthButtons } from '@/components/OAuthButtons';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import { SessionErrorBanner } from '@/components/SessionErrorBanner';
@@ -91,9 +91,9 @@ function LoginPageInner() {
     <div className="auth-container">
       <ThemeToggle />
       <LanguageToggle />
+      <BackHomeLink />
       <main id="main" className="auth-card animate-fade-in">
         <AuthHeader
-          showBackHome
           title={t('login.title')}
           subtitle={t('login.subtitle')}
         />

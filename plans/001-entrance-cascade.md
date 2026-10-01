@@ -1,6 +1,6 @@
 # 001 — Fix the entrance cascade: backwards fill, capped staggers, opacity-only rows
 
-- **Status**: TODO
+- **Status**: DONE (implemented by #182 — both fill, fadeSoftIn rows, capped staggers; feel-checked on preview)
 - **Commit**: c3c57f3
 - **Severity**: HIGH
 - **Category**: Interruptibility + Purpose & frequency

@@ -1,6 +1,6 @@
 # 004 — Reduced motion that keeps comprehension feedback
 
-- **Status**: TODO
+- **Status**: DONE (implemented by #184 — movement-only kills; feel-checked under emulated RM on preview)
 - **Commit**: c3c57f3
 - **Severity**: MEDIUM
 - **Category**: Accessibility

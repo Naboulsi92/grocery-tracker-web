@@ -24,6 +24,13 @@ ungated-hover finding (no plan) is also fixed (hover lifts gated behind
 hover/pointer:fine). Remaining: 001, 004, 005, 006 — all references verified
 fresh against 46b1215.
 
+Reconcile 2026-10-01 (post-#185, closes #181): ALL DONE — 001 (#182),
+004 (#184), 005 (#183), 006 (#185). Feel-checks on preview via chrome-devtools
++ playwright: mobile menu opens with mkMenuIn from top-center, tokens resolve
+in both motion modes, RM path drops movement but keeps feedback (chevron →
+opacity-only), normal path keeps full motion. Remaining work is human QA on
+authenticated UI (dashboard cascade, modal, qty pop — needs a session).
+
 ## Findings rejected at vetting (do NOT re-plan)
 
 - `pulse`/`skeleton-pulse` easing → `linear`: opacity-only pulses using the

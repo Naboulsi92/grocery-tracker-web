@@ -1,6 +1,6 @@
 # 005 — Give the confirm modal a standard entrance
 
-- **Status**: TODO
+- **Status**: DONE (implemented by #183 — overlay fade + pop center)
 - **Commit**: c3c57f3
 - **Severity**: MEDIUM
 - **Category**: Missed opportunities (spatially-connected UI)

@@ -417,7 +417,7 @@ function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, t }: { ite
   const step = getUnitStep(item.unit);
 
   return (
-    <div className={`item-row animate-fade-in ${isLowStock ? 'low-stock' : ''}`} data-testid={`item-row-${item.name.toLowerCase()}`} style={{ animationDelay: `${index * 20}ms` }}>
+    <div className={`item-row animate-fade-in-soft ${isLowStock ? 'low-stock' : ''}`} data-testid={`item-row-${item.name.toLowerCase()}`} style={{ animationDelay: `${Math.min(index, 4) * 20}ms` }}>
       <div className="item-info">
         <span className="item-name">{item.name}</span>
         {isLowStock && <span className="badge badge-danger">{t('items.low_stock')}</span>}

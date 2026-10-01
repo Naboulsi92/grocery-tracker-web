@@ -199,8 +199,8 @@ export default function ToBuyPage() {
               return (
                 <div
                   key={item.id}
-                  className={`to-buy-item animate-fade-in${isChecked ? ' checked' : ''}`}
-                  style={{ animationDelay: `${index * 30}ms` }}
+                  className={`to-buy-item animate-fade-in-soft${isChecked ? ' checked' : ''}`}
+                  style={{ animationDelay: `${Math.min(index, 2) * 30}ms` }}
                   data-testid={`tobuy-item-row-${item.name.toLowerCase()}`}
                 >
                   <div className="to-buy-info">

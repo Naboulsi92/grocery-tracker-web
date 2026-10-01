@@ -83,7 +83,7 @@ function SortableCategoryRow({
     <div
       ref={setNodeRef}
       style={style}
-      className="category-card animate-fade-in"
+      className="category-card animate-fade-in-soft"
       data-testid={`category-item-${category.name.toLowerCase()}`}
     >
       <div

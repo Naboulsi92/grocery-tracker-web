@@ -126,8 +126,8 @@ export default function HistoryPage() {
             {entries.map((entry, index) => (
               <div
                 key={entry.id}
-                className="item-row animate-fade-in"
-                style={{ animationDelay: `${index * 20}ms` }}
+                className="item-row animate-fade-in-soft"
+                style={{ animationDelay: `${Math.min(index, 4) * 20}ms` }}
                 data-testid={`history-entry-${index}`}
               >
                 <div className="item-info">

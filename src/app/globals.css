@@ -33,6 +33,11 @@
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-full: 9999px;
+  /* Motion tokens (plan 003): every animation/transition references these —
+     an undefined token voids the whole declaration at computed-value time,
+     silently killing the animation (issue #190). */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   /* --font-body / --font-display come from next/font (src/app/fonts.ts). */
 }
 

@@ -103,13 +103,35 @@ test.describe('Tab return behavior', () => {
     // Go to home page
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-    // Count network requests to household_members table before
+    // Ticket #179 : the listener arms early but the baseline is only taken
+    // after the mount traffic DRAINS. Proven by CI trace (run 36852501597):
+    // all 5 household_members requests fired during mount (StrictMode
+    // double-fetch + one late fetch ~300ms later), yet the old code took the
+    // baseline on h1 paint — any straggler landing in the 1s probe window
+    // failed the test with no tab-return refetch involved. Quiescence gate
+    // (not waitForLoadState networkidle: the realtime socket stays open and
+    // would block it forever): 3 consecutive quiet 250ms rounds, 10s cap.
+    // A pathological never-quiet page keeps failing — correctly, since that
+    // would be a real refetch loop, not a straggler.
     const requestsBefore: string[] = [];
     page.on('request', (request) => {
       if (request.url().includes('household_members')) {
         requestsBefore.push(request.url());
       }
     });
+    let quietRounds = 0;
+    let lastCount = -1;
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline) {
+      await page.waitForTimeout(250);
+      if (requestsBefore.length === lastCount) {
+        quietRounds += 1;
+        if (quietRounds >= 3) break;
+      } else {
+        quietRounds = 0;
+        lastCount = requestsBefore.length;
+      }
+    }
 
     // Simulate tab blur and focus (window-level, as real browsers do).
     // The requestsBefore listener above stays armed across the window.

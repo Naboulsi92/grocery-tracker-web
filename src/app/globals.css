@@ -26,9 +26,9 @@
   --color-purple-bg: #f3e8ff;
   --color-purple: #7e22ce;
   --color-alert-bg: #fee2e2;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-sm: 0 1px 2px rgba(23, 68, 45, 0.05);
+  --shadow-md: 0 4px 12px rgba(23, 68, 45, 0.07);
+  --shadow-lg: 0 8px 24px rgba(23, 68, 45, 0.09);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -62,9 +62,9 @@
   --color-purple-bg: #3b0764;
   --color-purple: #d8b4fe;
   --color-alert-bg: #450a0a;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(3, 12, 8, 0.25);
+  --shadow-md: 0 4px 12px rgba(3, 12, 8, 0.35);
+  --shadow-lg: 0 8px 24px rgba(3, 12, 8, 0.45);
 }
 
 * {
@@ -160,7 +160,7 @@ input::placeholder {
   border-radius: var(--radius-sm);
   font-weight: 500;
   font-size: 0.9375rem;
-  transition: all 0.2s;
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
 .btn-primary {
@@ -170,8 +170,31 @@ input::placeholder {
 
 .btn-primary:hover {
   background: var(--color-accent-hover);
-  transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+}
+
+/* Redesign #177 : press feedback + touch gating. Hover lift lives only
+   behind (hover:hover) and (pointer:fine) so taps on touch screens never
+   stick a lifted state; :active dent works everywhere. */
+.btn:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    transform: translateY(-1px);
+  }
+  .theme-toggle:hover {
+    transform: scale(1.05);
+  }
+  .dashboard-card:hover {
+    transform: translateY(-2px);
+  }
+  /* .btn-danger lives in AccessibleDialog's colocated <style>; its lift is
+     gated here with the rest (opacity/box-shadow stay ungated there). */
+  .btn-danger:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .btn-primary:disabled {
@@ -264,7 +287,7 @@ input::placeholder {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
+  animation: fadeIn 0.3s var(--ease-out) forwards;
 }
 
 @keyframes pulse {
@@ -291,14 +314,17 @@ input::placeholder {
   border-radius: var(--radius-full);
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
   box-shadow: var(--shadow-sm);
 }
 
 .theme-toggle:hover {
   background: var(--color-surface-elevated);
   color: var(--color-accent);
-  transform: scale(1.05);
+}
+
+.theme-toggle:active {
+  transform: scale(0.95);
 }
 
 .language-toggle {
@@ -326,7 +352,7 @@ input::placeholder {
   padding: 6px 8px;
   border-radius: var(--radius-full);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
 .language-toggle__button:hover {
@@ -587,14 +613,13 @@ input::placeholder {
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   padding: 1.5rem;
-  transition: all 0.2s;
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
   cursor: pointer;
 }
 
-.card-icon-info { background: var(--color-info-bg); color: var(--color-info); }
-.card-icon-warning { background: var(--color-warning-bg); color: var(--color-warning); }
-.card-icon-purple { background: var(--color-purple-bg); color: var(--color-purple); }
-.card-icon-alert { background: var(--color-alert-bg); color: var(--color-danger); }
+/* Dashboard tiles share the accent tint via .card-icon (redesign #177);
+   the decorative info/warning/purple/alert variants are removed. If a
+   semantic color is ever needed again, reintroduce it deliberately. */
 
 .notification-card { cursor: default; }
 
@@ -695,8 +720,11 @@ input::placeholder {
 
 .dashboard-card:hover {
   border-color: var(--color-accent);
-  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
+}
+
+.dashboard-card:active {
+  transform: scale(0.98);
 }
 
 .dashboard-card h2 {
@@ -715,6 +743,8 @@ input::placeholder {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
+  background: var(--color-accent-muted);
+  color: var(--color-accent-hover);
 }
 
 .invite-code {
@@ -767,7 +797,7 @@ input::placeholder {
   height: 44px;
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
-  transition: all 0.2s;
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
 .back-link:hover {
@@ -789,7 +819,7 @@ input::placeholder {
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   padding: 1rem 1.25rem;
-  transition: all 0.2s;
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
 .category-card:hover {
@@ -823,12 +853,16 @@ input::placeholder {
   height: 44px;
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
-  transition: all 0.2s;
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
 .action-btn:hover {
   background: var(--color-bg-secondary);
   color: var(--color-text);
+}
+
+.action-btn:active {
+  transform: scale(0.97);
 }
 
 .action-btn.danger:hover {
@@ -874,7 +908,7 @@ input::placeholder {
   background: var(--color-bg-secondary);
   border: 2px solid transparent;
   border-radius: var(--radius-sm);
-  transition: all 0.2s;
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
 .icon-option:hover {
@@ -920,7 +954,7 @@ input::placeholder {
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   padding: 1rem 1.25rem;
-  transition: all 0.2s;
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
 .item-row:hover {
@@ -966,7 +1000,11 @@ input::placeholder {
   font-size: 1.125rem;
   font-weight: 500;
   color: var(--color-text-secondary);
-  transition: all 0.2s;
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 160ms var(--ease-out), box-shadow 0.2s var(--ease-out);
+}
+
+.qty-btn:active {
+  transform: scale(0.95);
 }
 
 .qty-btn:hover {
@@ -980,6 +1018,14 @@ input::placeholder {
   font-weight: 500;
 }
 
+/* Redesign #177 : tabular figures so quantities never shift the row as the
+   number changes (data-heavy UI). */
+.qty-value,
+.to-buy-stock,
+.mk-item-qty {
+  font-variant-numeric: tabular-nums;
+}
+
 .to-buy-item {
   display: flex;
   align-items: center;
@@ -989,7 +1035,7 @@ input::placeholder {
   border-left: 3px solid var(--color-danger);
   border-radius: var(--radius-md);
   padding: 1rem 1.25rem;
-  transition: all 0.2s;
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
 
 .to-buy-item:hover {
@@ -1216,6 +1262,10 @@ input::placeholder {
   --v2-transition-fast: 0.2s ease;
   --v2-transition-smooth: 0.3s ease;
   --v2-transition-slow: 0.5s ease;
+  /* Motion tokens (redesign #177, values per animation audit): strong
+     custom curves — built-in easings are too weak for deliberate motion. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 [data-theme='dark'] {

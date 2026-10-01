@@ -51,7 +51,7 @@
   border-radius: 8px;
   font-weight: 500;
   font-size: 1.0625rem;
-  transition: background-color 0.2s, transform 0.15s;
+  transition: background-color 0.2s var(--ease-out), transform 0.15s var(--ease-out);
 }
 
 .mk-btn-primary {
@@ -62,7 +62,15 @@
 
 .mk-btn-primary:hover {
   background: var(--color-accent-hover);
-  transform: translateY(-1px);
+}
+
+/* Redesign #177 : hover lift behind (hover:hover)/(pointer:fine) only —
+   taps on touch screens never stick a lifted state. */
+@media (hover: hover) and (pointer: fine) {
+  .mk-btn-primary:hover,
+  .mk-nav-cta:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .mk-btn-secondary {
@@ -164,13 +172,12 @@
   font-weight: 500;
   background: var(--color-accent);
   color: var(--color-accent-contrast);
-  transition: background-color 0.2s, transform 0.15s;
+  transition: background-color 0.2s var(--ease-out), transform 0.15s var(--ease-out);
   text-decoration: none;
 }
 
 .mk-nav-cta:hover {
   background: var(--color-accent-hover);
-  transform: translateY(-1px);
 }
 
 .mk-menu-btn {
@@ -346,7 +353,7 @@
   justify-content: center;
   color: transparent;
   flex: none;
-  transition: all 0.25s ease;
+  transition: background-color 0.25s var(--ease-out), border-color 0.25s var(--ease-out), color 0.25s var(--ease-out);
 }
 
 .mk-item.is-done .mk-check {
@@ -358,7 +365,7 @@
 .mk-item-name {
   flex: 1;
   font-size: 0.9375rem;
-  transition: color 0.25s ease;
+  transition: color 0.25s var(--ease-out);
 }
 
 .mk-item.is-done .mk-item-name {
@@ -524,7 +531,7 @@
 .mk-faq-chevron {
   color: var(--color-text-muted);
   flex: none;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s var(--ease-in-out);
 }
 
 .mk-faq-q[aria-expanded='true'] .mk-faq-chevron {

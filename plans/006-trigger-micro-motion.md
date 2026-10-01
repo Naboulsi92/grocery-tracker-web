@@ -1,6 +1,6 @@
 # 006 — Micro-transitions on the three teleporting state changes
 
-- **Status**: TODO
+- **Status**: DONE (implemented by #185 — menu/qty/checkoff; feel-checked on preview, opacity appended not replaced)
 - **Commit**: c3c57f3
 - **Severity**: LOW
 - **Category**: Missed opportunities (teleporting state changes)

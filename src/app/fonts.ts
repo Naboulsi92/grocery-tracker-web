@@ -10,10 +10,6 @@ import { DM_Sans, Outfit } from 'next/font/google';
  * runtime). The `variable` names match the pre-existing
  * `--font-body` / `--font-display` custom properties consumed across
  * globals.css and marketing.css, so no consumer changes.
- *
- * V2 theme vars (`--font-v2-*`: Playfair Display / Inter) are untouched:
- * they were never loaded by the old `@import` either (same fallback
- * behavior before and after).
  */
 export const dmSans = DM_Sans({
   subsets: ['latin'],

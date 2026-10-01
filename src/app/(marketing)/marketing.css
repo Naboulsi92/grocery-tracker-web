@@ -202,6 +202,12 @@
   display: grid;
   gap: 0.5rem;
   padding: 1rem 1.5rem 1.25rem;
+  animation: mkMenuIn 200ms var(--ease-out) both;
+  transform-origin: top center;
+}
+@keyframes mkMenuIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .mk-mobile-menu .mk-nav-link {

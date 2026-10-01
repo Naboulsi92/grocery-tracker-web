@@ -1024,6 +1024,15 @@ input::placeholder {
   min-width: 60px;
   text-align: center;
   font-weight: 500;
+  display: inline-block;
+  transition: transform 120ms var(--ease-out), opacity 120ms var(--ease-out);
+}
+.qty-value-flash {
+  animation: qtyPop 160ms var(--ease-out);
+}
+@keyframes qtyPop {
+  0% { transform: scale(1.25); }
+  100% { transform: scale(1); }
 }
 
 /* Redesign #177 : tabular figures so quantities never shift the row as the
@@ -1043,7 +1052,7 @@ input::placeholder {
   border-left: 3px solid var(--color-danger);
   border-radius: var(--radius-md);
   padding: 1rem 1.25rem;
-  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+  transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), opacity 0.2s var(--ease-out);
 }
 
 .to-buy-item:hover {

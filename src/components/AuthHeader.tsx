@@ -6,44 +6,54 @@ import { useI18n } from '@/contexts/LanguageContext';
 import { BrandIcon } from '@/components/BrandIcon';
 
 interface AuthHeaderProps {
-  showBackHome?: boolean;
   showSignOut?: boolean;
   title?: string;
   subtitle?: string;
 }
 
-export function AuthHeader({ showBackHome = false, showSignOut = false, title, subtitle }: AuthHeaderProps) {
+/**
+ * Floating back-home pill (ticket #197). Rendered at the auth-container
+ * level (sibling of the card, next to ThemeToggle/LanguageToggle) — NEVER
+ * inside `.auth-card.animate-fade-in`: its retained `translateY(0)` fill
+ * becomes a containing block that traps `position: fixed` descendants.
+ */
+export function BackHomeLink() {
+  const { t } = useI18n();
+
+  return (
+    <Link
+      href="/"
+      className="back-home-link"
+      aria-label={t('auth.back_home')}
+      data-testid="back-home-link"
+    >
+      <svg
+        aria-hidden="true"
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <line x1="19" y1="12" x2="5" y2="12" />
+        <polyline points="12 19 5 12 12 5" />
+      </svg>
+      <span>{t('auth.home')}</span>
+    </Link>
+  );
+}
+
+export function AuthHeader({ showSignOut = false, title, subtitle }: AuthHeaderProps) {
   const { user, signOut } = useAuth();
   const { t } = useI18n();
 
   return (
     <div className="auth-header">
       <div className="auth-brand">
-        {showBackHome && (
-          <Link
-            href="/"
-            className="back-home-link"
-            aria-label={t('auth.back_home')}
-            data-testid="back-home-link"
-          >
-            <svg
-              aria-hidden="true"
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
-            <span>{t('auth.home')}</span>
-          </Link>
-        )}
         <div className="auth-icon">
           <BrandIcon size={32} />
         </div>

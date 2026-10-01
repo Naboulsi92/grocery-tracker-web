@@ -14,7 +14,7 @@ import { providerDisplayName, type AuthProvider } from '@/lib/auth-provider';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
-import { AuthHeader } from '@/components/AuthHeader';
+import { AuthHeader, BackHomeLink } from '@/components/AuthHeader';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import { OfflineBlockedScreen } from '@/components/OfflineBlockedScreen';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -139,9 +139,9 @@ function ForgotPasswordPageInner() {
     <div className="auth-container">
       <ThemeToggle />
       <LanguageToggle />
+      <BackHomeLink />
       <main id="main" className="auth-card animate-fade-in">
         <AuthHeader
-          showBackHome
           title={t('forgot.title')}
           subtitle={t('forgot.subtitle')}
         />

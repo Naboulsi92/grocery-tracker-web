@@ -425,7 +425,7 @@ function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, t }: { ite
       <div className="item-controls">
         <div className="quantity-control">
           <button onClick={() => onUpdate(item.id, -step)} className="qty-btn" disabled={disabled || item.quantity <= 0} aria-label={t('items.decrease_aria', { name: item.name })} data-testid={`btn-quantity-decrement-${item.id}`}>−</button>
-          <span className="qty-value" aria-live="polite">{item.quantity} {item.unit}</span>
+          <span key={item.quantity} className="qty-value qty-value-flash" aria-live="polite">{item.quantity} {item.unit}</span>
           <button onClick={() => onUpdate(item.id, step)} className="qty-btn" disabled={disabled} aria-label={t('items.increase_aria', { name: item.name })} data-testid={`btn-quantity-increment-${item.id}`}>+</button>
         </div>
         <button onClick={() => onEdit(item)} className="action-btn" disabled={disabled} aria-label={t('items.edit_aria', { name: item.name })} data-testid={`btn-edit-item-${item.id}`}>

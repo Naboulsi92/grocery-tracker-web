@@ -161,6 +161,7 @@ export function AccessibleDialog({
           justify-content: center;
           z-index: 100;
           padding: 1rem;
+          animation: modalFadeIn 200ms var(--ease-out) both;
         }
         .modal-content {
           background: var(--color-surface);
@@ -170,6 +171,8 @@ export function AccessibleDialog({
           max-width: 400px;
           width: 100%;
           box-shadow: var(--shadow-lg);
+          animation: modalPopIn 250ms var(--ease-out) both;
+          transform-origin: center;
         }
         .modal-content h3 {
           font-size: 1.125rem;
@@ -186,6 +189,14 @@ export function AccessibleDialog({
           opacity: 0.5;
           cursor: not-allowed;
           transform: none;
+        }
+        @keyframes modalFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes modalPopIn {
+          from { opacity: 0; transform: scale(0.96); }
+          to { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>

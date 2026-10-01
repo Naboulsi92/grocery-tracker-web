@@ -630,16 +630,14 @@
 /* ---------- reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .mk-btn-primary,
-  .mk-btn-secondary,
-  .mk-nav-cta,
-  .mk-check,
-  .mk-item-name,
-  .mk-faq-chevron,
+  /* movement dies, comprehension feedback (color/opacity) survives —
+     scoped to the marketing selector list: no blanket transition/animation kill */
   .mk-live-dot {
-    transition: none;
-    animation: none;
+    animation: none !important;
+    opacity: 0.85 !important;
   }
+
+  .mk-faq-chevron { transition: opacity 0.15s !important; }
 
   .mk-btn-primary:hover,
   .mk-btn-secondary:hover,

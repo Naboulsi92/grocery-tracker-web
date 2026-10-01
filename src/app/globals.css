@@ -1211,12 +1211,24 @@ input::placeholder {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
   }
 
+  /* movement dies, comprehension feedback survives */
+  .animate-fade-in, .animate-fade-in-soft, .v2-animate-fade-in-up,
+  .v2-animate-slide-in-left, .v2-animate-slide-in-right {
+    animation-name: fadeSoftIn !important;
+    transform: none !important;
+  }
+  .spinner, .loading-spinner {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  .animate-pulse, .mk-live-dot, .skeleton {
+    animation: none !important;
+    opacity: 0.85 !important;
+  }
+  .mk-faq-chevron { transition: opacity 0.15s !important; }
   .btn-primary:hover, .dashboard-card:hover, .theme-toggle:hover { transform: none; }
-
-  .animate-fade-in, .animate-fade-in-soft { animation: fadeSoftIn 0.15s ease-out both; }
 }
 
 /* ========================================

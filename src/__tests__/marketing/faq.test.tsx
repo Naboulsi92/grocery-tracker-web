@@ -30,23 +30,23 @@ describe('FAQ', () => {
 
   it('answers are collapsed by default', () => {
     renderWithLanguage(<FAQ />);
-    expect(screen.queryByText("Oui ! Nos fonctionnalités principales sont entièrement gratuites pour les foyers de toute taille.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Oui. Nos fonctionnalités principales sont entièrement gratuites.")).not.toBeInTheDocument();
   });
 
   it('expands answer when clicking question', () => {
     renderWithLanguage(<FAQ />);
     const question = screen.getByText('Est-ce gratuit ?');
     fireEvent.click(question);
-    expect(screen.getByText("Oui ! Nos fonctionnalités principales sont entièrement gratuites pour les foyers de toute taille.")).toBeInTheDocument();
+    expect(screen.getByText("Oui. Nos fonctionnalités principales sont entièrement gratuites.")).toBeInTheDocument();
   });
 
   it('collapses answer when clicking again', () => {
     renderWithLanguage(<FAQ />);
     const question = screen.getByText('Est-ce gratuit ?');
     fireEvent.click(question);
-    expect(screen.getByText("Oui ! Nos fonctionnalités principales sont entièrement gratuites pour les foyers de toute taille.")).toBeInTheDocument();
+    expect(screen.getByText("Oui. Nos fonctionnalités principales sont entièrement gratuites.")).toBeInTheDocument();
     fireEvent.click(question);
-    expect(screen.queryByText("Oui ! Nos fonctionnalités principales sont entièrement gratuites pour les foyers de toute taille.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Oui. Nos fonctionnalités principales sont entièrement gratuites.")).not.toBeInTheDocument();
   });
 
   it('only one answer open at a time', () => {
@@ -54,11 +54,11 @@ describe('FAQ', () => {
     const questions = screen.getAllByRole('button');
     
     fireEvent.click(questions[0]);
-    expect(screen.getByText("Oui ! Nos fonctionnalités principales sont entièrement gratuites pour les foyers de toute taille.")).toBeInTheDocument();
+    expect(screen.getByText("Oui. Nos fonctionnalités principales sont entièrement gratuites.")).toBeInTheDocument();
     
     fireEvent.click(questions[1]);
-    expect(screen.queryByText("Oui ! Nos fonctionnalités principales sont entièrement gratuites pour les foyers de toute taille.")).not.toBeInTheDocument();
-    expect(screen.getByText('Illimité ! Ajoutez tous les membres de la famille, colocataires ou partenaires.')).toBeInTheDocument();
+    expect(screen.queryByText("Oui. Nos fonctionnalités principales sont entièrement gratuites.")).not.toBeInTheDocument();
+    expect(screen.getByText('Chaque foyer accueille deux membres : vous et la personne qui partage vos courses.')).toBeInTheDocument();
   });
 
   it('has proper touch target size via mk-faq-q', () => {

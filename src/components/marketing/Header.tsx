@@ -6,9 +6,11 @@ import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
 import { BrandIcon } from '@/components/BrandIcon';
 import { useAuth } from '@/contexts/AuthContext';
+import { useI18n } from '@/contexts/LanguageContext';
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { t } = useI18n();
   // Ticket #48 : session-aware header. While resolving, keep the anonymous
   // links (no flash for visitors); once signed in, offer the dashboard.
   const { user, loading } = useAuth();
@@ -27,15 +29,15 @@ export function Header() {
         <div className="mk-nav-links">
           {signedIn ? (
             <Link href="/home" className="mk-nav-cta" data-testid="mk-dashboard-link">
-              Dashboard
+              {t('home.title')}
             </Link>
           ) : (
             <>
               <Link href="/login" className="mk-nav-link">
-                Login
+                {t('mk.login')}
               </Link>
               <Link href="/signup" className="mk-nav-cta">
-                Signup
+                {t('mk.signup')}
               </Link>
             </>
           )}
@@ -48,7 +50,7 @@ export function Header() {
             className="mk-menu-btn"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-expanded={mobileMenuOpen}
-            aria-label="Menu"
+            aria-label={t('mk.menu_aria')}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               {mobileMenuOpen ? (
@@ -70,7 +72,7 @@ export function Header() {
               onClick={() => setMobileMenuOpen(false)}
               data-testid="mk-dashboard-link-mobile"
             >
-              Dashboard
+              {t('home.title')}
             </Link>
           ) : (
             <>
@@ -79,14 +81,14 @@ export function Header() {
                 className="mk-nav-link"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Login
+                {t('mk.login')}
               </Link>
               <Link
                 href="/signup"
                 className="mk-nav-link"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Signup
+                {t('mk.signup')}
               </Link>
             </>
           )}

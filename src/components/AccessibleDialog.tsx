@@ -180,7 +180,6 @@ export function AccessibleDialog({
         }
         .btn-danger:hover {
           opacity: 0.9;
-          transform: translateY(-1px);
           box-shadow: var(--shadow-md);
         }
         .btn-danger:disabled {

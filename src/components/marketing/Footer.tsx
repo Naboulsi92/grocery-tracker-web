@@ -20,6 +20,9 @@ export function Footer() {
           <a href="/terms" className="mk-footer-link" data-testid="footer-link-terms">
             {t('mk.footer_terms')}
           </a>
+          <a href="/privacy" className="mk-footer-link" data-testid="footer-link-privacy">
+            {t('mk.footer_privacy')}
+          </a>
         </div>
       </div>
     </footer>

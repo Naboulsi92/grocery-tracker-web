@@ -52,7 +52,7 @@ test.describe('Homepage', () => {
   });
 
   test('navigation links work - Signup button in header', async ({ page }) => {
-    await page.getByRole('link', { name: /Signup/i }).click();
+    await page.getByRole('link', { name: /S'inscrire/i }).click();
     await page.waitForURL(/signup/);
     await expect(page).toHaveURL('/signup');
     const loadingText = page.getByText('Chargement...');
@@ -64,7 +64,7 @@ test.describe('Homepage', () => {
 
   test('navigation links work - Login button in header', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('link', { name: /Login/i }).click();
+    await page.getByRole('link', { name: /Connexion/i }).click();
     await expect(page).toHaveURL('/login');
     const loadingText = page.getByText('Chargement...');
     if (await loadingText.isVisible()) {
@@ -204,8 +204,8 @@ test.describe('Homepage', () => {
       await expect(page.locator('#how-it-works')).toBeVisible();
       await expect(page.locator('#faq')).toBeVisible();
       
-      await expect(page.getByRole('link', { name: /Signup/i })).toBeVisible();
-      await expect(page.getByRole('link', { name: /Login/i })).toBeVisible();
+      await expect(page.getByRole('link', { name: /S'inscrire/i })).toBeVisible();
+      await expect(page.getByRole('link', { name: /Connexion/i })).toBeVisible();
     });
 
     test('1024px viewport - small laptops', async ({ page, browserName }) => {
@@ -218,8 +218,8 @@ test.describe('Homepage', () => {
       await expect(page.locator('#how-it-works')).toBeVisible();
       await expect(page.locator('#faq')).toBeVisible();
       
-      await expect(page.getByRole('link', { name: /Signup/i })).toBeVisible();
-      await expect(page.getByRole('link', { name: /Login/i })).toBeVisible();
+      await expect(page.getByRole('link', { name: /S'inscrire/i })).toBeVisible();
+      await expect(page.getByRole('link', { name: /Connexion/i })).toBeVisible();
     });
 
     test('1440px viewport - large desktops', async ({ page, browserName }) => {

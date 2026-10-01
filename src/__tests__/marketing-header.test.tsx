@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { Header } from '@/components/marketing/Header';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 
 const replace = jest.fn();
 
@@ -26,6 +27,9 @@ jest.mock('@/contexts/AuthContext', () => ({
 }));
 jest.mock('@/components/ThemeToggle', () => () => null);
 jest.mock('@/components/LanguageToggle', () => () => null);
+jest.mock('@/utils/supabase/client', () => ({
+  createClient: () => ({}) as never,
+}));
 
 describe('marketing Header session awareness (ticket #48)', () => {
   beforeEach(() => {
@@ -33,27 +37,39 @@ describe('marketing Header session awareness (ticket #48)', () => {
     authState.loading = true;
   });
 
-  it('shows Login/Signup while the session resolves (no flash for visitors)', () => {
-    render(<Header />);
-    expect(screen.getByRole('link', { name: 'Login' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Signup' })).toBeVisible();
+  it('shows Connexion/Inscription while the session resolves (no flash for visitors)', () => {
+    render(
+      <LanguageProvider>
+        <Header />
+      </LanguageProvider>
+    );
+    expect(screen.getByRole('link', { name: 'Connexion' })).toBeVisible();
+    expect(screen.getByRole('link', { name: "S'inscrire" })).toBeVisible();
     expect(screen.queryByTestId('mk-dashboard-link')).not.toBeInTheDocument();
   });
 
-  it('keeps Login/Signup for anonymous visitors', () => {
+  it('keeps Connexion/Inscription for anonymous visitors', () => {
     authState.loading = false;
-    render(<Header />);
-    expect(screen.getByRole('link', { name: 'Login' })).toBeVisible();
+    render(
+      <LanguageProvider>
+        <Header />
+      </LanguageProvider>
+    );
+    expect(screen.getByRole('link', { name: 'Connexion' })).toBeVisible();
     expect(screen.queryByTestId('mk-dashboard-link')).not.toBeInTheDocument();
   });
 
   it('offers the dashboard to signed-in visitors', () => {
     authState.loading = false;
     authState.user = { id: 'user-1' };
-    render(<Header />);
+    render(
+      <LanguageProvider>
+        <Header />
+      </LanguageProvider>
+    );
     const dashboard = screen.getByTestId('mk-dashboard-link');
     expect(dashboard).toBeVisible();
     expect(dashboard).toHaveAttribute('href', '/home');
-    expect(screen.queryByRole('link', { name: 'Login' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Connexion' })).not.toBeInTheDocument();
   });
 });

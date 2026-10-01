@@ -11,6 +11,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: "Liste de courses",
   description: "Application de suivi de courses partagée",
+  // Search Console URL-prefix verification for the vercel.app homepage
+  // (Google brand verification, issue #194). Do NOT remove: deleting it
+  // lapses the ownership verification.
+  verification: {
+    google: 'Sk6lQdMgaJfyQGVTz7aUN03Pi4fm-iZlgN0n2Zw-05I',
+  },
 };
 
 export const viewport: Viewport = {

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Contact - Grocery List App',
-  description: 'Get in touch with the Grocery List App team for questions, feedback, or support.',
+  title: 'Contact - Grocery Tracker',
+  description: 'Get in touch with the Grocery Tracker team for questions, feedback, or support.',
   alternates: {
     canonical: '/contact',
   },

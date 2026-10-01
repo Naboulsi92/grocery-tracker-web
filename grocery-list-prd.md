@@ -1,4 +1,4 @@
-# Grocery List — Product Requirements Document (PRD)
+# Grocery Tracker — Product Requirements Document (PRD)
 
 **Version 1.4 — Document de référence produit**
 
@@ -40,7 +40,7 @@
 
 ## 1. Vue d'ensemble
 
-**Grocery List** est une application web (PWA) de gestion partagée de l'inventaire domestique, pensée spécifiquement pour les couples. Elle résout un problème concret et quotidien : savoir en temps réel ce qui manque à la maison, sans doublons d'achat ni oublis, et sans avoir à se le demander verbalement.
+**Grocery Tracker** est une application web (PWA) de gestion partagée de l'inventaire domestique, pensée spécifiquement pour les couples. Elle résout un problème concret et quotidien : savoir en temps réel ce qui manque à la maison, sans doublons d'achat ni oublis, et sans avoir à se le demander verbalement.
 
 **Problème résolu** : dans un foyer à deux, il est fréquent que les deux personnes ignorent l'état réel du stock (qui a acheté quoi, qu'est-ce qui manque), menant à des achats en double ou à des oublis.
 

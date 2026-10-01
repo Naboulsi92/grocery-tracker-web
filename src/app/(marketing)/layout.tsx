@@ -10,10 +10,10 @@ const siteUrl = getSiteUrl();
 const siteHostname = getSiteHostname();
 
 export const metadata = {
-  title: 'Grocery List App - Collaborative Shopping for Households',
+  title: 'Grocery Tracker - Collaborative Shopping for Households',
   description: "Never forget what to buy again. Share grocery lists, manage quantities, and coordinate shopping with your household in real-time.",
   openGraph: {
-    title: 'Grocery List App - Collaborative Shopping for Households',
+    title: 'Grocery Tracker - Collaborative Shopping for Households',
     description: "Never forget what to buy again. Share grocery lists, manage quantities, and coordinate shopping with your household in real-time.",
     type: 'website',
     url: '/',
@@ -22,13 +22,13 @@ export const metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Grocery List App',
+        alt: 'Grocery Tracker',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Grocery List App - Collaborative Shopping for Households',
+    title: 'Grocery Tracker - Collaborative Shopping for Households',
     description: "Never forget what to buy again. Share grocery lists, manage quantities, and coordinate shopping with your household in real-time.",
     images: ['/og-image.png'],
   },
@@ -42,7 +42,7 @@ export const metadata = {
 const structuredData = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
-  name: 'Grocery List App',
+  name: 'Grocery Tracker',
   url: siteUrl,
   description: "Collaborative shopping platform for households to share grocery lists and coordinate shopping in real-time.",
   logo: `${siteUrl}/logo.png`,

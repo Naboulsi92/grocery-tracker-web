@@ -23,7 +23,8 @@ export function Hero() {
   const scrollToFeatures = () => {
     const featuresSection = document.getElementById('features');
     if (featuresSection) {
-      featuresSection.scrollIntoView({ behavior: 'smooth' });
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      featuresSection.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
     }
   };
 

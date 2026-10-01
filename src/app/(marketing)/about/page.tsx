@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'About - Grocery List App',
-  description: 'Learn more about the Grocery List App, a collaborative grocery inventory management platform for households.',
+  title: 'About - Grocery Tracker',
+  description: 'Learn more about the Grocery Tracker, a collaborative grocery inventory management platform for households.',
   alternates: {
     canonical: '/about',
   },
@@ -15,7 +15,7 @@ export default function AboutPage() {
         <h1>About</h1>
 
         <p>
-          Grocery List is a collaborative grocery inventory management platform
+          Grocery Tracker is a collaborative grocery inventory management platform
           that helps households keep track of what they have and what they need.
           Instead of wandering through the store with a fuzzy memory, every
           member of the household can see the current stock, add items to the

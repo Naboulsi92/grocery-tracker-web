@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Terms of Use - Grocery List App',
-  description: 'Terms of use for the Grocery List App. Read the terms governing your use of the service.',
+  title: 'Terms of Use - Grocery Tracker',
+  description: 'Terms of use for the Grocery Tracker. Read the terms governing your use of the service.',
   alternates: {
     canonical: '/terms',
   },
@@ -17,14 +17,14 @@ export default function TermsPage() {
 
         <p>
           These Terms of Use (&quot;Terms&quot;) govern your access to and use of
-          the Grocery List application and related services (the
+          the Grocery Tracker application and related services (the
           &quot;Service&quot;). By creating an account or using the Service, you
           agree to be bound by these Terms.
         </p>
 
         <h2>1. Description of Service</h2>
         <p>
-          Grocery List is a collaborative grocery inventory management platform
+          Grocery Tracker is a collaborative grocery inventory management platform
           that allows households to share shopping lists, manage item quantities,
           and coordinate purchases in real-time. The Service is provided via a
           web application accessible from supported modern browsers.
@@ -73,7 +73,7 @@ export default function TermsPage() {
         <h2>5. Intellectual Property</h2>
         <p>
           The Service, including its design, code, and content (excluding user
-          data), is owned by Grocery List and protected by intellectual property
+          data), is owned by Grocery Tracker and protected by intellectual property
           laws. You retain full ownership of all grocery list data and personal
           content you create within the Service.
         </p>

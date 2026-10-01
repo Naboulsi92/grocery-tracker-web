@@ -7,7 +7,7 @@ test.describe('Homepage', () => {
   });
 
   test('loads successfully', async ({ page }) => {
-    await expect(page).toHaveTitle(/Grocery List App/);
+    await expect(page).toHaveTitle(/Grocery Tracker/);
     await expect(page.getByRole('main')).toBeVisible();
   });
 

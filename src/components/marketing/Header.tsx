@@ -23,7 +23,7 @@ export function Header() {
           <span className="mk-brand-tile" aria-hidden="true">
             <BrandIcon size={18} />
           </span>
-          Grocery List
+          Grocery Tracker
         </Link>
 
         <div className="mk-nav-links">

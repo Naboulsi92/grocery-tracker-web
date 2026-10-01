@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy - Grocery List App',
-  description: 'Privacy policy for the Grocery List App. Learn how we collect, use, and protect your data.',
+  title: 'Privacy Policy - Grocery Tracker',
+  description: 'Privacy policy for the Grocery Tracker. Learn how we collect, use, and protect your data.',
   alternates: {
     canonical: '/privacy',
   },
@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         <p className="mk-legal-date">Last updated: September 15, 2026</p>
 
         <p>
-          This Privacy Policy explains how Grocery List (&quot;we&quot;, &quot;us&quot;,
+          This Privacy Policy explains how Grocery Tracker (&quot;we&quot;, &quot;us&quot;,
           or &quot;our&quot;) collects, uses, and protects your personal information
           when you use our collaborative grocery list service (the &quot;Service&quot;).
         </p>

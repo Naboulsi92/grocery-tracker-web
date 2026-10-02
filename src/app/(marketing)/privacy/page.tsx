@@ -27,7 +27,7 @@ export default function PrivacyPage() {
           <li>
             <strong>Account information:</strong> email address, first name, and last name,
             provided when you sign up via email/password or a third-party
-            authentication provider (Google, Apple).
+            authentication provider (Google).
           </li>
           <li>
             <strong>Grocery list data:</strong> items, quantities, and categories

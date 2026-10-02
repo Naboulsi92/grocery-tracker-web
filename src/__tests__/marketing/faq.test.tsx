@@ -19,13 +19,14 @@ describe('FAQ', () => {
     expect(screen.getByText('Questions fréquentes')).toBeInTheDocument();
   });
 
-  it('renders all 5 FAQ questions', () => {
+  it('renders all 6 FAQ questions', () => {
     renderWithLanguage(<FAQ />);
     expect(screen.getByText('Est-ce gratuit ?')).toBeInTheDocument();
     expect(screen.getByText('Combien de personnes peuvent rejoindre mon foyer ?')).toBeInTheDocument();
     expect(screen.getByText('Dois-je télécharger une application ?')).toBeInTheDocument();
     expect(screen.getByText('Puis-je partager uniquement certains articles ?')).toBeInTheDocument();
     expect(screen.getByText('Mes données sont-elles sécurisées ?')).toBeInTheDocument();
+    expect(screen.getByText("Puis-je utiliser l'application hors ligne ?")).toBeInTheDocument();
   });
 
   it('answers are collapsed by default', () => {

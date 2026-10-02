@@ -542,10 +542,6 @@
 
 /* ---------- faq ---------- */
 
-.mk-faq {
-  max-width: 720px;
-}
-
 .mk-faq-list {
   border-top: 1px solid var(--color-border-subtle);
 }
@@ -596,17 +592,11 @@
 /* Ticket #199: editorial two-column FAQ on desktop (DOM order unchanged,
    accordion semantics intact). Single column + stacked disclosure below. */
 @media (min-width: 1024px) {
-  .mk-faq {
-    max-width: none;
-  }
   .mk-faq-list {
     display: grid;
     grid-template-columns: 1fr 1fr;
     column-gap: 3rem;
     border-top: none;
-  }
-  .mk-faq-item:first-child {
-    grid-column: 1 / -1;
   }
 }
 

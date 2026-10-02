@@ -142,7 +142,7 @@ test.describe('Homepage', () => {
     await expect(faqSection).toBeVisible();
     
     const questions = faqSection.getByRole('button');
-    await expect(questions).toHaveCount(5);
+    await expect(questions).toHaveCount(6);
     
     // Test first question click
     await questions.nth(0).scrollIntoViewIfNeeded();

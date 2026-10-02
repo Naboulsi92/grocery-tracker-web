@@ -13,13 +13,13 @@ export function FAQ() {
 
   return (
     <section className="mk-section" id="faq">
-      <div className="mk-container mk-faq">
+      <div className="mk-container">
         <h2 className="mk-h2">{t('mk.faq_h2')}</h2>
         <p className="mk-section-sub">
           {t('mk.faq_sub')}
         </p>
         <div className="mk-faq-list">
-          {[1, 2, 3, 4, 5].map((n, index) => {
+          {[1, 2, 3, 4, 5, 6].map((n, index) => {
             const questionKey = `mk.faq_${n}_q` as const;
             const answerKey = `mk.faq_${n}_a` as const;
             const open = openIndex === index;

@@ -130,6 +130,7 @@
   font-size: 1.125rem;
   color: var(--color-text);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .mk-brand:hover {
@@ -166,6 +167,25 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+/* Ticket #208: 375px header math is tight (brand + lang + theme +
+   hamburger). Tighten spacing and type a notch so the nowrap brand
+   fits without wrapping or overflowing. */
+@media (max-width: 480px) {
+  .mk-nav {
+    padding-inline: 1rem;
+  }
+  .mk-brand {
+    font-size: 1rem;
+  }
+  .mk-nav-end {
+    gap: 0.5rem;
+  }
+  .mk-header .theme-toggle {
+    width: 40px;
+    height: 40px;
+  }
 }
 
 .mk-nav-link {
@@ -663,12 +683,15 @@
 
 .mk-footer-links {
   display: flex;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
+  column-gap: 1.5rem;
 }
 
 .mk-footer-link {
   color: var(--color-text-secondary);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .mk-footer-link:hover {

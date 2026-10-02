@@ -6,7 +6,7 @@ export function AboutContent() {
   const { t } = useI18n();
 
   return (
-    <div className="mk-legal">
+    <div className="mk-legal mk-container">
       <div className="mk-legal-inner">
         <h1>{t('about.title')}</h1>
 

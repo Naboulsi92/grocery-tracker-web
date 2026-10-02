@@ -8,7 +8,7 @@ export function ContactContent() {
   const { t } = useI18n();
 
   return (
-    <div className="mk-legal">
+    <div className="mk-legal mk-container">
       <div className="mk-legal-inner">
         <h1>{t('contact.title')}</h1>
 

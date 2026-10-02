@@ -10,7 +10,7 @@ export function AboutContent() {
       <div className="mk-legal-inner">
         <h1>{t('about.title')}</h1>
 
-        <p>{t('about.intro')}</p>
+        <p className="mk-legal-lede">{t('about.intro')}</p>
 
         <h2>{t('about.s1_title')}</h2>
         <p>{t('about.s1_body')}</p>

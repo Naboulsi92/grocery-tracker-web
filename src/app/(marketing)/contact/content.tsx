@@ -12,7 +12,7 @@ export function ContactContent() {
       <div className="mk-legal-inner">
         <h1>{t('contact.title')}</h1>
 
-        <p>{t('contact.intro')}</p>
+        <p className="mk-legal-lede">{t('contact.intro')}</p>
 
         <h2>{t('contact.support_title')}</h2>
         <p>

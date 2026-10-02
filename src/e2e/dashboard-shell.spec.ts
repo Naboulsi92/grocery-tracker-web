@@ -49,4 +49,27 @@ test.describe('Dashboard shell (ticket #56)', () => {
       await freshContext.close();
     }
   });
+
+  test.describe('sticky app header (ticket #213)', () => {
+    test.use({ viewport: { width: 1280, height: 500 } });
+    test('app header stays pinned while scrolling the dashboard', async ({ page, account }) => {
+      requireWrites();
+      await createHousehold(page, account);
+
+      await page.goto('/');
+      await page.waitForURL('/home', { timeout: 20000 });
+      await expect(page.getByRole('heading', { name: 'Tableau de bord' })).toBeVisible();
+
+      // Short viewport guarantees a scrollable dashboard; the poll proves we
+      // actually scrolled (smooth scroll is enabled) before measuring.
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await expect
+        .poll(async () => page.evaluate(() => window.scrollY), { timeout: 5000 })
+        .toBeGreaterThan(100);
+
+      const box = await page.locator('.app-header').boundingBox();
+      expect(box).not.toBeNull();
+      expect(Math.abs(box!.y)).toBeLessThanOrEqual(1);
+    });
+  });
 });

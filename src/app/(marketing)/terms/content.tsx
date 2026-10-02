@@ -10,7 +10,7 @@ export function TermsContent() {
   const { t } = useI18n();
 
   return (
-    <div className="mk-legal">
+    <div className="mk-legal mk-container">
       <div className="mk-legal-inner mk-legal-inner--with-toc">
         <h1>{t('terms.title')}</h1>
         <p className="mk-legal-date">{t('terms.updated')}</p>

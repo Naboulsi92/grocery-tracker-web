@@ -54,7 +54,7 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="mk-page">
       <Script
         defer
         data-domain={siteHostname}
@@ -68,7 +68,7 @@ export default function MarketingLayout({
       />
       
       <Header />
-      <main className="flex-1" id="main">
+      <main className="mk-page-main" id="main">
         {children}
         <ScrollTracker />
         <PageViewTracker />

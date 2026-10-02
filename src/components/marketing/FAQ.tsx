@@ -22,12 +22,15 @@ export function FAQ() {
           {[1, 2, 3, 4, 5].map((n, index) => {
             const questionKey = `mk.faq_${n}_q` as const;
             const answerKey = `mk.faq_${n}_a` as const;
+            const open = openIndex === index;
             return (
               <div key={index} className="mk-faq-item">
                 <button
                   onClick={() => toggleFaq(index)}
                   className="mk-faq-q"
-                  aria-expanded={openIndex === index}
+                  aria-expanded={open}
+                  aria-controls={`faq-a-${n}`}
+                  id={`faq-q-${n}`}
                 >
                   <span>{t(questionKey)}</span>
                   <svg
@@ -45,8 +48,13 @@ export function FAQ() {
                     <path d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                {openIndex === index && (
-                  <div className="mk-faq-a">
+                {open && (
+                  <div
+                    className="mk-faq-a"
+                    role="region"
+                    id={`faq-a-${n}`}
+                    aria-labelledby={`faq-q-${n}`}
+                  >
                     {t(answerKey)}
                   </div>
                 )}

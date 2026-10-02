@@ -38,6 +38,12 @@
      silently killing the animation (issue #190). */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* Layer scale (ticket #199): sticky app chrome < floating controls <
+     overlays < skip link. */
+  --z-sticky: 10;
+  --z-floating: 50;
+  --z-overlay: 100;
+  --z-skip: 1000;
   /* --font-body / --font-display come from next/font (src/app/fonts.ts). */
 }
 
@@ -80,6 +86,7 @@
 html {
   height: 100%;
   color-scheme: light;
+  scroll-behavior: smooth;
 }
 
 html[data-theme='dark'] { color-scheme: dark; }
@@ -315,7 +322,7 @@ input::placeholder {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  z-index: 50;
+  z-index: var(--z-floating);
   width: 44px;
   height: 44px;
   display: flex;
@@ -343,7 +350,7 @@ input::placeholder {
   position: fixed;
   top: 1rem;
   right: 4.5rem;
-  z-index: 50;
+  z-index: var(--z-floating);
   display: flex;
   align-items: center;
   gap: 2px;
@@ -377,7 +384,7 @@ input::placeholder {
 }
 
 .auth-container {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -409,7 +416,7 @@ input::placeholder {
   position: fixed;
   top: 1rem;
   left: 1rem;
-  z-index: 50;
+  z-index: var(--z-floating);
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -453,6 +460,7 @@ input::placeholder {
 }
 
 .auth-header h1 {
+  text-wrap: balance;
   font-size: 1.75rem;
   margin-bottom: 0.5rem;
 }
@@ -533,7 +541,7 @@ input::placeholder {
 }
 
 .page-container {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--color-bg);
@@ -545,7 +553,7 @@ input::placeholder {
   padding: 1rem 1.5rem;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--z-sticky);
 }
 
 .header-content {
@@ -632,7 +640,7 @@ input::placeholder {
   position: absolute;
   left: -9999px;
   top: 0;
-  z-index: 1000;
+  z-index: var(--z-skip);
   padding: 0.75rem 1rem;
   background: var(--color-surface);
   color: var(--color-text);
@@ -1289,7 +1297,7 @@ input::placeholder {
 .sync-indicator {
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: var(--z-sticky);
   display: flex;
   align-items: center;
   justify-content: center;

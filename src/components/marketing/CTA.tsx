@@ -19,8 +19,10 @@ export function CTA() {
           <p>
             {t('mk.cta_sub')}
           </p>
+          {/* Single signup intent label with the hero (taste skill:
+              one label per intent): mk.hero_get_started. */}
           <Link href="/signup" data-cta-name="Bottom_GetStarted" className="mk-btn-primary">
-            {t('mk.cta_button')}
+            {t('mk.hero_get_started')}
           </Link>
           <p className="mk-cta-note">{t('mk.cta_note')}</p>
         </div>

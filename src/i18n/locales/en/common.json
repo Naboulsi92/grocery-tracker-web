@@ -427,6 +427,8 @@
   "mk.faq_4_a": "Currently, households share the full list. Fine-grained sharing coming soon.",
   "mk.faq_5_q": "Is my data secure?",
   "mk.faq_5_a": "Yes! Your data is encrypted and only accessible to your household members.",
+  "mk.faq_6_q": "Does the app work offline?",
+  "mk.faq_6_a": "Yes. Your additions and edits are kept on your device and synced with your household as soon as you're back online.",
   "mk.cta_h2": "Ready to simplify your shopping?",
   "mk.cta_sub": "Set up your household in seconds and invite the person you shop with.",
   "mk.cta_note": "No credit card required",

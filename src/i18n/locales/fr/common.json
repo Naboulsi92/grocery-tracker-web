@@ -427,6 +427,8 @@
   "mk.faq_4_a": "Actuellement, le foyer partage la liste complète. Le partage sélectif arrive bientôt.",
   "mk.faq_5_q": "Mes données sont-elles sécurisées ?",
   "mk.faq_5_a": "Oui ! Vos données sont chiffrées et accessibles uniquement aux membres de votre foyer.",
+  "mk.faq_6_q": "Puis-je utiliser l'application hors ligne ?",
+  "mk.faq_6_a": "Oui. Vos ajouts et modifications sont conservés sur votre appareil et synchronisés avec votre foyer dès le retour de la connexion.",
   "mk.cta_h2": "Prêt à simplifier vos courses ?",
   "mk.cta_sub": "Créez votre foyer en quelques secondes et invitez la personne avec qui vous faites vos courses.",
   "mk.cta_note": "Aucune carte bancaire requise",

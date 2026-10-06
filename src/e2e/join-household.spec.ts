@@ -69,8 +69,8 @@ test.describe('Join Household Flow', () => {
       requireWrites();
       const householdName = await createHousehold(page, account);
       
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      await page.getByTestId('dashboard-card-household').click();
+      await page.getByRole('button', { name: 'Générer un code' }).click();
       const token = await page.locator('.invite-code-text').textContent();
       
       const memberContext = await browser.newContext();
@@ -90,8 +90,8 @@ test.describe('Join Household Flow', () => {
       requireWrites();
       await createHousehold(page, account);
 
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      await page.getByTestId('dashboard-card-household').click();
+      await page.getByRole('button', { name: 'Générer un code' }).click();
       const token = await page.locator('.invite-code-text').textContent();
 
       const inviteeContext = await browser.newContext();
@@ -129,8 +129,8 @@ test.describe('Join Household Flow', () => {
       requireWrites();
       await createHousehold(page, account);
       
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      await page.getByTestId('dashboard-card-household').click();
+      await page.getByRole('button', { name: 'Générer un code' }).click();
       const token = await page.locator('.invite-code-text').textContent();
       
       const memberContext = await browser.newContext();
@@ -151,8 +151,8 @@ test.describe('Join Household Flow', () => {
       requireWrites();
       await createHousehold(page, account);
       
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      await page.getByTestId('dashboard-card-household').click();
+      await page.getByRole('button', { name: 'Générer un code' }).click();
       const token = await page.locator('.invite-code-text').textContent();
       
       const memberContext = await browser.newContext();
@@ -173,8 +173,8 @@ test.describe('Join Household Flow', () => {
       requireWrites();
       const householdName = await createHousehold(page, account);
       
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      await page.getByTestId('dashboard-card-household').click();
+      await page.getByRole('button', { name: 'Générer un code' }).click();
       const token = await page.locator('.invite-code-text').textContent();
       
       const memberContext = await browser.newContext();
@@ -186,7 +186,7 @@ test.describe('Join Household Flow', () => {
         await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
         await memberPage.waitForURL('/home', { timeout: 20000 });
         await expect(memberPage.getByTestId('header-household-name')).toHaveText(householdName);
-        await expect(memberPage.getByRole('link', { name: /Membres/ })).toBeVisible();
+        await expect(memberPage.getByTestId('dashboard-card-household')).toBeVisible();
       } finally {
         await memberContext.close();
       }
@@ -248,8 +248,8 @@ test.describe('Join Household Flow', () => {
       requireWrites();
       await createHousehold(page, account);
       
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      await page.getByTestId('dashboard-card-household').click();
+      await page.getByRole('button', { name: 'Générer un code' }).click();
       const token = await page.locator('.invite-code-text').textContent();
       
       const memberContext = await browser.newContext();

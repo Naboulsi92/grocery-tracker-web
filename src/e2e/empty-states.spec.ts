@@ -174,8 +174,8 @@ test.describe('Empty States', () => {
       requireWrites();
       const householdName = await createHousehold(page, account);
 
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await expect(page).toHaveURL('/members');
+      await page.getByTestId('dashboard-card-household').click();
+      await expect(page).toHaveURL('/household');
 
       await expect(page.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
 
@@ -184,7 +184,7 @@ test.describe('Empty States', () => {
 
       await expect(page.getByText('Propriétaire')).toBeVisible();
 
-      const createInvitationButton = page.getByRole('button', { name: 'Créer une invitation' });
+      const createInvitationButton = page.getByRole('button', { name: 'Générer un code' });
       await expect(createInvitationButton).toBeVisible();
     });
 
@@ -192,10 +192,10 @@ test.describe('Empty States', () => {
       requireWrites();
       const householdName = await createHousehold(page, account);
 
-      await page.getByRole('link', { name: /Membres/ }).click();
+      await page.getByTestId('dashboard-card-household').click();
       await expect(page.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
 
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      await page.getByRole('button', { name: 'Générer un code' }).click();
       const token = page.locator('.invite-code-text');
       const invitationToken = await token.textContent();
 

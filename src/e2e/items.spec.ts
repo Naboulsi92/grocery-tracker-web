@@ -315,7 +315,7 @@ test.describe('Items CRUD', () => {
       
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
 
-      // Invite tokens render on /members (never on /items): fetch one via the
+      // Invite tokens render on /household (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
       const token = await fetchInviteToken(page);
       await page.goto('/items');

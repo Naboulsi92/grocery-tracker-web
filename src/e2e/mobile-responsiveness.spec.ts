@@ -32,7 +32,7 @@ test.describe('Mobile Responsiveness', () => {
       await createHousehold(page, account);
 
       const cards = page.locator('[data-testid^="dashboard-card-"]');
-      await expect(cards).toHaveCount(8);
+      await expect(cards).toHaveCount(7);
 
       const firstCard = cards.first();
       const secondCard = cards.nth(1);
@@ -219,7 +219,7 @@ test.describe('Mobile Responsiveness', () => {
       await createHousehold(page, account);
 
       const cards = page.locator('[data-testid^="dashboard-card-"]');
-      await expect(cards).toHaveCount(8);
+      await expect(cards).toHaveCount(7);
     });
 
     test('navigation works on tablet viewport', async ({ page, browserName }) => {
@@ -229,8 +229,8 @@ test.describe('Mobile Responsiveness', () => {
       const account = createAccount();
       await createHousehold(page, account);
 
-      await page.getByTestId('dashboard-card-members').click();
-      await expect(page).toHaveURL('/members');
+      await page.getByTestId('dashboard-card-household').click();
+      await expect(page).toHaveURL('/household');
       await expect(page.getByRole('heading', { name: /Membres/ })).toBeVisible();
     });
 
@@ -271,7 +271,7 @@ test.describe('Mobile Responsiveness', () => {
       await createHousehold(page, account);
 
       const cards = page.locator('[data-testid^="dashboard-card-"]');
-      await expect(cards).toHaveCount(8);
+      await expect(cards).toHaveCount(7);
     });
 
     test('navigation works on small laptop viewport', async ({ page, browserName }) => {
@@ -307,7 +307,7 @@ test.describe('Mobile Responsiveness', () => {
       await createHousehold(page, account);
 
       const cards = page.locator('[data-testid^="dashboard-card-"]');
-      await expect(cards).toHaveCount(8);
+      await expect(cards).toHaveCount(7);
     });
 
     test('navigation works on large desktop viewport', async ({ page, browserName }) => {

@@ -1,13 +1,21 @@
-import { randomUUID } from 'node:crypto';
+import type { Page } from '@playwright/test';
 import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
 
-test.describe('Members Page', () => {
+// Fusion Membres → Foyer : l'écran /household couvre le nom du foyer, les
+// membres, l'invitation (générer / régénérer via dialogue de confirmation /
+// révoquer depuis la vue pending) et le départ. /members redirige vers
+// /household (voir le dernier test).
+async function gotoHousehold(page: Page) {
+  await page.getByTestId('dashboard-card-household').click();
+  await expect(page).toHaveURL('/household');
+}
+
+test.describe('Household Page', () => {
   test('displays member count in heading', async ({ page, account }) => {
     requireWrites();
     const householdName = await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
-    await expect(page).toHaveURL('/members');
+    await gotoHousehold(page);
     await expect(page.getByRole('heading', { name: /Membres du foyer/ })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
   });
@@ -16,10 +24,9 @@ test.describe('Members Page', () => {
     requireWrites();
     await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
-    await expect(page).toHaveURL('/members');
+    await gotoHousehold(page);
 
-    const createInvitation = page.getByRole('button', { name: 'Créer une invitation' });
+    const createInvitation = page.getByRole('button', { name: 'Générer un code' });
     await expect(createInvitation).toBeVisible();
     await createInvitation.click();
 
@@ -34,17 +41,12 @@ test.describe('Members Page', () => {
     requireWrites();
     await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    await gotoHousehold(page);
+    await page.getByRole('button', { name: 'Générer un code' }).click();
 
     const token = page.locator('.invite-code-text');
     await expect(token).not.toBeEmpty();
     const invitationToken = await token.textContent();
-
-    // The token is also exposed as a read-only field holding exactly the value
-    // a clipboard write places in the system paste buffer.
-    const tokenField = page.getByTestId('invite-code-token');
-    await expect(tokenField).toHaveValue(invitationToken ?? '');
 
     // Headless Chromium cannot focus the document to touch the OS clipboard, so
     // intercept writeText and capture what the copy button hands over.
@@ -54,9 +56,9 @@ test.describe('Members Page', () => {
       };
     });
 
-    // Two copy buttons now share the 'Copier' prefix (token + link): target
+    // Two copy buttons share the 'Copier' prefix (token + link): target
     // the token one precisely by testid.
-    const copyButton = page.getByTestId('members-copy-invitation-button');
+    const copyButton = page.getByTestId('invite-code-copy-button');
     await expect(copyButton).toBeVisible();
     await copyButton.click();
 
@@ -67,30 +69,50 @@ test.describe('Members Page', () => {
     expect(copiedText).toBe(invitationToken);
   });
 
-  test('owner can revoke invitation token', async ({ page, account }) => {
+  test('owner can regenerate the invitation (revoke + create)', async ({ page, account }) => {
     requireWrites();
     await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    await gotoHousehold(page);
+    await page.getByRole('button', { name: 'Générer un code' }).click();
 
     const token = page.locator('.invite-code-text');
     await expect(token).toBeVisible();
+    const firstToken = await token.textContent();
 
-    const revokeButton = page.getByRole('button', { name: 'Révoquer' });
-    await expect(revokeButton).toBeVisible();
-    await revokeButton.click();
+    await page.getByRole('button', { name: 'Régénérer' }).click();
+    await expect(page.getByTestId('invite-regenerate-dialog')).toBeVisible();
+    await page.getByTestId('invite-code-regenerate-confirm').click();
 
-    await expect(page.getByRole('button', { name: 'Créer une invitation' })).toBeVisible();
-    await expect(token).not.toBeVisible();
+    const secondToken = page.locator('.invite-code-text');
+    await expect(secondToken).toBeVisible();
+    expect(await secondToken.textContent()).not.toBe(firstToken);
+  });
+
+  test('regeneration requires confirmation (cancel keeps the token)', async ({ page, account }) => {
+    requireWrites();
+    await createHousehold(page, account);
+
+    await gotoHousehold(page);
+    await page.getByRole('button', { name: 'Générer un code' }).click();
+
+    const token = page.locator('.invite-code-text');
+    await expect(token).toBeVisible();
+    const firstToken = await token.textContent();
+
+    await page.getByRole('button', { name: 'Régénérer' }).click();
+    await expect(page.getByTestId('invite-regenerate-dialog')).toBeVisible();
+    await page.getByTestId('invite-regenerate-cancel-button').click();
+
+    await expect(page.locator('.invite-code-text')).toHaveText(firstToken!);
   });
 
   test('displays invitation expiration', async ({ page, account }) => {
     requireWrites();
     await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    await gotoHousehold(page);
+    await page.getByRole('button', { name: 'Générer un code' }).click();
 
     const expirationText = page.getByText(/Expire le/);
     await expect(expirationText).toBeVisible();
@@ -102,8 +124,8 @@ test.describe('Members Page', () => {
     requireWrites();
     const householdName = await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    await gotoHousehold(page);
+    await page.getByRole('button', { name: 'Générer un code' }).click();
     const token = page.locator('.invite-code-text');
     await expect(token).not.toBeEmpty();
     const invitationToken = await token.textContent();
@@ -117,8 +139,8 @@ test.describe('Members Page', () => {
       await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await memberPage.waitForURL('/home', { timeout: 20000 });
 
-      await memberPage.getByRole('link', { name: /Membres/ }).click();
-      await expect(memberPage).toHaveURL('/members');
+      await memberPage.getByTestId('dashboard-card-household').click();
+      await expect(memberPage).toHaveURL('/household');
 
       await expect(memberPage.getByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
 
@@ -138,8 +160,8 @@ test.describe('Members Page', () => {
     requireWrites();
     const householdName = await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    await gotoHousehold(page);
+    await page.getByRole('button', { name: 'Générer un code' }).click();
     const token = page.locator('.invite-code-text');
     const invitationToken = await token.textContent();
 
@@ -159,7 +181,7 @@ test.describe('Members Page', () => {
       const memberLabel = page.locator('.member-joined').filter({ hasText: 'Membre' });
       await expect(memberLabel).toBeVisible();
 
-      await memberPage.goto('/members');
+      await memberPage.goto('/household');
       await expect(memberPage.locator('.member-joined').filter({ hasText: 'Propriétaire' })).toBeVisible();
       await expect(memberPage.locator('.member-joined').filter({ hasText: 'Membre' })).toBeVisible();
     } finally {
@@ -171,10 +193,10 @@ test.describe('Members Page', () => {
     requireWrites();
     const householdName = await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
+    await gotoHousehold(page);
     await expect(page.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    await page.getByRole('button', { name: 'Générer un code' }).click();
     const token = page.locator('.invite-code-text');
     const invitationToken = await token.textContent();
 
@@ -201,10 +223,10 @@ test.describe('Members Page', () => {
     requireWrites();
     const householdName = await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
+    await gotoHousehold(page);
     await expect(page.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    await page.getByRole('button', { name: 'Générer un code' }).click();
     const token = page.locator('.invite-code-text');
     const invitationToken = await token.textContent();
 
@@ -224,34 +246,12 @@ test.describe('Members Page', () => {
     }
   });
 
-  test('owner can create new invitation after previous is revoked', async ({ page, account }) => {
-    requireWrites();
-    await createHousehold(page, account);
-
-    await page.getByRole('link', { name: /Membres/ }).click();
-
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
-    const firstToken = page.locator('.invite-code-text');
-    await expect(firstToken).toBeVisible();
-    const firstInvitationToken = await firstToken.textContent();
-
-    await page.getByRole('button', { name: 'Révoquer' }).click();
-    await expect(page.getByRole('button', { name: 'Créer une invitation' })).toBeVisible();
-
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
-    const secondToken = page.locator('.invite-code-text');
-    await expect(secondToken).toBeVisible();
-    const secondInvitationToken = await secondToken.textContent();
-
-    expect(firstInvitationToken).not.toBe(secondInvitationToken);
-  });
-
   test('creation shows a full link and a shown-once notice (ticket #57)', async ({ page, account }) => {
     requireWrites();
     await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    await gotoHousehold(page);
+    await page.getByRole('button', { name: 'Générer un code' }).click();
 
     const token = page.locator('.invite-code-text');
     await expect(token).not.toBeEmpty();
@@ -270,8 +270,8 @@ test.describe('Members Page', () => {
     requireWrites();
     await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    await gotoHousehold(page);
+    await page.getByRole('button', { name: 'Générer un code' }).click();
     await expect(page.locator('.invite-code-text')).not.toBeEmpty();
 
     await page.reload();
@@ -283,15 +283,15 @@ test.describe('Members Page', () => {
 
     // Revocation from the pending view returns to the create affordance.
     await page.getByRole('button', { name: 'Révoquer' }).click();
-    await expect(page.getByRole('button', { name: 'Créer une invitation' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Générer un code' })).toBeVisible();
   });
 
   test('accepted invitation shows an accepted note after reload (ticket #57)', async ({ page, account, browser }) => {
     requireWrites();
     await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    await gotoHousehold(page);
+    await page.getByRole('button', { name: 'Générer un code' }).click();
     const invitationToken = await page.locator('.invite-code-text').textContent();
 
     const memberContext = await browser.newContext();
@@ -308,5 +308,14 @@ test.describe('Members Page', () => {
     await page.reload();
     await expect(page.getByTestId('invite-accepted-note')).toBeVisible();
     await expect(page.locator('.invite-code-text')).toHaveCount(0);
+  });
+
+  test('/members redirects to /household (fusion Membres → Foyer)', async ({ page, account }) => {
+    requireWrites();
+    await createHousehold(page, account);
+
+    await page.goto('/members');
+    await expect(page).toHaveURL('/household');
+    await expect(page.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
   });
 });

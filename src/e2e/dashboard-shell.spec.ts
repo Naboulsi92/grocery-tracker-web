@@ -51,7 +51,11 @@ test.describe('Dashboard shell (ticket #56)', () => {
   });
 
   test.describe('sticky app header (ticket #213)', () => {
-    test.use({ viewport: { width: 1280, height: 500 } });
+    // Hauteur 400 (ticket #216) : à 500px le dashboard (~560px, 2 rangées de
+    // tuiles) ne scrolle que de ~62px, sous le seuil de 100 — le test ne
+    // pouvait que échouer. À 400px le scroll max est ~160px : le seuil garde
+    // son sens (prouve un vrai scroll, pas de passe-droit vacuous).
+    test.use({ viewport: { width: 1280, height: 400 } });
     test('app header stays pinned while scrolling the dashboard', async ({ page, account }) => {
       requireWrites();
       await createHousehold(page, account);

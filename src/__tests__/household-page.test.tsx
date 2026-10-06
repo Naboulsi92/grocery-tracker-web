@@ -49,26 +49,22 @@ function withChannel(client: Record<string, unknown>) {
   } as never;
 }
 
-function mockHouseholdData() {
+const OWNER_MEMBERSHIP = { user_id: 'owner-1', role: 'owner', joined_at: '2026-08-30T12:00:00Z' };
+const MEMBER_MEMBERSHIP = { user_id: 'member-2', role: 'member', joined_at: null };
+const OWNER_PROFILE = { id: 'owner-1', first_name: 'Alex', last_name: 'Dupont' };
+const MEMBER_PROFILE = { id: 'member-2', first_name: 'Sam', last_name: 'Smith' };
+
+function mockHouseholdData(
+  memberships = [OWNER_MEMBERSHIP, MEMBER_MEMBERSHIP],
+  profiles = [OWNER_PROFILE, MEMBER_PROFILE],
+) {
   const household = query({ data: { id: 'household-1', name: 'Foyer des tests' }, error: null });
-  const memberships = query({
-    data: [
-      { user_id: 'owner-1', role: 'owner', joined_at: '2026-08-30T12:00:00Z' },
-      { user_id: 'member-2', role: 'member', joined_at: null },
-    ],
-    error: null,
-  });
-  const profiles = query({
-    data: [
-      { id: 'owner-1', first_name: 'Alex', last_name: 'Dupont' },
-      { id: 'member-2', first_name: 'Sam', last_name: 'Smith' },
-    ],
-    error: null,
-  });
+  const members = query({ data: memberships, error: null });
+  const profilesQuery = query({ data: profiles, error: null });
   const from = jest.fn((table: string) => {
     if (table === 'households') return household;
-    if (table === 'household_members') return memberships;
-    return profiles;
+    if (table === 'household_members') return members;
+    return profilesQuery;
   });
   jest.mocked(createClient).mockReturnValue(withChannel({ from, rpc }));
   return { from };
@@ -77,22 +73,7 @@ function mockHouseholdData() {
 // Foyer non complet (1 membre) : la section invitation affiche l'affordance
 // de création au lieu de l'état « Foyer complet ».
 function mockSingleMemberHousehold() {
-  const household = query({ data: { id: 'household-1', name: 'Foyer des tests' }, error: null });
-  const memberships = query({
-    data: [{ user_id: 'owner-1', role: 'owner', joined_at: '2026-08-30T12:00:00Z' }],
-    error: null,
-  });
-  const profiles = query({
-    data: [{ id: 'owner-1', first_name: 'Alex', last_name: 'Dupont' }],
-    error: null,
-  });
-  const from = jest.fn((table: string) => {
-    if (table === 'households') return household;
-    if (table === 'household_members') return memberships;
-    return profiles;
-  });
-  jest.mocked(createClient).mockReturnValue(withChannel({ from, rpc }));
-  return { from };
+  return mockHouseholdData([OWNER_MEMBERSHIP], [OWNER_PROFILE]);
 }
 
 describe('HouseholdPage (fusion Membres → Foyer)', () => {
@@ -197,7 +178,9 @@ describe('HouseholdPage (fusion Membres → Foyer)', () => {
     const pendingRow = {
       invitation_id: 'invite-1',
       created_at: '2026-09-06T10:00:00Z',
-      expires_at: '2026-09-07T10:00:00Z',
+      // Date d'expiration volontairement lointaine : la vue pending est
+      // sensible au temps (branche expired si expires_at <= now).
+      expires_at: '2027-09-07T10:00:00Z',
       revoked_at: null,
       consumed_at: null,
     };
@@ -213,6 +196,36 @@ describe('HouseholdPage (fusion Membres → Foyer)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Révoquer' }));
     expect(await screen.findByRole('button', { name: 'Générer un code' })).toBeVisible();
     expect(rpc).toHaveBeenCalledWith('revoke_household_invitation', { p_invitation_id: 'invite-1' });
+  });
+
+  it('shows an expired note with a create affordance when the pending invitation expired', async () => {
+    mockSingleMemberHousehold();
+    // Hydration d'une ligne expirée (reprise de /members) : note d'expiration
+    // + bouton de création, pas de « Révoquer » sur une invitation déjà morte.
+    const expiredRow = {
+      invitation_id: 'invite-1',
+      created_at: '2026-09-05T10:00:00Z',
+      expires_at: '2020-01-01T10:00:00Z',
+      revoked_at: null,
+      consumed_at: null,
+    };
+    const fresh = {
+      invitation_id: 'invite-2',
+      token: 'fresh-token',
+      expires_at: '2026-09-08T10:00:00Z',
+    };
+    rpc
+      .mockResolvedValueOnce({ data: [expiredRow], error: null })
+      .mockResolvedValueOnce({ data: [fresh], error: null });
+
+    renderWithLanguage(<HouseholdPage />);
+
+    expect(await screen.findByTestId('invite-pending-display')).toBeVisible();
+    expect(screen.getByTestId('invite-expired-note')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Révoquer' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Créer une nouvelle invitation' }));
+    expect(await screen.findByText(fresh.token)).toBeVisible();
   });
 
   it('leaves the household through the confirmation dialog', async () => {

@@ -210,6 +210,8 @@
   "members.pending_created": "Créée le {date}.",
   "members.invite_accepted": "Invitation acceptée : le membre a rejoint le foyer.",
   "members.invite_revoked": "Invitation révoquée : ce lien ne fonctionne plus.",
+  "members.invite_expired": "Invitation expirée : créez-en une nouvelle.",
+  "members.create_new": "Créer une nouvelle invitation",
   "household.name_section": "Nom du foyer",
   "household.save_failed": "Impossible de sauvegarder. Réessayez.",
   "household.members_title": "Membres du foyer ({count})",

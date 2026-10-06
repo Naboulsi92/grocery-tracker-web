@@ -271,27 +271,41 @@ export default function HouseholdPage() {
                       <p data-testid="invite-accepted-note">{t('members.invite_accepted')}</p>
                     ) : invitation.revoked ? (
                       <p data-testid="invite-revoked-note">{t('members.invite_revoked')}</p>
+                    ) : new Date(invitation.expiresAt) <= new Date() ? (
+                      <>
+                        <p data-testid="invite-expired-note">{t('members.invite_expired')}</p>
+                        <div style={{ marginTop: '1rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => void actions.createInvitation()}
+                            className="btn btn-primary"
+                            data-testid="invite-code-create-button"
+                          >
+                            {t('members.create_new')}
+                          </button>
+                        </div>
+                      </>
                     ) : (
-                      <p data-testid="invite-pending-note">
-                        {t('members.pending_created', { date: new Date(invitation.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR') })}
-                        {' '}
-                        {t('members.expires', { date: new Date(invitation.expiresAt).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR') })}
-                      </p>
-                    )}
-                    {/* Reprise de /members : révoquer depuis la vue pending
-                        ramène à l'affordance de création (sinon l'invitation
-                        reste coincée jusqu'à expiration). */}
-                    {!invitation.consumed && !invitation.revoked && (
-                      <div style={{ marginTop: '1rem' }}>
-                        <button
-                          type="button"
-                          onClick={() => void actions.revokeInvitation(invitation.invitationId)}
-                          className="btn btn-secondary"
-                          data-testid="invite-code-revoke-button"
-                        >
-                          {t('members.revoke')}
-                        </button>
-                      </div>
+                      <>
+                        <p data-testid="invite-pending-note">
+                          {t('members.pending_created', { date: new Date(invitation.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR') })}
+                          {' '}
+                          {t('members.expires', { date: new Date(invitation.expiresAt).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR') })}
+                        </p>
+                        {/* Reprise de /members : révoquer depuis la vue pending
+                            ramène à l'affordance de création (sinon l'invitation
+                            reste coincée jusqu'à expiration). */}
+                        <div style={{ marginTop: '1rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => void actions.revokeInvitation(invitation.invitationId)}
+                            className="btn btn-secondary"
+                            data-testid="invite-code-revoke-button"
+                          >
+                            {t('members.revoke')}
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 ) : (

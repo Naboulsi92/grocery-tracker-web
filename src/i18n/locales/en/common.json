@@ -210,6 +210,8 @@
   "members.pending_created": "Created on {date}.",
   "members.invite_accepted": "Invitation accepted: the member joined the household.",
   "members.invite_revoked": "Invitation revoked: this link no longer works.",
+  "members.invite_expired": "Invitation expired: create a new one.",
+  "members.create_new": "Create a new invitation",
   "household.name_section": "Household name",
   "household.save_failed": "Unable to save. Please try again.",
   "household.members_title": "Household members ({count})",

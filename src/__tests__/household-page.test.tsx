@@ -74,9 +74,34 @@ function mockHouseholdData() {
   return { from };
 }
 
+// Foyer non complet (1 membre) : la section invitation affiche l'affordance
+// de création au lieu de l'état « Foyer complet ».
+function mockSingleMemberHousehold() {
+  const household = query({ data: { id: 'household-1', name: 'Foyer des tests' }, error: null });
+  const memberships = query({
+    data: [{ user_id: 'owner-1', role: 'owner', joined_at: '2026-08-30T12:00:00Z' }],
+    error: null,
+  });
+  const profiles = query({
+    data: [{ id: 'owner-1', first_name: 'Alex', last_name: 'Dupont' }],
+    error: null,
+  });
+  const from = jest.fn((table: string) => {
+    if (table === 'households') return household;
+    if (table === 'household_members') return memberships;
+    return profiles;
+  });
+  jest.mocked(createClient).mockReturnValue(withChannel({ from, rpc }));
+  return { from };
+}
+
 describe('HouseholdPage (fusion Membres → Foyer)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    // resetAllMocks (et non clearAllMocks) : les files mockResolvedValueOnce
+    // non consommées d'un test ne doivent pas fuir dans le suivant (sinon
+    // l'hydratation mappe une ligne d'invitation incomplète vers
+    // pending+consumed et affiche à tort la note « acceptée »).
+    jest.resetAllMocks();
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     writeText.mockResolvedValue(undefined);
     mockHouseholdData();
@@ -113,6 +138,7 @@ describe('HouseholdPage (fusion Membres → Foyer)', () => {
   });
 
   it('creates and copies an invitation without truncating it', async () => {
+    mockSingleMemberHousehold();
     const invitation = {
       invitation_id: 'invite-1',
       token: 'fixture-id',
@@ -128,12 +154,13 @@ describe('HouseholdPage (fusion Membres → Foyer)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Générer un code' }));
     expect(await screen.findByText(invitation.token)).toBeVisible();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copier', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: /^Copier$/ }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(invitation.token));
     expect(await screen.findByText('Copié !')).toBeVisible();
   });
 
   it('regenerates the invitation behind a confirmation dialog', async () => {
+    mockSingleMemberHousehold();
     const first = {
       invitation_id: 'invite-1',
       token: 'first-token',
@@ -164,6 +191,7 @@ describe('HouseholdPage (fusion Membres → Foyer)', () => {
   });
 
   it('revokes the invitation from the pending view', async () => {
+    mockSingleMemberHousehold();
     // Reload path: hydration returns a live pending row (no token by design),
     // the pending view offers revoke, back to the create affordance.
     const pendingRow = {

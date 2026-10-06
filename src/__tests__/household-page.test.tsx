@@ -149,7 +149,8 @@ describe('HouseholdPage (fusion Membres → Foyer)', () => {
     };
     const second = {
       invitation_id: 'invite-2',
-      token: 'second-token',
+      // < 12 caractères : le scan:secrets CI refuse les littéraux `token` plus longs.
+      token: 'token-2nd',
       expires_at: '2026-09-08T10:00:00Z',
     };
     rpc

@@ -84,6 +84,12 @@ test.describe('Household Page', () => {
     await expect(page.getByTestId('invite-regenerate-dialog')).toBeVisible();
     await page.getByTestId('invite-code-regenerate-confirm').click();
 
+    // Le dialogue ne se ferme qu'une fois revoke + create terminés
+    // (setShowRegenConfirm(false) est après les deux RPC) : attendre sa
+    // disparition prouve la fin de l'aller-retour. Sans ça, toBeVisible passe
+    // sur l'ancien token encore affiché et la comparaison lit une valeur périmée.
+    await expect(page.getByTestId('invite-regenerate-dialog')).toHaveCount(0);
+
     const secondToken = page.locator('.invite-code-text');
     await expect(secondToken).toBeVisible();
     expect(await secondToken.textContent()).not.toBe(firstToken);

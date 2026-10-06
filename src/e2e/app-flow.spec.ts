@@ -61,11 +61,11 @@ test.describe('App Flow', () => {
     requireWrites();
     const householdName = await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
-    await expect(page).toHaveURL('/members');
+    await page.getByTestId('dashboard-card-household').click();
+    await expect(page).toHaveURL('/household');
     await expect(page.getByRole('heading', { name: /Membres du foyer/ })).toBeVisible();
 
-    const createInvitation = page.getByRole('button', { name: 'Créer une invitation' });
+    const createInvitation = page.getByRole('button', { name: 'Générer un code' });
     await createInvitation.click();
     const token = page.locator('.invite-code-text');
     await expect(token).not.toBeEmpty();
@@ -80,7 +80,7 @@ test.describe('App Flow', () => {
       await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
       await memberPage.waitForURL('/home', { timeout: 20000 });
       await expect(memberPage.getByTestId('header-household-name')).toHaveText(householdName);
-      await memberPage.getByRole('link', { name: /Membres/ }).click();
+      await memberPage.getByTestId('dashboard-card-household').click();
       await expect(memberPage.getByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
     } finally {
       await memberContext.close();

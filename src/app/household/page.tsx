@@ -278,6 +278,21 @@ export default function HouseholdPage() {
                         {t('members.expires', { date: new Date(invitation.expiresAt).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR') })}
                       </p>
                     )}
+                    {/* Reprise de /members : révoquer depuis la vue pending
+                        ramène à l'affordance de création (sinon l'invitation
+                        reste coincée jusqu'à expiration). */}
+                    {!invitation.consumed && !invitation.revoked && (
+                      <div style={{ marginTop: '1rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => void actions.revokeInvitation(invitation.invitationId)}
+                          className="btn btn-secondary"
+                          data-testid="invite-code-revoke-button"
+                        >
+                          {t('members.revoke')}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div data-testid="invite-code-display">

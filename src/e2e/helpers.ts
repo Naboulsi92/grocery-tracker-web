@@ -23,16 +23,16 @@ export async function waitForAnimationsToSettle(page: Page, timeout = 10000) {
 }
 
 /**
- * Reads a fresh invitation token via the members page (ticket #145).
- * Centralizes the two-context token fetch so multi-user tests stop
- * copy-pasting the goto/members/create/read sequence. Throws on an empty
- * token instead of letting callers join with ''' (fail-fast, never a
- * vacuous pass).
+ * Reads a fresh invitation token via the household page (fusion Membres →
+ * Foyer, ticket #145). Centralizes the two-context token fetch so
+ * multi-user tests stop copy-pasting the goto/household/create/read
+ * sequence. Throws on an empty token instead of letting callers join with
+ * '' (fail-fast, never a vacuous pass).
  */
 export async function fetchInviteToken(page: Page): Promise<string> {
   await page.goto('/home');
-  await page.getByRole('link', { name: /Membres/ }).click();
-  await page.getByRole('button', { name: 'Créer une invitation' }).click();
+  await page.getByTestId('dashboard-card-household').click();
+  await page.getByRole('button', { name: 'Générer un code' }).click();
   const token = await page.locator('.invite-code-text').textContent();
   if (!token) throw new Error('Invite token was empty.');
   return token;

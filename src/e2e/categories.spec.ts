@@ -348,7 +348,7 @@ test.describe('Categories CRUD', () => {
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
 
-      // Invite tokens render on /members (never on /categories): fetch one in
+      // Invite tokens render on /household (never on /categories): fetch one in
       // a scratch tab, so the observed /categories page (and its realtime
       // channel) is never disturbed by navigation.
       const tokenPage = await page.context().newPage();

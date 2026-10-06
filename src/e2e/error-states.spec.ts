@@ -307,9 +307,9 @@ test.describe('Error States', () => {
     });
   });
 
-  test.describe('Members Page Error States', () => {
-    test('members page shows error when load fails', async ({ authenticatedPage: page }) => {
-      await page.goto('/members');
+  test.describe('Household Page Error States', () => {
+    test('household page shows error when load fails', async ({ authenticatedPage: page }) => {
+      await page.goto('/household');
       await page.waitForLoadState('domcontentloaded');
 
       const loginRedirect = page.getByRole('heading', { name: 'Connexion' });

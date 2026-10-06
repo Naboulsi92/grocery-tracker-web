@@ -25,7 +25,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
 
-      // Invite tokens render on /members (never on /items): fetch one via the
+      // Invite tokens render on /household (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
       const token = await fetchInviteToken(page);
       await page.goto('/items');
@@ -66,7 +66,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
 
-      // Invite tokens render on /members (never on /items): fetch one via the
+      // Invite tokens render on /household (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
       const token = await fetchInviteToken(page);
       await page.goto('/items');
@@ -120,7 +120,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
 
-      // Invite tokens render on /members (never on /items): fetch one via the
+      // Invite tokens render on /household (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
       const token = await fetchInviteToken(page);
       await page.goto('/items');
@@ -174,7 +174,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
 
-      // Invite tokens render on /members (never on /to-buy): fetch one via the
+      // Invite tokens render on /household (never on /to-buy): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
       const token = await fetchInviteToken(page);
       await page.goto('/to-buy');
@@ -223,7 +223,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
 
-      // Invite tokens render on /members (never on /items): fetch one via the
+      // Invite tokens render on /household (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
       const token = await fetchInviteToken(page);
       await page.goto('/items');
@@ -271,8 +271,8 @@ test.describe('Real-time Collaboration', () => {
       }
 
       await page.goto('/home');
-      await page.getByRole('link', { name: /Membres/ }).click();
-      await page.getByRole('button', { name: 'Créer une invitation' }).click();
+      await page.getByTestId('dashboard-card-household').click();
+      await page.getByRole('button', { name: 'Générer un code' }).click();
       const token = page.locator('.invite-code-text');
       const invitationToken = await token.textContent();
 
@@ -314,7 +314,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
 
-      // Invite tokens render on /members (never on /items): fetch one via the
+      // Invite tokens render on /household (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
       const token = await fetchInviteToken(page);
       await page.goto('/items');
@@ -388,7 +388,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
 
-      // Invite tokens render on /members (never on /items): fetch one via the
+      // Invite tokens render on /household (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
       const token = await fetchInviteToken(page);
       await page.goto('/items');
@@ -437,7 +437,7 @@ test.describe('Real-time Collaboration', () => {
 
       await secondPage.getByLabel(/Code d.invitation complet/).fill('');
 
-      // Invite tokens render on /members (never on /items): fetch one via the
+      // Invite tokens render on /household (never on /items): fetch one via the
       // proven onboarding pattern so the two-context flow below always runs.
       const token = await fetchInviteToken(page);
       await page.goto('/items');
@@ -618,8 +618,8 @@ test.describe('Real-time Collaboration', () => {
       const memberPage = await memberContext.newPage();
       try {
         await page.goto('/home');
-        await page.getByRole('link', { name: /Membres/ }).click();
-        await page.getByRole('button', { name: 'Créer une invitation' }).click();
+        await page.getByTestId('dashboard-card-household').click();
+        await page.getByRole('button', { name: 'Générer un code' }).click();
         const invitationToken = await page.locator('.invite-code-text').textContent();
 
         const memberAccount = createAccount('e2e-rt-p02');

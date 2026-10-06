@@ -28,7 +28,7 @@ test.describe('axe-core WCAG 2.1 AA', () => {
     '/items',
     '/categories',
     '/to-buy',
-    '/members',
+    '/household',
     '/settings/notifications',
   ]) {
     test(`0 violations on ${route}`, async ({ authenticatedPage: page }) => {

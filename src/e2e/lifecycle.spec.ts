@@ -70,8 +70,8 @@ test.describe('Household lifecycle P1-9 (#110)', () => {
     requireWrites();
     const householdName = await createHousehold(page, account);
 
-    await page.getByRole('link', { name: /Membres/ }).click();
-    await page.getByRole('button', { name: 'Créer une invitation' }).click();
+    await page.getByTestId('dashboard-card-household').click();
+    await page.getByRole('button', { name: 'Générer un code' }).click();
     const token = page.locator('.invite-code-text');
     await expect(token).not.toBeEmpty();
     const invitationToken = await token.textContent();
@@ -95,7 +95,7 @@ test.describe('Household lifecycle P1-9 (#110)', () => {
       // The remaining member keeps the household indefinitely.
       await memberPage.goto('/home');
       await expect(memberPage.getByTestId('header-household-name')).toHaveText(householdName);
-      await memberPage.goto('/members');
+      await memberPage.goto('/household');
       await expect(memberPage.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
     } finally {
       await memberContext.close();

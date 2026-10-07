@@ -20,6 +20,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Use `.env.local.example` as a template for new contributors.
 - Full reference (Vercel/GitHub/Supabase environments, Supabase preview branching, end-to-end flow): `docs/research/github-vercel-supabase-environments.md`
 
+### Supabase migrations (repo ↔ prod)
+- Prod never tracks `main` by itself (Vercel deploys code only; CI migrates its ephemeral DB only; Preview check only compares). Apply via versioned files + explicit apply — never raw SQL in prod except approved repair.
+- A version number is a stamping date, not schema freshness: same name + different number = same content stamped twice (manual repair signature).
+- Full discipline, Preview-check semantics, and the Oct 2026 drift episode: `docs/agents/runbooks/supabase-migration-sync.md`
+
 ## Git & PR Workflow
 
 ### Branch naming

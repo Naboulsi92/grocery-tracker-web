@@ -446,7 +446,21 @@ export default function CategoriesPage() {
       <AuthenticatedHeader showBackLink household={household} loading={householdLoading} error={householdError} />
 
       <main className="app-main" id="main">
-        <h1>{t('categories.title')}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+          <h1 style={{ margin: 0 }}>{t('categories.title')}</h1>
+
+          {categories.length > 0 && !showForm && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowForm(true)}
+              disabled={!isOnline}
+              data-testid="btn-new-category"
+            >
+              {t('categories.new')}
+            </button>
+          )}
+        </div>
 
         {combinedError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>
@@ -458,19 +472,6 @@ export default function CategoriesPage() {
             {translateMessage(language, combinedError)}
             <button type="button" className="btn btn-secondary" onClick={() => void fetchCategories(true)} data-testid="btn-retry-categories">{t('common.retry')}</button>
           </div>
-        )}
-
-        {categories.length > 0 && !showForm && (
-          <button
-            type="button"
-            className="btn btn-primary"
-            style={{ marginBottom: '1.5rem' }}
-            onClick={() => setShowForm(true)}
-            disabled={!isOnline}
-            data-testid="btn-new-category"
-          >
-            {t('categories.new')}
-          </button>
         )}
 
         {showForm && (

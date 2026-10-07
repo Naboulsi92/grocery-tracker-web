@@ -259,6 +259,10 @@
     display: flex;
   }
 
+  .mk-nav-end {
+    margin-left: 1.5rem;
+  }
+
   .mk-menu-btn,
   .mk-mobile-menu {
     display: none;
@@ -698,12 +702,12 @@
 }
 
 .mk-legal-inner {
-  max-width: 68ch;
+  max-width: 80ch;
   margin-inline: auto;
 }
 
 /* Documents with a contents sidebar breathe wider; the text column keeps
-   the 68ch measure. */
+   the 80ch measure. */
 .mk-legal-inner--with-toc {
   max-width: 1100px;
 }

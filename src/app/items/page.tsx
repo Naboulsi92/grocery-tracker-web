@@ -268,7 +268,21 @@ return (
       <SyncingIndicator />
 
       <main className="app-main" id="main">
-        <h1>{t('items.title')}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+          <h1 style={{ margin: 0 }}>{t('items.title')}</h1>
+
+          {items.length > 0 && !showForm && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowForm(true)}
+              disabled={!isOnline}
+              data-testid="btn-new-item"
+            >
+              {t('items.new')}
+            </button>
+          )}
+        </div>
 
         {combinedError && (
           <div className="auth-error" role="alert" style={{ marginBottom: '1.5rem' }}>
@@ -280,19 +294,6 @@ return (
             {translateMessage(language, combinedError)}
             <button type="button" className="btn btn-secondary" onClick={() => void fetchData(true)} data-testid="btn-retry-items">{t('common.retry')}</button>
           </div>
-        )}
-
-        {items.length > 0 && !showForm && (
-          <button
-            type="button"
-            className="btn btn-primary"
-            style={{ marginBottom: '1.5rem' }}
-            onClick={() => setShowForm(true)}
-            disabled={!isOnline}
-            data-testid="btn-new-item"
-          >
-            {t('items.new')}
-          </button>
         )}
 
         {showForm && (

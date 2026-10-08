@@ -18,7 +18,9 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
  *   `mobile-responsiveness.spec.ts:146`. Production stays strict.
  * - `style-src 'unsafe-inline'`: required by Tailwind-in-JS style injection.
  * - `connect-src`: Supabase (https + wss realtime, `*.supabase.co`) +
- *   Plausible + local `supabase start` origins for development.
+ *   Plausible + HaveIBeenPwned k-anonymity range API (leaked-password check,
+ *   password plaintext never leaves the browser) + local `supabase start`
+ *   origins for development.
  * - `frame-ancestors 'none'` mirrors `X-Frame-Options: DENY`.
  */
 const isDev = process.env.NODE_ENV !== 'production';
@@ -32,7 +34,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://plausible.io http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:*",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://plausible.io https://api.pwnedpasswords.com http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:*",
   "frame-ancestors 'none'",
   "form-action 'self'",
   "base-uri 'self'",

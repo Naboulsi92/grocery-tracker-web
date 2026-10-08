@@ -62,6 +62,20 @@ test.describe('Authentication', () => {
     await expect(password).toHaveJSProperty('validity.valid', true);
     await expect(confirmPassword).toHaveJSProperty('validity.valid', true);
   });
+
+  test('signup rejects a breached password (HIBP k-anonymity)', async ({ page }) => {
+    const account = createAccount('breached');
+    await page.goto('/signup');
+    await page.getByLabel('Email').fill(account.email);
+    // Password123! est compromis de façon notoire : le contrôle HIBP doit
+    // le rejeter avant tout appel serveur (pas de navigation).
+    await page.getByLabel('Mot de passe', { exact: true }).fill('Password123!');
+    await page.getByLabel('Confirmer le mot de passe').fill('Password123!');
+    await page.getByRole('button', { name: "S'inscrire" }).click();
+
+    await expect(page.getByText(/compromis|fuite/i)).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL('/signup');
+  });
 });
 
 test.describe('Navigation', () => {

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ResetPasswordPage from '@/app/(auth)/reset-password/page';
 import { createClient } from '@/utils/supabase/client';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { isPasswordBreached } from '@/lib/passwordBreach';
 
 const push = jest.fn();
 const updateRecoveryPassword = jest.fn();
@@ -22,11 +23,13 @@ jest.mock('@/contexts/AuthContext', () => ({
 }));
 jest.mock('@/utils/supabase/client', () => ({ createClient: jest.fn() }));
 jest.mock('@/components/ThemeToggle', () => () => null);
+jest.mock('@/lib/passwordBreach', () => ({ isPasswordBreached: jest.fn() }));
 
 describe('ResetPasswordPage (ticket #164)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAccessStatus = 'member';
+    jest.mocked(isPasswordBreached).mockResolvedValue(false);
     getSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } });
     updateRecoveryPassword.mockResolvedValue({ error: null });
     signOut.mockResolvedValue(undefined);
@@ -69,5 +72,18 @@ describe('ResetPasswordPage (ticket #164)', () => {
     mockAccessStatus = 'anonymous';
     rerender(<LanguageProvider><ResetPasswordPage /></LanguageProvider>);
     await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
+  });
+
+  it('rejects a breached password without calling the API', async () => {
+    jest.mocked(isPasswordBreached).mockResolvedValueOnce(true);
+    render(<LanguageProvider><ResetPasswordPage /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByTestId('reset-submit-button')).toBeVisible());
+
+    fireEvent.change(screen.getByTestId('reset-new-password-input'), { target: { value: 'LongEnough123' } });
+    fireEvent.change(screen.getByTestId('reset-confirm-password-input'), { target: { value: 'LongEnough123' } });
+    fireEvent.click(screen.getByTestId('reset-submit-button'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('compromis');
+    expect(updateRecoveryPassword).not.toHaveBeenCalled();
   });
 });

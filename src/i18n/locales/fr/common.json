@@ -316,6 +316,7 @@
   "validation.last_name.required_letter": "Le nom doit contenir au moins une lettre.",
   "validation.last_name.too_long": "Le nom ne doit pas dépasser 50 caractères.",
   "validation.password.min_length": "Le mot de passe doit contenir au moins 8 caractères.",
+  "validation.password.leaked": "Ce mot de passe a été compromis dans une fuite de données. Choisissez-en un autre.",
   "validation.language.unknown": "Langue non reconnue.",
   "error.load_categories": "Impossible de charger les catégories.",
   "error.load_items": "Impossible de charger les articles.",

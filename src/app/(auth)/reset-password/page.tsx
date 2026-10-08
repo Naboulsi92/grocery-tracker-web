@@ -11,6 +11,7 @@ import { translateMessage } from '@/lib/i18n';
 import { mapAuthErrorToKey } from '@/lib/authErrors';
 import { getAuthProvider } from '@/lib/auth-provider';
 import { validateNewPassword } from '@/lib/account';
+import { isPasswordBreached } from '@/lib/passwordBreach';
 import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
@@ -136,6 +137,15 @@ function ResetPasswordPageInner() {
     }
 
     setLoading(true);
+
+    // Leaked-password protection (HIBP k-anonymity): after local
+    // validations, before the recovery update.
+    if (await isPasswordBreached(password)) {
+      setError('validation.password.leaked');
+      setLoading(false);
+      return;
+    }
+
     const { error } = await updateRecoveryPassword(password);
     setLoading(false);
 

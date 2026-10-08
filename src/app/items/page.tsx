@@ -421,13 +421,14 @@ function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, t }: { ite
     <div className={`item-row animate-fade-in-soft ${isLowStock ? 'low-stock' : ''}`} data-testid={`item-row-${item.name.toLowerCase()}`} style={{ animationDelay: `${Math.min(index, 4) * 20}ms` }}>
       <div className="item-info">
         <span className="item-name">{item.name}</span>
+        <span className="item-sub">{t('items.stock_line', { qty: item.quantity, unit: item.unit, threshold: item.low_stock_threshold })}</span>
         {isLowStock && <span className="badge badge-danger">{t('items.low_stock')}</span>}
       </div>
       <div className="item-controls">
         <div className="quantity-control">
           <button onClick={() => onUpdate(item.id, -step)} className="qty-btn" disabled={disabled || item.quantity <= 0} aria-label={t('items.decrease_aria', { name: item.name })} data-testid={`btn-quantity-decrement-${item.id}`}>−</button>
           <span key={item.quantity} className="qty-value qty-value-flash" aria-live="polite">{item.quantity} {item.unit}</span>
-          <button onClick={() => onUpdate(item.id, step)} className="qty-btn" disabled={disabled} aria-label={t('items.increase_aria', { name: item.name })} data-testid={`btn-quantity-increment-${item.id}`}>+</button>
+          <button onClick={() => onUpdate(item.id, step)} className="qty-btn qty-btn-plus" disabled={disabled} aria-label={t('items.increase_aria', { name: item.name })} data-testid={`btn-quantity-increment-${item.id}`}>+</button>
         </div>
         <button onClick={() => onEdit(item)} className="action-btn" disabled={disabled} aria-label={t('items.edit_aria', { name: item.name })} data-testid={`btn-edit-item-${item.id}`}>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

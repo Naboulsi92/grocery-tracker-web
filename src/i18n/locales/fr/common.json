@@ -166,6 +166,7 @@
   "items.threshold": "Seuil stock bas",
   "items.uncategorized": "Sans catégorie",
   "items.low_stock": "À acheter",
+  "items.stock_line": "{qty} {unit} · seuil {threshold}",
   "items.decrease_aria": "Réduire la quantité de {name}",
   "items.increase_aria": "Augmenter la quantité de {name}",
   "items.edit_aria": "Modifier l'article {name}",

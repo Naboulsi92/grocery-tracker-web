@@ -27,6 +27,7 @@ import {
   type ProfileLanguage,
 } from '@/lib/account';
 import { buildAccountExport, downloadAccountExport } from '@/lib/account-export';
+import { isPasswordBreached } from '@/lib/passwordBreach';
 
 export default function AccountPage() {
   const { user, householdId, signOut } = useAuth();
@@ -164,6 +165,13 @@ export default function AccountPage() {
       return;
     }
     setPasswordSaving(true);
+    // Leaked-password protection (HIBP k-anonymity): after local
+    // validations, before verify + update.
+    if (await isPasswordBreached(newPassword)) {
+      setPasswordError('validation.password.leaked');
+      setPasswordSaving(false);
+      return;
+    }
     const { error } = await changePassword(supabase, user.email, currentPassword, newPassword);
     setPasswordSaving(false);
     if (error) {

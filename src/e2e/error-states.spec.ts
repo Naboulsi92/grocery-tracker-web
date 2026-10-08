@@ -35,8 +35,11 @@ test.describe('Error States', () => {
       }
 
       await page.getByLabel('Email').fill('admin@example.com');
-      await page.getByLabel('Mot de passe', { exact: true }).fill('Password123!');
-      await page.getByLabel('Confirmer le mot de passe').fill('Password123!');
+      // Mot de passe non compromis (fixe, haute entropie) : le contrôle
+      // HIBP au signup doit laisser passer pour atteindre l'erreur
+      // « email déjà utilisé » du serveur.
+      await page.getByLabel('Mot de passe', { exact: true }).fill('E2e-Valid-Pass-99!');
+      await page.getByLabel('Confirmer le mot de passe').fill('E2e-Valid-Pass-99!');
       await page.getByRole('button', { name: "S'inscrire" }).click();
 
       await expect(page.getByText(/déjà utilisé|existe|email/i)).toBeVisible({ timeout: 10000 });

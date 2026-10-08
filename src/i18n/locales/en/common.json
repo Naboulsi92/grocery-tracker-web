@@ -316,6 +316,7 @@
   "validation.last_name.required_letter": "The last name must contain at least one letter.",
   "validation.last_name.too_long": "The last name must not exceed 50 characters.",
   "validation.password.min_length": "The password must be at least 8 characters long.",
+  "validation.password.leaked": "This password has appeared in a data breach. Please choose another one.",
   "validation.language.unknown": "Unknown language.",
   "error.load_categories": "Unable to load categories.",
   "error.load_items": "Unable to load items.",

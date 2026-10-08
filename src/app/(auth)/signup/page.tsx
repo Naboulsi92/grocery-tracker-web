@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { translateMessage } from '@/lib/i18n';
 import { mapAuthErrorToKey } from '@/lib/authErrors';
+import { isPasswordBreached } from '@/lib/passwordBreach';
 import { resolvePostAuthRedirect } from '@/lib/invite-detour';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
@@ -89,6 +90,14 @@ function SignupPageInner() {
     }
 
     setLoading(true);
+
+    // Leaked-password protection (HIBP k-anonymity, Free plan has no
+    // server-side equivalent): after local validations, before the call.
+    if (await isPasswordBreached(password)) {
+      setError(t('validation.password.leaked'));
+      setLoading(false);
+      return;
+    }
 
     const { error } = await signUp(email, password);
 

@@ -72,14 +72,14 @@
 
 | Composant | Choix | Justification |
 |---|---|---|
-| Frontend | Next.js (React) + TypeScript + Tailwind CSS | Aligné avec l'expérience JavaScript/React du fondateur ; TypeScript retenu pour la sécurité de typage dès le départ |
-| Composants UI | shadcn/ui | Composants accessibles, construits sur Tailwind (pas de changement d'outil de style) |
+| Frontend | Next.js (React) + TypeScript + CSS sur mesure | Aligné avec l'expérience JavaScript/React du fondateur ; TypeScript retenu pour la sécurité de typage dès le départ ; CSS custom depuis l'origine (v1.5 : Tailwind abandonné et entériné — prototype, direction « Actuel » retenue) |
+| Composants UI | Composants maison (CSS custom, tokens et dark mode propres) | Pas de dépendance shadcn/ui (v1.5 : entériné) |
 | Backend & base de données | Supabase (PostgreSQL) | Realtime natif (exigence n°1), Auth intégrée (email + Google + Apple), hébergement disponible en région UE (Francfort) pour la conformité RGPD |
 | Synchronisation temps réel | Supabase Realtime | Push instantané des changements aux deux appareils connectés |
 | Notifications push | Web Push API (via service worker) + Supabase Edge Functions | Standard PWA, fonctionne sur Android et iOS (16.4+) une fois l'app installée sur l'écran d'accueil |
 | Cache hors-ligne | Service worker (Cache API / IndexedDB léger) | Permet la consultation en lecture seule sans connexion |
 | Hébergement frontend | Vercel | Intégration native avec Next.js, déploiement automatique |
-| Internationalisation | next-i18next | Français / anglais |
+| Internationalisation | i18next + react-i18next | Français / anglais (v1.5 : entériné — `next-i18next` jamais adopté) |
 
 **Note PWA** : l'application doit inclure un fichier manifest et un service worker pour permettre l'installation sur l'écran d'accueil, débloquer les notifications push (y compris sur iPhone), et gérer le cache hors-ligne en lecture seule.
 
@@ -517,4 +517,4 @@ Audit code vs PRD par inventaire systématique (auth/foyer, catalogue/alertes, t
 | 15 | Trunk-based, pas Git Flow (§10) | REMPLACÉ — §10 réécrit : trunk + discipline Preview + staging (TICKET #230) |
 | 16 | Seeding admin inline, pas comptes `.test` (§8) | TICKET #228 — la spec reste, la suite sera alignée |
 | 17 | P1-12 (lockout 5 tentatives) non testé E2E (§8) | TICKET #226 |
-| 18 | Stack réelle : CSS custom + `i18next`, pas Tailwind/shadcn/next-i18next (§3) | EN ATTENTE — prototype statique en cours pour décider |
+| 18 | Stack réelle : CSS custom + `i18next`, pas Tailwind/shadcn/next-i18next (§3) | ENTÉRINÉ — §3 aligné (direction « Actuel » retenue sur prototype) |

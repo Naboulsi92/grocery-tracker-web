@@ -112,7 +112,7 @@ declare
   helper_denied boolean := false;
 begin
   foreach function_signature in array array[
-    'public.create_household(text)',
+    'public.create_household(text,text)',
     'public.create_household_invitation(uuid,interval)',
     'public.revoke_household_invitation(uuid)',
     'public.consume_household_invitation(text)',
@@ -1022,6 +1022,43 @@ begin
   -- Restaure pour la suite du contrat (rollback final de toute facon)
   update public.items set name = 'Lait'
   where household_id = current_setting('test.household_id')::uuid and name = 'Lait renomme';
+end;
+$$;
+
+-- 2b. Fork bilingue : p_language='en' copie name_en (ticket #229) ;
+-- defaut/inconnu reste name_fr (l'appel a un seul argument du §1 sème FR)
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000099', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.create_household('Lang household', p_language => 'en') as lang_household_id \gset
+reset role;
+select set_config('test.lang_household_id', :'lang_household_id', true);
+do $$
+declare
+  v_en_items int;
+  v_en_cats int;
+  v_fr_leak int;
+begin
+  select count(*) into v_en_items from public.items i
+  join public.item_templates t on t.id = i.template_id
+  where i.household_id = current_setting('test.lang_household_id')::uuid
+    and i.name = t.name_en;
+  if v_en_items <> 10 then
+    raise exception 'en fork must copy 10 name_en items, got %', v_en_items;
+  end if;
+  select count(*) into v_en_cats from public.categories c
+  join public.default_categories d on d.name_en = c.name
+  where c.household_id = current_setting('test.lang_household_id')::uuid
+    and c.is_default;
+  if v_en_cats <> 10 then
+    raise exception 'en fork must copy 10 name_en categories, got %', v_en_cats;
+  end if;
+  select count(*) into v_fr_leak from public.items
+  where household_id = current_setting('test.lang_household_id')::uuid
+    and name in (select name_fr from public.item_templates);
+  if v_fr_leak <> 0 then
+    raise exception 'en fork leaked % FR names', v_fr_leak;
+  end if;
 end;
 $$;
 

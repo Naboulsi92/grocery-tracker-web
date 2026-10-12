@@ -113,7 +113,7 @@ export type Database = {
     Functions: {
       adjust_item_quantity: { Args: { p_delta: number; p_item_id: string }; Returns: Database['public']['Tables']['items']['Row'] };
       consume_household_invitation: { Args: { p_token: string }; Returns: string };
-      create_household: { Args: { p_name: string }; Returns: string };
+      create_household: { Args: { p_name: string; p_language?: string }; Returns: string };
       create_household_invitation: { Args: { p_expires_in?: string; p_household_id: string }; Returns: { expires_at: string; invitation_id: string; token: string }[] };
       email_exists: { Args: { p_email: string }; Returns: boolean };
       auth_provider_for_email: { Args: { p_email: string }; Returns: string | null };

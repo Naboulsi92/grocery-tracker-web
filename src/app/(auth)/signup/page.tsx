@@ -32,6 +32,7 @@ function SignupPageInner() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp, signInWithProvider, access, loading: authLoading } = useAuth();
   const { t, language } = useI18n();
@@ -78,6 +79,7 @@ function SignupPageInner() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setNotice('');
 
     if (password !== confirmPassword) {
       setError(t('signup.password_mismatch'));
@@ -99,10 +101,16 @@ function SignupPageInner() {
       return;
     }
 
-    const { error } = await signUp(email, password);
+    const { error, needsConfirmation } = await signUp(email, password);
 
     if (error) {
       setError(mapAuthErrorToKey(error));
+      setLoading(false);
+    } else if (needsConfirmation) {
+      // Confirmations ON (ticket #227) : pas de session — inviter à
+      // vérifier la boîte mail au lieu de pousser vers le foyer (rebond
+      // /login garanti par le middleware).
+      setNotice(t('signup.check_inbox'));
       setLoading(false);
     } else {
       router.push(resolvePostAuthRedirect(nextParam, '/join-household'));
@@ -127,6 +135,12 @@ function SignupPageInner() {
         />
 
         {error && <ErrorBanner message={translateMessage(language, error)} />}
+
+        {notice && (
+          <p role="status" className="auth-notice" data-testid="signup-check-inbox">
+            {notice}
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">

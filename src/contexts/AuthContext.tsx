@@ -23,8 +23,9 @@ type AuthContextType = {
   householdId: string | null;
   retryHousehold: () => void;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: Error | null; needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
+  resendConfirmationEmail: (email: string) => Promise<{ error: Error | null }>;
   requestPasswordReset: (email: string, redirectTo: string) => Promise<{ error: Error | null }>;
   updateRecoveryPassword: (password: string) => Promise<{ error: Error | null }>;
   signInWithProvider: (
@@ -142,7 +143,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Confirmations ON (ticket #227) : pas de session tant que l'email
+    // n'est pas confirmé — l'appelant affiche la notice au lieu de pousser.
+    return { error, needsConfirmation: !error && !data.session };
+  };
+
+  // Ticket #227 : renvoi de l'email de confirmation (login non confirmé).
+  const resendConfirmationEmail = async (email: string) => {
+    const { error } = await supabase.auth.resend({ type: 'signup', email });
     return { error };
   };
 
@@ -183,6 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      resendConfirmationEmail,
       requestPasswordReset,
       updateRecoveryPassword,
       signInWithProvider,

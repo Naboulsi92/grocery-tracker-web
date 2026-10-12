@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import SignupPage from '@/app/(auth)/signup/page';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { isPasswordBreached } from '@/lib/passwordBreach';
@@ -57,5 +57,39 @@ describe('SignupPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('compromis');
     expect(signUp).not.toHaveBeenCalled();
+  });
+
+  it('shows the check-inbox notice when no session is issued (ticket #227)', async () => {
+    signUp.mockResolvedValueOnce({ error: null, needsConfirmation: true });
+    render(
+      <LanguageProvider>
+        <SignupPage />
+      </LanguageProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.test' } });
+    fireEvent.change(screen.getByLabelText('Mot de passe', { exact: true }), { target: { value: 'LongEnough123' } });
+    fireEvent.change(screen.getByLabelText('Confirmer le mot de passe'), { target: { value: 'LongEnough123' } });
+    fireEvent.submit(screen.getByRole('button', { name: "S'inscrire" }).closest('form')!);
+
+    expect(await screen.findByTestId('signup-check-inbox')).toHaveTextContent('boîte mail');
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('pushes to onboarding when a session is issued', async () => {
+    signUp.mockResolvedValueOnce({ error: null, needsConfirmation: false });
+    render(
+      <LanguageProvider>
+        <SignupPage />
+      </LanguageProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.test' } });
+    fireEvent.change(screen.getByLabelText('Mot de passe', { exact: true }), { target: { value: 'LongEnough123' } });
+    fireEvent.change(screen.getByLabelText('Confirmer le mot de passe'), { target: { value: 'LongEnough123' } });
+    fireEvent.submit(screen.getByRole('button', { name: "S'inscrire" }).closest('form')!);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/join-household'));
+    expect(screen.queryByTestId('signup-check-inbox')).not.toBeInTheDocument();
   });
 });

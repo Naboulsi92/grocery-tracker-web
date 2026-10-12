@@ -25,6 +25,9 @@ const PUBLIC_ROUTES = [
   // this entry deny-default redirects them to /login.
   '/sitemap.xml',
   '/robots.txt',
+  // Google Search Console HTML verification file (public/google*.html):
+  // same deny-default trap — .html is not in the matcher exclusions.
+  '/google9d94b1fd7f3210e6.html',
 ];
 
 // Explicitly protected app routes (kept for documentation and to make the

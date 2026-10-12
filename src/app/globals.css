@@ -486,6 +486,16 @@ input::placeholder {
 
 .auth-error svg { flex: 0 0 auto; }
 
+/* Success notice mirroring .auth-error (ticket #227 : check-inbox, resend). */
+.auth-notice {
+  padding: 0.875rem 1rem;
+  background: var(--color-accent-muted);
+  color: var(--color-accent-hover);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
 .auth-form {
   display: flex;
   flex-direction: column;

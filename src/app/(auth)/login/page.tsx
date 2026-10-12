@@ -32,7 +32,9 @@ function LoginPageInner() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signInWithProvider, user, loading: authLoading } = useAuth();
+  const [confirmationSent, setConfirmationSent] = useState(false);
+  const [resending, setResending] = useState(false);
+  const { signIn, signInWithProvider, user, loading: authLoading, resendConfirmationEmail } = useAuth();
   const { t, language } = useI18n();
   const { isOnline } = useOnlineStatus();
   const router = useRouter();
@@ -75,6 +77,7 @@ function LoginPageInner() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setConfirmationSent(false);
     setLoading(true);
 
     const { error } = await signIn(email, password);
@@ -84,6 +87,19 @@ function LoginPageInner() {
       setLoading(false);
     } else {
       router.push(resolvePostAuthRedirect(nextParam, '/home'));
+    }
+  };
+
+  // Ticket #227 : l'email non confirmé bloque côté serveur — proposer le
+  // renvoi au lieu de laisser l'utilisateur sans issue.
+  const handleResend = async () => {
+    setResending(true);
+    const { error: resendError } = await resendConfirmationEmail(email);
+    setResending(false);
+    if (resendError) {
+      setError(mapAuthErrorToKey(resendError));
+    } else {
+      setConfirmationSent(true);
     }
   };
 
@@ -105,6 +121,24 @@ function LoginPageInner() {
         />
 
         {error && <ErrorBanner message={translateMessage(language, error)} />}
+
+        {error === 'errors.auth.email_not_confirmed' && !confirmationSent && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={resending}
+            onClick={() => void handleResend()}
+            data-testid="login-resend-confirmation"
+            style={{ marginBottom: '1.5rem', width: '100%' }}
+          >
+            {t('login.resend_confirmation')}
+          </button>
+        )}
+        {confirmationSent && (
+          <p role="status" className="auth-notice" data-testid="login-confirmation-resent">
+            {t('login.confirmation_resent')}
+          </p>
+        )}
 
         <Suspense fallback={null}>
           <SessionErrorBanner />

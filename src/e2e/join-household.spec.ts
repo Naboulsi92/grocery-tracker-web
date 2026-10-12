@@ -109,6 +109,7 @@ test.describe('Join Household Flow', () => {
         await inviteePage.getByLabel('Email').fill(inviteeAccount.email);
         await inviteePage.getByLabel('Mot de passe', { exact: true }).fill(inviteeAccount.password);
         await inviteePage.getByLabel('Confirmer le mot de passe').fill(inviteeAccount.password);
+        await inviteePage.getByTestId('signup-consent-checkbox').check();
         await inviteePage.getByRole('button', { name: "S'inscrire" }).click();
 
         // Back on the invitation with the code prefilled — no transcription.

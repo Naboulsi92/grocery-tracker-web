@@ -31,6 +31,7 @@ function SignupPageInner() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [consent, setConsent] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
@@ -80,6 +81,12 @@ function SignupPageInner() {
     e.preventDefault();
     setError('');
     setNotice('');
+
+    // Explicit consent (ticket #225, RGPD) : required before anything else.
+    if (!consent) {
+      setError(t('signup.consent_required'));
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError(t('signup.password_mismatch'));
@@ -182,6 +189,24 @@ function SignupPageInner() {
               minLength={8}
               required
             />
+          </div>
+
+          <div className="form-group form-consent">
+            <label htmlFor="consent" className="consent-label">
+              <input
+                id="consent"
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                data-testid="signup-consent-checkbox"
+              />
+              <span>
+                {t('signup.consent_pre')}{' '}
+                <Link href="/privacy" target="_blank" rel="noreferrer">{t('signup.consent_privacy')}</Link>{' '}
+                {t('signup.consent_mid')}{' '}
+                <Link href="/terms" target="_blank" rel="noreferrer">{t('signup.consent_terms')}</Link>
+              </span>
+            </label>
           </div>
 
           <button

@@ -1027,7 +1027,10 @@ $$;
 
 -- 2b. Fork bilingue : p_language='en' copie name_en (ticket #229) ;
 -- defaut/inconnu reste name_fr (l'appel a un seul argument du §1 sème FR)
-select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000099', true);
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+values
+  ('00000000-0000-4000-8000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'langprobe@example.test', '', now(), now());
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000007', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 select public.create_household('Lang household', p_language => 'en') as lang_household_id \gset

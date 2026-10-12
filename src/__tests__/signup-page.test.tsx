@@ -36,6 +36,7 @@ describe('SignupPage', () => {
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.test' } });
     fireEvent.change(screen.getByLabelText('Mot de passe', { exact: true }), { target: { value: '1234567' } });
     fireEvent.change(screen.getByLabelText('Confirmer le mot de passe'), { target: { value: '1234567' } });
+    fireEvent.click(screen.getByTestId('signup-consent-checkbox'));
     fireEvent.submit(screen.getByRole('button', { name: "S'inscrire" }).closest('form')!);
 
     expect(screen.getByRole('alert')).toHaveTextContent('au moins 8 caractères');
@@ -53,9 +54,27 @@ describe('SignupPage', () => {
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.test' } });
     fireEvent.change(screen.getByLabelText('Mot de passe', { exact: true }), { target: { value: 'LongEnough123' } });
     fireEvent.change(screen.getByLabelText('Confirmer le mot de passe'), { target: { value: 'LongEnough123' } });
+    fireEvent.click(screen.getByTestId('signup-consent-checkbox'));
     fireEvent.submit(screen.getByRole('button', { name: "S'inscrire" }).closest('form')!);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('compromis');
     expect(signUp).not.toHaveBeenCalled();
+  });
+
+  it('blocks submit without explicit consent (ticket #225)', () => {
+    render(
+      <LanguageProvider>
+        <SignupPage />
+      </LanguageProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.test' } });
+    fireEvent.change(screen.getByLabelText('Mot de passe', { exact: true }), { target: { value: 'LongEnough123' } });
+    fireEvent.change(screen.getByLabelText('Confirmer le mot de passe'), { target: { value: 'LongEnough123' } });
+    fireEvent.submit(screen.getByRole('button', { name: "S'inscrire" }).closest('form')!);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('accepter la politique');
+    expect(signUp).not.toHaveBeenCalled();
+    expect(isPasswordBreached).not.toHaveBeenCalled();
   });
 });

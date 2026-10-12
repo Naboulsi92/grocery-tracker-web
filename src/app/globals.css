@@ -508,6 +508,26 @@ input::placeholder {
   width: 100%;
 }
 
+/* Explicit-consent checkbox (ticket #225) : overrides the full-width
+   .form-group input so the box stays compact beside its label. */
+.consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.consent-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  accent-color: var(--color-accent);
+}
+
 .auth-submit {
   width: 100%;
   margin-top: 0.5rem;

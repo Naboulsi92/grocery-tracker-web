@@ -33,6 +33,7 @@ test.describe('Authentication', () => {
     await page.getByLabel('Email').fill(account.email);
     await page.getByLabel('Mot de passe', { exact: true }).fill(account.password);
     await page.getByLabel('Confirmer le mot de passe').fill(`${account.password}-different`);
+    await page.getByTestId('signup-consent-checkbox').check();
     await page.getByRole('button', { name: "S'inscrire" }).click();
     
     await expect(page.getByText('Les mots de passe ne correspondent pas')).toBeVisible();
@@ -71,9 +72,23 @@ test.describe('Authentication', () => {
     // le rejeter avant tout appel serveur (pas de navigation).
     await page.getByLabel('Mot de passe', { exact: true }).fill('Password123!');
     await page.getByLabel('Confirmer le mot de passe').fill('Password123!');
+    await page.getByTestId('signup-consent-checkbox').check();
     await page.getByRole('button', { name: "S'inscrire" }).click();
 
     await expect(page.getByText(/compromis|fuite/i)).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL('/signup');
+  });
+
+  test('signup requires explicit consent (ticket #225)', async ({ page }) => {
+    const account = createAccount('consent');
+    await page.goto('/signup');
+    await expect(page.getByTestId('signup-consent-checkbox')).toBeVisible();
+    await page.getByLabel('Email').fill(account.email);
+    await page.getByLabel('Mot de passe', { exact: true }).fill(account.password);
+    await page.getByLabel('Confirmer le mot de passe').fill(account.password);
+    await page.getByRole('button', { name: "S'inscrire" }).click();
+
+    await expect(page.getByText(/accepter la politique/i)).toBeVisible();
     await expect(page).toHaveURL('/signup');
   });
 });

@@ -56,6 +56,7 @@ export function PrivacyContent() {
               <li>{t('privacy.s2_item4')}</li>
               <li>{t('privacy.s2_item5')}</li>
             </ul>
+            <p>{t('privacy.s2_legal')}</p>
 
             <h2 id="privacy-s3">{t('privacy.s3_title')}</h2>
             <ul>

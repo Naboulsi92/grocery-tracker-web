@@ -235,6 +235,7 @@ export async function signUp(page: Page, account: Account) {
   await page.getByLabel('Email').fill(account.email);
   await page.getByLabel('Mot de passe', { exact: true }).fill(account.password);
   await page.getByLabel('Confirmer le mot de passe').fill(account.password);
+  await page.getByTestId('signup-consent-checkbox').check();
   await page.getByRole('button', { name: "S'inscrire" }).click();
   await page.waitForURL('/join-household', { timeout: 20000 });
   await page.getByTestId('onboarding-first-name-input').fill(account.firstName);

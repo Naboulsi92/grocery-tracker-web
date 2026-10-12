@@ -430,7 +430,7 @@
   "mk.faq_5_q": "Mes données sont-elles sécurisées ?",
   "mk.faq_5_a": "Oui ! Vos données sont chiffrées et accessibles uniquement aux membres de votre foyer.",
   "mk.faq_6_q": "Puis-je utiliser l'application hors ligne ?",
-  "mk.faq_6_a": "Oui. Vos ajouts et modifications sont conservés sur votre appareil et synchronisés avec votre foyer dès le retour de la connexion.",
+  "mk.faq_6_a": "En lecture seule : sans connexion, vous pouvez consulter votre inventaire et votre liste de courses, mais toute action est désactivée (« Hors connexion - lecture seule »). Si la connexion tombe pendant une action en cours, elle est rejouée automatiquement au retour du réseau.",
   "mk.cta_h2": "Prêt à simplifier vos courses ?",
   "mk.cta_sub": "Créez votre foyer en quelques secondes et invitez la personne avec qui vous faites vos courses.",
   "mk.cta_note": "Aucune carte bancaire requise",

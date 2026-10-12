@@ -166,6 +166,7 @@ function JoinHouseholdPageInner() {
 
     const { error: createError } = await supabase.rpc('create_household', {
       p_name: nameToSubmit,
+      p_language: language,
     });
 
     if (createError) {

@@ -46,7 +46,7 @@ describe('JoinHouseholdPage', () => {
     fillNames('Alex', 'Dupont');
     fireEvent.click(screen.getByRole('button', { name: 'Créer mon foyer' }));
 
-    await waitFor(() => expect(rpc).toHaveBeenCalledWith('create_household', { p_name: 'Foyer démo' }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith('create_household', { p_name: 'Foyer démo', p_language: 'fr' }));
     expect(profileUpdate).toHaveBeenCalledWith({ first_name: 'Alex', last_name: 'Dupont' });
     expect(profileUpdate.mock.invocationCallOrder[0]).toBeLessThan(rpc.mock.invocationCallOrder[0]);
     expect(retryHousehold).toHaveBeenCalledTimes(1);

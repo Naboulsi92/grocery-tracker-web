@@ -166,6 +166,7 @@
   "items.threshold": "Low stock threshold",
   "items.uncategorized": "Uncategorized",
   "items.low_stock": "To buy",
+  "items.stock_line": "{qty} {unit} · threshold {threshold}",
   "items.decrease_aria": "Decrease quantity of {name}",
   "items.increase_aria": "Increase quantity of {name}",
   "items.edit_aria": "Edit item {name}",

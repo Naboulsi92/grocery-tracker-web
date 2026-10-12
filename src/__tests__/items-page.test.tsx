@@ -128,4 +128,14 @@ describe('ItemsPage edit quantity (ticket #175)', () => {
     await screen.findByTestId('error-quantity-negative');
     expect(client.rpc).not.toHaveBeenCalled();
   });
+
+  it('renders the prototype-Actuel row (stock sub-line, detached circular stepper)', async () => {
+    render(
+      <LanguageProvider>
+        <ItemsPage />
+      </LanguageProvider>
+    );
+    expect(await screen.findByText('2 unite · seuil 1')).toBeVisible();
+    expect(screen.getByTestId('btn-quantity-increment-item-1')).toHaveClass('qty-btn-plus');
+  });
 });

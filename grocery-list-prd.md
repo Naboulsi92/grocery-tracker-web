@@ -8,6 +8,11 @@
 
 ## Changelog
 
+### v1.5
+- Audit d'écart code vs PRD (8 oct. 2026) : inventaire complet documenté en section 13 (état d'avancement par exigence : fait / partiel / manquant / contredit).
+- Résolution des écarts de la section 11 : rôle owner (RLS/RPC), cap 2 membres, `ITEM_TEMPLATES`, unités fermées, expiration 24h — tous résorbés sauf résidus listés en 13.3.
+- Statuts d'avancement ajoutés à la section 12 (hors produit).
+
 ### v1.4
 - Correction du modèle de fork : les articles par défaut sont copiés dans l'inventaire du foyer **à la création**, pas à la première modification (introduction de `ITEM_TEMPLATES`).
 - Nettoyage des descriptions devenues obsolètes suite à ce changement : unicité des noms, RLS, comportement en cascade.
@@ -67,14 +72,14 @@
 
 | Composant | Choix | Justification |
 |---|---|---|
-| Frontend | Next.js (React) + TypeScript + Tailwind CSS | Aligné avec l'expérience JavaScript/React du fondateur ; TypeScript retenu pour la sécurité de typage dès le départ |
-| Composants UI | shadcn/ui | Composants accessibles, construits sur Tailwind (pas de changement d'outil de style) |
+| Frontend | Next.js (React) + TypeScript + CSS sur mesure | Aligné avec l'expérience JavaScript/React du fondateur ; TypeScript retenu pour la sécurité de typage dès le départ ; CSS custom depuis l'origine (v1.5 : Tailwind abandonné et entériné — prototype, direction « Actuel » retenue) |
+| Composants UI | Composants maison (CSS custom, tokens et dark mode propres) | Pas de dépendance shadcn/ui (v1.5 : entériné) |
 | Backend & base de données | Supabase (PostgreSQL) | Realtime natif (exigence n°1), Auth intégrée (email + Google + Apple), hébergement disponible en région UE (Francfort) pour la conformité RGPD |
 | Synchronisation temps réel | Supabase Realtime | Push instantané des changements aux deux appareils connectés |
 | Notifications push | Web Push API (via service worker) + Supabase Edge Functions | Standard PWA, fonctionne sur Android et iOS (16.4+) une fois l'app installée sur l'écran d'accueil |
 | Cache hors-ligne | Service worker (Cache API / IndexedDB léger) | Permet la consultation en lecture seule sans connexion |
 | Hébergement frontend | Vercel | Intégration native avec Next.js, déploiement automatique |
-| Internationalisation | next-i18next | Français / anglais |
+| Internationalisation | i18next + react-i18next | Français / anglais (v1.5 : entériné — `next-i18next` jamais adopté) |
 
 **Note PWA** : l'application doit inclure un fichier manifest et un service worker pour permettre l'installation sur l'écran d'accueil, débloquer les notifications push (y compris sur iPhone), et gérer le cache hors-ligne en lecture seule.
 
@@ -86,7 +91,7 @@
 
 - Connexion par **email/mot de passe**, **Google**, ou **Apple**.
 - **Vérification d'email obligatoire** avant utilisation, pour les comptes créés par email.
-- **Mot de passe oublié** : email avec code de réinitialisation, valable 15 minutes.
+- **Mot de passe oublié** : email avec lien de réinitialisation (standard Supabase Auth) — entériné v1.5 (l'implémentation par lien remplace le code de 15 minutes envisagé initialement).
 - **Modification du mot de passe** : réservée aux comptes email (Google/Apple gèrent leur propre sécurité), nécessite la saisie du mot de passe actuel.
 - **Politique de mot de passe** : minimum 8 caractères, cohérent avec ce qui est déjà appliqué dans l'implémentation existante (Supabase Auth local et formulaire d'inscription).
 
@@ -105,12 +110,12 @@
 
 ### 4.3 Catégories
 
-- **Catégories par défaut** : communes à tous les foyers, ni modifiables ni supprimables (structure de base garantie). **10 catégories** au lancement : Fruits, Légumes, Produits laitiers, Viandes et poissons, Féculents, Épicerie, Boissons, Surgelés, Hygiène, Entretien — injectées via un **seed SQL bilingue codé en dur**, pas configurables en base a posteriori.
+- **Catégories par défaut** : identiques dans chaque foyer mais jamais partagées — dupliquées à la création du foyer (aucune ligne commune), ni modifiables ni supprimables (structure de base garantie). **10 catégories** au lancement : Fruits, Légumes, Produits laitiers, Viandes et poissons, Féculents, Épicerie, Boissons, Surgelés, Hygiène, Entretien — injectées via un **seed SQL bilingue codé en dur**, pas configurables en base a posteriori. (v1.5 : entériné — la copie par foyer, plus isolée que le partage initialement envisagé, est le comportement implémenté.)
 - **Le fork (voir 4.4) ne s'applique qu'aux articles.** Les catégories par défaut restent toujours intégralement verrouillées ; il n'existe pas de mécanisme de fork pour les catégories.
 - **Catégories personnalisées** : créées par un foyer, visibles et éditables/supprimables uniquement par ce foyer. Le **nom d'une catégorie personnalisée doit être unique** au sein du foyer (insensible à la casse).
 - **Suppression bloquée si non vide** : un foyer ne peut pas supprimer une catégorie personnalisée tant qu'elle contient encore des articles ; un message explicite invite à d'abord déplacer ou supprimer les articles concernés (ex. « Déplacez ou supprimez d'abord les 3 articles de cette catégorie »).
 - **Ordre des catégories** : personnalisable par foyer via glisser-déposer (recommandation technique : librairie dédiée type dnd-kit pour la robustesse tactile et l'accessibilité clavier).
-- Chaque article appartient à **une seule catégorie**.
+- Chaque article appartient à **au plus une catégorie** — les articles non classés sont regroupés dans une section « Sans catégorie ». (v1.5 : entériné — la catégorie est optionnelle à l'usage.)
 
 ### 4.4 Articles et inventaire
 
@@ -122,11 +127,11 @@
   - gramme / millilitre : incrément de 100 via les boutons, mais saisie manuelle libre possible (ex. 150 g), toujours en entiers, jamais négatif.
 - **L'unité est modifiable après création** (pour corriger une erreur de saisie). Changer l'unité **vide les champs quantité et seuil**, qui doivent être ressaisis manuellement — pas de conversion automatique ni de conservation de valeurs devenues incohérentes.
 - **Quantité et seuil** sont saisis manuellement à la création, et modifiables ensuite. Le **seuil est obligatoire** et doit être un nombre strictement positif (supérieur à 0).
-- **Ajustement du stock** : boutons plus/moins pour les petits ajustements, et **saisie manuelle** (tap sur la valeur) pour les grands écarts.
+- **Ajustement du stock** : boutons plus/moins pour les petits ajustements, et **saisie manuelle via le formulaire d'édition** pour les grands écarts. (v1.5 : le tap direct sur la valeur est abandonné — le formulaire suffit.)
 - **Achat (réapprovisionnement)** : l'utilisateur renseigne uniquement la quantité achetée (la différence) ; l'application additionne automatiquement au stock existant.
 - **Consommation** : toujours saisie manuellement — l'application ne peut pas détecter automatiquement ce qui est consommé.
 - Un article dont le stock atteint **0 reste visible** dans la liste (pour être réapprovisionné) ; il ne disparaît que si l'utilisateur le supprime manuellement.
-- **Modification/suppression d'un article** : accessible depuis l'écran d'accueil (icône dédiée par article). Le nom doit contenir au moins une lettre. La suppression demande une confirmation explicite et renvoie immédiatement à l'écran d'accueil.
+- **Modification/suppression d'un article** : accessible depuis l'écran d'inventaire (icône dédiée par article). Le nom doit contenir au moins une lettre. La suppression demande une confirmation explicite et renvoie immédiatement à l'écran d'accueil.
 - Toute validation de nom (article, catégorie, foyer) **exige au moins une lettre** — rejette les entrées composées uniquement de chiffres ou de symboles.
 
 ### 4.5 Liste de courses (alertes de réapprovisionnement)
@@ -194,7 +199,7 @@
 - **HOUSEHOLDS** : `id`, `name` (max. 50 caractères), `created_at`
 - **INVITATIONS** : `id`, `household_id`, `token_hash` (SHA-256 du token ; le token en clair n'est jamais stocké, seulement affiché une fois à la création), `status` (`pending`, `consumed`, `revoked`, `expired`), `expires_at` (24h après création), `created_at`, `revoked_at`
 - **USERS** : `id`, `household_id`, `first_name` (max. 50), `last_name` (max. 50), `email`, `auth_provider`, `notification_type`, `reminder_time`, `language`, `deleted_at` (soft-delete)
-- **CATEGORIES** : `id`, `household_id` (null = catégorie par défaut), `name` (max. 50), `is_default`, `position` (n'a de sens que pour les catégories personnalisées, déjà propres à un foyer ; l'ordre des catégories par défaut, partagées, passe par la table de jointure décrite ci-dessous)
+- **CATEGORIES** : `id`, `household_id` (null = catégorie par défaut), `name` (max. 50), `is_default` ; l'ordre par foyer passe par la jointure `category_positions` (`household_id`, `category_id`, `position`), pour les catégories personnalisées comme pour les copies des catégories par défaut
 - **ITEM_TEMPLATES** (catalogue des articles par défaut, sans foyer ni quantité) : `id`, `name` (bilingue), `category_key` (référence vers la catégorie par défaut correspondante), `unit`, `suggested_threshold`
 - **ITEMS** : `id`, `household_id` (toujours renseigné — aucun article n'existe sans foyer propriétaire), `category_id`, `name` (max. 50, unique par foyer), `unit`, `quantity`, `threshold`, `last_modified_by`, `already_notified`, `updated_at`, `template_id` (nullable, référence vers `ITEM_TEMPLATES` à titre indicatif uniquement, sans effet fonctionnel)
 - **HISTORY** : `id`, `household_id`, `performed_by`, `action_type`, `item_name`, `performed_at`
@@ -206,8 +211,8 @@
 
 ### Règles d'implémentation clés
 
-- **Fork à la création du foyer** : les 10 articles par défaut sont copiés depuis `ITEM_TEMPLATES` vers les `ITEMS` du foyer dès sa création (quantité initiale à 0, seuil repris du template `suggested_threshold`) — jamais de ligne partagée entre foyers, même temporairement. Modifier sa copie n'affecte donc jamais un autre foyer. Les catégories par défaut, elles, restent verrouillées et ne sont jamais copiées (impossible pour les catégories).
-- **Ordre des catégories** : pour les catégories personnalisées, la colonne `position` sur `CATEGORIES` suffit (chaque ligne appartient déjà à un seul foyer). Pour les **catégories par défaut** (partagées entre tous les foyers), l'ordre par foyer passe par une **table de jointure séparée** (`household_id`, `category_id`, `position`), puisqu'une même ligne `CATEGORIES` ne peut pas porter une position différente pour chaque foyer.
+- **Fork à la création du foyer** : les 10 articles par défaut sont copiés depuis `ITEM_TEMPLATES` vers les `ITEMS` du foyer dès sa création (quantité initiale à 0, seuil repris du template `suggested_threshold`) — jamais de ligne partagée entre foyers, même temporairement. Modifier sa copie n'affecte donc jamais un autre foyer. Les catégories par défaut sont elles aussi copiées par foyer (jamais partagées) et restent verrouillées : ni modifiables, ni supprimables, sans mécanisme de fork (v1.5 : entériné).
+- **Ordre des catégories** : pour toutes les catégories (personnalisées comme par défaut, ces dernières étant copiées par foyer), l'ordre par foyer passe par une **table de jointure unique** (`household_id`, `category_id`, `position`). (v1.5 : entériné — un seul mécanisme au lieu de la colonne `position` directe initialement envisagée pour les catégories personnalisées.)
 - **Notification unique** : le champ `already_notified` sur `ITEMS` évite les alertes répétées tant que l'article reste sous le seuil ; il repasse à faux dès que le stock redépasse le seuil.
 - **Unicité du nom d'article** : contrainte unique sur (`household_id`, `name`) au niveau base de données, insensible à la casse. S'applique uniformément, puisque chaque article — y compris les copies issues de `ITEM_TEMPLATES` — appartient toujours à un foyer précis dès sa création.
 - **Unicité du nom de catégorie** : contrainte unique sur (`household_id`, `name`) pour les catégories personnalisées, insensible à la casse.
@@ -254,7 +259,8 @@ Supabase Realtime peut manquer des événements pendant une coupure réseau ou u
 | Page d'accueil (marketing) | Présente l'application aux visiteurs, met en avant les bénéfices, incite à l'inscription |
 | Connexion / inscription | Email + mot de passe, Google, Apple ; bascule entre les deux modes |
 | Onboarding (profil + foyer) | Saisie prénom/nom, puis choix rejoindre (code/QR) ou créer un foyer |
-| Accueil / inventaire | Liste des articles par catégorie, boutons plus/moins, saisie manuelle, accès liste de courses / historique / réglages |
+| Accueil (tableau de bord) | Vue d'ensemble du foyer, accès inventaire / liste de courses / historique / réglages |
+| Inventaire | Liste des articles par catégorie, boutons plus/moins, saisie manuelle via le formulaire, ajout / modification / suppression |
 | Liste de courses | Articles sous ou à leur seuil, coché uniquement lors d'un réapprovisionnement suffisant |
 | Ajout d'un article | Nom, catégorie (avec création à la volée), unité, quantité initiale, seuil |
 | Modification d'un article | Renommage, changement de catégorie/unité, seuil, suppression avec confirmation |
@@ -359,20 +365,19 @@ Les scénarios mono-utilisateur (7 à 12) s'écrivent de façon classique, un se
 
 ## 10. Workflow Git et déploiement
 
-**Modèle de branches retenu** (inspiré de Git Flow) :
+**Modèle retenu (v1.5) : trunk-based sur `main`** — le Git Flow initial (`develop`/`release`/`master`) n'a jamais été adopté et est abandonné :
 
-- **`feature/*`** : une branche par fonctionnalité, créée à partir de `develop`. Une fois le travail terminé, une Pull Request la fusionne dans `develop`.
-- **`develop`** : branche d'intégration continue, reflète l'état du produit prêt pour la prochaine mise en production.
-- **`release/*`** : ouverte quand `develop` a accumulé assez de fonctionnalités stables pour une mise en production ; sert à la finalisation, la QA et la correction de bugs avant le lancement.
-- **`master`** : reçoit la fusion finale de la branche `release/*`, ce qui déclenche le déploiement en production ; la release est ensuite refusionnée dans `develop` pour que le travail futur reste à jour.
+- **`feature/*` / `fix/*` / `docs/*`** : une branche par sujet, créée depuis `main`. Une Pull Request la fusionne dans `main` en squash, après CI verte (typecheck + tests + lint + E2E).
+- **`main`** : branche unique, toujours déployable ; chaque merge déclenche le déploiement production via Vercel.
+- **Règle d'or : on ne teste jamais sur prod.** Chaque PR génère une URL de prévisualisation Vercel — les tests manuels se font sur la Preview, jamais sur la production.
 
-**Adaptation aux forfaits gratuits retenus** :
+**Environnements (décision v1.5, ticket #230)** :
 
-- **Supabase (gratuit)** : limité à 2 projets actifs par organisation. `develop` et `release/*` partagent donc le **même projet Supabase de non-production** (staging), tandis que `master` pointe vers un second projet dédié à la **production**. Pour les branches `feature/*`, le développement s'appuie sur la **CLI Supabase en local** (`supabase start`, Postgres dans Docker) plutôt que sur un projet cloud par fonctionnalité, pour rester dans la limite des 2 projets gratuits.
-  - Supabase propose une fonctionnalité de branchement de base de données facturée à l'heure ; sa disponibilité sur le forfait gratuit n'est pas garantie et doit être vérifiée sur la documentation à jour avant d'en dépendre pour ce workflow.
-  - Un projet gratuit inactif pendant 7 jours se met en pause automatiquement (réactivation manuelle, redémarrage à froid de quelques secondes) — un point d'attention si le projet de staging reste inutilisé plusieurs jours d'affilée.
-- **Vercel (gratuit)** : chaque Pull Request, `feature/*` comme `release/*`, génère automatiquement une URL de prévisualisation ; seule `master` déclenche un déploiement en production. Le forfait gratuit couvre ce workflow nativement, sans adaptation nécessaire.
-- **GitHub (gratuit)** : dépôts privés, branches et Pull Requests illimités. Seul point à surveiller : si la suite Playwright tourne en CI (GitHub Actions) à chaque push, le forfait gratuit inclut un quota mensuel de minutes d'exécution — large pour un projet à deux personnes, mais pas illimité.
+- **Production** : Vercel (branche `main`) + projet Supabase de production.
+- **Staging** : les déploiements Preview Vercel pointent vers un **second projet Supabase dédié** (région UE), pour tester à données isolées.
+- **Local** : CLI Supabase (`supabase start`) pour le développement par fonctionnalité.
+- La branche `main` est protégée : les checks CI requis doivent être verts avant merge.
+- Un projet gratuit inactif pendant 7 jours se met en pause automatiquement — prévoir la réactivation du staging si inutilisé plusieurs jours.
 
 ## 11. Réconciliation avec l'implémentation existante (grocery-tracker-web)
 
@@ -393,6 +398,14 @@ La décision est de **faire évoluer cette base existante** vers les décisions 
 
 **Bonne nouvelle sur le format du code** : le choix confirmé (token aléatoire de 8 caractères + hachage SHA-256) correspond exactement au système déjà en place dans le dépôt (table `invitations`, colonne `token_hash`) — ce n'est donc pas un écart à corriger, juste une confirmation que l'architecture existante était la bonne direction dès le départ.
 
+### Résolution des écarts (v1.5 — 8 oct. 2026)
+
+- **Rôle owner** : résorbé côté accès (vérifications owner retirées des RPC et RLS, `is_household_member` seul garde ; colonne `token_hash`, statuts, 24h, 5 tentatives/min en place). Reste un résidu d'affichage (`role_owner`/`role_member` dans l'UI, type `household_role`, `create_household` insère encore `'owner'`) — voir 13.3.
+- **Taille du foyer** : cap 2 appliqué dans `consume_household_invitation` (`household is full`, 23505). Invalidation à 2/2 partielle : le token consommé est invalidé et l'UI bloque toute recréation, mais `create_household_invitation` n'a pas de garde DB — voir 13.3.
+- **Articles par défaut** : `ITEM_TEMPLATES` introduit, fork des 10 lignes vers `ITEMS` à la création du foyer (quantité 0, seuil suggéré). Écart restant : les catégories par défaut sont elles aussi copiées par foyer (pas partagées) — voir 13.3.
+- **Unités** : liste fermée `kg/g/l/ml/unite` (migration + CHECK + validation applicative).
+- **Expiration** : `expires_at` fixé à 24h, rejet au-delà.
+
 ### Éléments existants à conserver tels quels
 
 - Le **système d'invitation par token haché** (SHA-256, statuts, une seule invitation vivante à la fois) est plus robuste que le simple "code régénérable" envisagé initialement dans le PRD — il est conservé et complété (24h, cap à 2 membres), pas remplacé.
@@ -406,8 +419,102 @@ La décision est de **faire évoluer cette base existante** vers les décisions 
 
 ## 12. Points restant à traiter (hors produit)
 
-- **Branding** : logo, identité visuelle, icônes de l'application.
-- **Contenu des emails transactionnels** : vérification de compte, réinitialisation de mot de passe.
-- **Analytics** : indicateurs de succès (inscriptions, rétention, usage).
-- **Déploiement / CI** : pipeline de mise en production via Vercel.
-- **Rédaction finale** du contenu du Guide et de la FAQ (contenu actuel à titre d'exemple, à enrichir).
+- **Branding** : logo, identité visuelle, icônes de l'application. (v1.5 : 🔶 partiel — `logo.png`, icônes PWA et manifest en place ; reste la vérification de marque du consentement Google OAuth.)
+- **Contenu des emails transactionnels** : vérification de compte, réinitialisation de mot de passe. (v1.5 : ❌ manquant — templates Supabase par défaut.)
+- **Analytics** : indicateurs de succès (inscriptions, rétention, usage). (v1.5 : ✅ fait — Plausible branché + suivi page views/scroll.)
+- **Déploiement / CI** : pipeline de mise en production via Vercel. (v1.5 : 🔶 partiel — Preview auto par PR + CI quality/database/E2E actives ; pas de `vercel.json`, pas de gate E2E sur déploiement.)
+- **Rédaction finale** du contenu du Guide et de la FAQ (contenu actuel à titre d'exemple, à enrichir). (v1.5 : 🔶 partiel — FAQ marketing uniquement, 6 Q/R génériques.)
+
+---
+
+## 13. État d'avancement (v1.5 — 8 oct. 2026)
+
+Audit code vs PRD par inventaire systématique (auth/foyer, catalogue/alertes, transversal/modèle, suite E2E : 278 tests, 27 specs Playwright + contrat SQL en CI). Légende : ✅ fait · 🔶 partiel · ❌ manquant · ⚠️ code contredit le PRD (décision à trancher en 13.3).
+
+### 13.1 Exigences produit
+
+| Exigence (§) | Statut | Preuve / note |
+|---|---|---|
+| Auth email + Google (4.1) | ✅ | `login`/`signup` + `OAuthButtons` (google uniquement) |
+| Apple Sign-In (4.1) | ❌ | Coupé : nécessite le programme développeur Apple payant |
+| Vérification email obligatoire (4.1) | ⚠️ | `enable_confirmations=false` — aucun gate applicatif |
+| Mot de passe oublié, code 15 min (4.1) | 🔶 | Lien GoTrue (pas de code) ; expiration = défaut serveur |
+| Modification mdp email + actuel requis (4.1) | ✅ | `changePassword` revérifie via `signInWithPassword` ; notice OAuth sinon |
+| Politique 8+ caractères (4.1) | ✅ | Formulaire (`minLength=8`) + `minimum_password_length=8` local |
+| Mots de passe fuites (4.1/§11) | 🔶 | Client HIBP k-anonymity ✅ (signup/reset/changement + CSP) ; serveur ❌ (toggle Pro) |
+| Onboarding prénom/nom (4.2) | ✅ | `join-household`, persistance `profiles` |
+| Rejoindre (code/QR) ou créer (4.2) | ✅ | `consume_household_invitation` + `create_household` + QR + deep link `?code=` pré-rempli après inscription |
+| Nom foyer défaut = nom de famille (4.2) | ⚠️ | Défaut réel : « Mon Foyer », jamais le nom de famille ; modifiable ✅ |
+| Cap 2 membres (4.2) | ✅ | `consume` rejette (`household is full`, 23505) |
+| Invalidation code/QR à 2/2 (4.2) | 🔶 | Token consommé invalidé + UI bloque (`household-full-message`) ; recréation DB possible quand plein |
+| Expiration 24h (4.2) | ✅ | Défaut 24h, rejet au-delà, `expires_at` forcé ≤ 24h |
+| Token 8c + SHA-256 seul stocké (4.2/5) | ✅ | CSPRNG 8 chars, `token_hash` unique, token jamais relu |
+| Régénération confirmée (4.2) | ✅ | `revoke+create` derrière `AccessibleDialog` |
+| Erreur code invalide (4.2) | ✅ | `invalid_or_expired` + `invite-code-error` |
+| 10 catégories verrouillées, seed bilingue (4.3) | ✅ | Seed SQL dur FR/EN, RLS `is_default=false` requis en écriture |
+| Pas de fork catégories (4.3) | ⚠️ | Copiées par foyer comme les articles (jamais partagées) |
+| Catégories perso + unicité (4.3) | ✅ | Index partiel `(household_id, lower(name))` + contrôle front |
+| Suppression bloquée si non vide (4.3) | ✅ | Message « Déplacez ou supprimez d'abord les N articles… » + `ON DELETE RESTRICT` |
+| Ordre glisser-déposer (4.3) | ✅ | dnd-kit (tactile + clavier) ; commentaire : pas de realtime sur positions |
+| Un article = une catégorie (4.3) | ⚠️ | `category_id` nullable → section « Sans catégorie » autorisée |
+| Texte simple, sans photo (4.4) | ✅ | Formulaire nom/catégorie/quantité/unité/seuil uniquement |
+| Fork 10 articles à la création (4.4) | ✅ | `ITEM_TEMPLATES` → copie qté 0 + seuil suggéré + `template_id` indicatif |
+| Unicité article insensible casse (4.4/7) | ✅ | Index `(household_id, lower(name))` + contrôle front |
+| Unités fermées + règles entiers (4.4) | ✅ | `kg/g/l/ml/unite`, dropdown, pas +1 / g/ml +100 + saisie entière libre |
+| Changement d'unité vide qté+seuil (4.4) | 🔶 | UI vide les champs ; DB met sentinelle seuil=1 (colonne non-nullable) + qté 0 |
+| Seuil obligatoire > 0 (4.4/7) | ✅ | Validation + CHECK + `min=1` |
+| Ajustement +/− et saisie manuelle (4.4) | 🔶 | +/− et formulaire ✅ ; tap direct sur la valeur ❌ |
+| Achat = différence additionnée (4.4) | ✅ | `handleConfirmQuantity` + RPC `greatest(0, qté+delta)` |
+| Conso manuelle, stock 0 visible (4.4) | ✅ | Décrément clampé à 0, aucun filtre |
+| Édit/suppression + confirmation (4.4/7) | 🔶 | Depuis `/items` (pas `/home`) avec confirmation ; pas de retour accueil après suppression |
+| Nom ≥ 1 lettre, 50 max (4.4/7) | ✅ | Regex + CHECK (items/catégories/templates ; foyers/profils : front seul) |
+| Liste courses auto + règles coché (4.5) | ✅ | `qté ≤ seuil`, coché seulement si `nouvelle > seuil`, visible jusqu'à quitter, « Tout est en stock ! » |
+| Notif autre membre uniquement (4.6) | ✅ | Fan-out `.neq(actor)` ; P0-2 en E2E |
+| Une seule par franchissement (4.6) | ✅ | `already_notified` + reset si `> seuil` ; P0-3 en E2E |
+| Canaux push/badge/both/none, pas d'email (4.6) | 🔶 | Stockage + UI ✅ ; badge OS natif (`setAppBadge`) ❌ |
+| Rappel quotidien conditionnel (4.6) | 🔶 | Heure + garde file non vide ✅ ; exclut `badge`/`none`, cron à brancher sur endpoint externe |
+| Historique 20 + trigger + format (4.7) | ✅ | `AFTER INSERT` cap 20, sans les achats, auteur/action/article/relatif ; P1-10 en E2E |
+| Égalité totale, quitter seul (4.8) | 🔶 | RPC/RLS sans owner ✅, `leave_household` sans paramètre ✅, dialogue au texte exact ✅ ; résidu `owner` (insert, type, libellés UI) ⚠️ |
+| Rétention indéfinie autre membre (4.8) | ✅ | Purge seulement si foyer à 0 membre ; P1-9 en E2E |
+| Compte : noms indépendants (4.9) | ✅ | `profiles` vs `households` séparés |
+| Soft-delete 7j + restore + cron (4.9) | ✅ | `deleted_at`, restore à la reconnexion, `member-gdpr-sweep` quotidien ; P1-9 en E2E |
+| Bilingue complet + dark OS/forcé (4.10) | ✅ | 552 clés FR/EN, seeds bilingues, `prefers-color-scheme` + toggle compte |
+| Privacy/Terms + export + suppression (4.11) | ✅ | Pages réelles, export JSON, soft-delete 7j |
+| Consentement explicite + base légale (4.11) | ❌ | Acceptation implicite (« en créant… »), finalités sans bases |
+| Offline lecture seule + file + resync (4.12) | ✅ | SW cache GET, actions désactivées, bandeau exact, IndexedDB + backoff, resync sans reload, écrans bloquants, LWW silencieux (ADR-0006) ; P1-11 en E2E |
+| Bandeau install PWA (4.13) | ✅ | 2ᵉ visite, dismiss, +2 visites ; P1-14 en E2E |
+| Modèle §5 (tables, RLS, cascade, codes) | 🔶 | Tables ✅ (noms réels : `profiles`, `household_invitations`, `category_positions`), RLS foyer ✅, cascade orphelin ✅, code 8c/SHA-256/5-min/24h ✅ ; `position` perso via jointure (pas colonne) ⚠️ |
+| Écrans §6 | 🔶 | Tous présents (inventaire = `/items`, dashboard = `/home`) ; Guide/FAQ = section marketing seule, contenu générique |
+| Hors périmètre §9 | ✅ | Respecté : recherche, offline-écriture, résumé email, photos, >2, verrou, natif — rien d'implémenté |
+| Stack §3 | ⚠️ | Next 16 + TS + Supabase + Realtime + Web Push + SW + Vercel + i18n ✅ ; Tailwind/shadcn/next-i18next ❌ (CSS custom + `i18next` — écart documenté, jamais entériné) |
+| Workflow §10 | ⚠️ | Trunk-based sur `main` + squash + Preview (pas de `develop`/`release`/`master`) |
+| Tests §8 | 🔶 | Playwright ✅, 278 tests ✅, `data-testid` ✅, seeding admin inline (pas de comptes `.test` dédiés), P0-1/2/3/5/6 + P1-7/8/9/10/11/13/14 ✅, P0-4 🔶, P1-12 ❌, vrai parcours email ❌ (Mailosaur absent, confirmations désactivées) |
+
+### 13.2 Bugs et scories relevés pendant l'audit (décisions v1.5)
+
+- Ticket #229 : FAQ `mk.faq_6_a` promet « ajouts conservés et synchronisés au retour » — contredit le mode lecture seule (§4.12/§9).
+- Ticket #229 : fork copie `name_fr` seul — en anglais, les articles par défaut s'affichent en français (contredit « seedés bilingues »).
+- Reportés sans action : texte `errors.auth.weak_password` (« 6 caractères » vs politique 8+) ; recréation d'invitation possible en DB quand le foyer est plein (l'UI bloque).
+
+### 13.3 Écarts PRD ↔ code — décisions v1.5
+
+| # | Écart | Décision |
+|---|---|---|
+| 1 | Catégories par défaut copiées par foyer, pas partagées (§4.3/§5) | ENTÉRINÉ — spec alignée |
+| 2 | Ordre via `category_positions` unique, pas de colonne `position` perso (§5) | ENTÉRINÉ — spec alignée |
+| 3 | Nom foyer défaut « Mon Foyer », pas « Foyer <nom> » (§4.2) | REPORTÉ sans action |
+| 4 | Résidu `owner` : insert, type `household_role`, libellés UI (§4.8) | REPORTÉ sans action |
+| 5 | Articles « Sans catégorie » autorisés (§4.3) | ENTÉRINÉ — spec alignée |
+| 6 | Changement d'unité : sentinelle seuil=1, pas champs vidés (§4.4) | TICKET #222 — la spec reste, le code sera corrigé |
+| 7 | Tap sur la valeur pour saisie (§4.4) | ABANDONNÉ — spec alignée (formulaire seul) |
+| 8 | Édit/suppression depuis `/items`, pas `/home` (§4.4/§6) | ENTÉRINÉ — spec alignée (`/items` = inventaire) |
+| 9 | Badge OS natif absent (§4.6) | TICKET #223 |
+| 10 | Rappel : exclut `badge`/`none`, cron à brancher (§4.6) | TICKET #224 |
+| 11 | Apple Sign-In absent (§4.1) | REPORTÉ (bloqué par le programme payant) |
+| 12 | Vérification email désactivée (§4.1) | TICKET #227 — activer (décision produit) |
+| 13 | Reset par lien, pas code 15 min (§4.1) | ENTÉRINÉ — spec alignée |
+| 14 | Consentement explicite + bases légales (§4.11) | TICKET #225 |
+| 15 | Trunk-based, pas Git Flow (§10) | REMPLACÉ — §10 réécrit : trunk + discipline Preview + staging (TICKET #230) |
+| 16 | Seeding admin inline, pas comptes `.test` (§8) | TICKET #228 — la spec reste, la suite sera alignée |
+| 17 | P1-12 (lockout 5 tentatives) non testé E2E (§8) | TICKET #226 |
+| 18 | Stack réelle : CSS custom + `i18next`, pas Tailwind/shadcn/next-i18next (§3) | ENTÉRINÉ — §3 aligné (direction « Actuel » retenue sur prototype) |

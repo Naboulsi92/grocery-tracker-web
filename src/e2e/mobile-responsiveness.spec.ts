@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
-import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { expect, test } from './fixtures';
 import {
   PWA_INSTALLED_KEY,
   PWA_SNOOZED_AT_KEY,
@@ -24,12 +24,10 @@ test.describe('Mobile Responsiveness', () => {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     });
 
-    test('dashboard cards stack vertically on mobile', async ({ page, browserName }) => {
+    test('dashboard cards stack vertically on mobile', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.mobile);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       const cards = page.locator('[data-testid^="dashboard-card-"]');
       await expect(cards).toHaveCount(7);
@@ -44,12 +42,10 @@ test.describe('Mobile Responsiveness', () => {
       expect(firstBox!.y).toBeLessThan(secondBox!.y);
     });
 
-    test('touch targets are minimum 44px on mobile', async ({ page, browserName }) => {
+    test('touch targets are minimum 44px on mobile', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.mobile);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       const primaryTargets = page.locator('a[data-testid^="dashboard-card-"]');
       const count = await primaryTargets.count();
@@ -68,12 +64,10 @@ test.describe('Mobile Responsiveness', () => {
       expect(allTargetsValid).toBe(true);
     });
 
-    test('back button is tappable on mobile', async ({ page, browserName }) => {
+    test('back button is tappable on mobile', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.mobile);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
       await expect(page).toHaveURL('/items');
@@ -88,12 +82,10 @@ test.describe('Mobile Responsiveness', () => {
       await expect(page).toHaveURL('/home');
     });
 
-    test('forms are usable on mobile', async ({ page, browserName }) => {
+    test('forms are usable on mobile', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.mobile);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -114,12 +106,10 @@ test.describe('Mobile Responsiveness', () => {
       expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
     });
 
-    test('lists scroll properly on mobile', async ({ page, browserName }) => {
+    test('lists scroll properly on mobile', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.mobile);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       for (let i = 0; i < 10; i++) {
         const itemName = `Article test ${randomUUID()}`;
@@ -143,12 +133,10 @@ test.describe('Mobile Responsiveness', () => {
       await expect.poll(async () => items.count(), { timeout: 8000 }).toBeGreaterThan(0);
     });
 
-    test('modals/dialogs are usable on mobile', async ({ page, browserName }) => {
+    test('modals/dialogs are usable on mobile', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.mobile);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
@@ -173,12 +161,10 @@ test.describe('Mobile Responsiveness', () => {
       await page.getByTestId('btn-create-category').click();
     });
 
-    test('navigation works on mobile viewport', async ({ page, browserName }) => {
+    test('navigation works on mobile viewport', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.mobile);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
       await expect(page).toHaveURL('/categories');
@@ -211,35 +197,29 @@ test.describe('Mobile Responsiveness', () => {
       await expect(page.locator('#faq')).toBeVisible();
     });
 
-    test('dashboard cards layout on tablet', async ({ page, browserName }) => {
+    test('dashboard cards layout on tablet', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.tablet);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       const cards = page.locator('[data-testid^="dashboard-card-"]');
       await expect(cards).toHaveCount(7);
     });
 
-    test('navigation works on tablet viewport', async ({ page, browserName }) => {
+    test('navigation works on tablet viewport', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.tablet);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-household').click();
       await expect(page).toHaveURL('/household');
       await expect(page.getByRole('heading', { name: /Membres/ })).toBeVisible();
     });
 
-    test('forms are usable on tablet', async ({ page, browserName }) => {
+    test('forms are usable on tablet', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.tablet);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
@@ -263,23 +243,19 @@ test.describe('Mobile Responsiveness', () => {
       await expect(page.locator('#faq')).toBeVisible();
     });
 
-    test('dashboard cards layout on small laptop', async ({ page, browserName }) => {
+    test('dashboard cards layout on small laptop', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.smallLaptop);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       const cards = page.locator('[data-testid^="dashboard-card-"]');
       await expect(cards).toHaveCount(7);
     });
 
-    test('navigation works on small laptop viewport', async ({ page, browserName }) => {
+    test('navigation works on small laptop viewport', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.smallLaptop);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-items').click();
       await expect(page).toHaveURL('/items');
@@ -299,23 +275,19 @@ test.describe('Mobile Responsiveness', () => {
       await expect(page.locator('#faq')).toBeVisible();
     });
 
-    test('dashboard cards layout on large desktop', async ({ page, browserName }) => {
+    test('dashboard cards layout on large desktop', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.largeDesktop);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       const cards = page.locator('[data-testid^="dashboard-card-"]');
       await expect(cards).toHaveCount(7);
     });
 
-    test('navigation works on large desktop viewport', async ({ page, browserName }) => {
+    test('navigation works on large desktop viewport', async ({ authenticatedPage: page, browserName }) => {
       test.skip(browserName !== 'chromium', 'Viewport tests on Chromium only');
-      requireWrites();
+      // #237 : seeded session.
       await page.setViewportSize(VIEWPORTS.largeDesktop);
-      const account = createAccount();
-      await createHousehold(page, account);
 
       await page.getByTestId('dashboard-card-to-buy').click();
       await expect(page).toHaveURL('/to-buy');

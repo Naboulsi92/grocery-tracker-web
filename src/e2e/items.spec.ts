@@ -546,6 +546,70 @@ test.describe('Items CRUD', () => {
       await expect(page.getByLabel('Seuil stock bas')).toHaveValue('');
     });
 
+    test('changing unit on edit persists the re-entered values, not the sentinel (#222)', async ({ page, account }) => {
+      requireWrites();
+      await createHousehold(page, account);
+
+      const itemName = `Article unité edit ${randomUUID().slice(0, 8)}`;
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(itemName);
+      await page.getByLabel('Quantité', { exact: true }).fill('5');
+      await page.getByLabel('Seuil stock bas').fill('3');
+      await page.getByTestId('btn-create-item').click();
+      await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+
+      const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+      await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
+      await page.locator('[data-testid="input-item-unit"], #item-unit').selectOption('kg');
+      await expect(page.getByLabel('Quantité', { exact: true })).toHaveValue('');
+      await expect(page.getByLabel('Seuil stock bas')).toHaveValue('');
+
+      await page.getByLabel('Quantité', { exact: true }).fill('7');
+      await page.getByLabel('Seuil stock bas').fill('2');
+      await page.getByTestId('btn-create-item').click();
+      await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+
+      // Reopen: the re-entered values persisted (threshold 2, not sentinel 1).
+      await page.locator('.item-row').filter({ hasText: itemName }).getByRole('button', { name: /Modifier l'article/ }).click();
+      await expect(page.getByLabel('Quantité', { exact: true })).toHaveValue('7');
+      await expect(page.getByLabel('Seuil stock bas')).toHaveValue('2');
+      await page.getByTestId('btn-cancel-item').click();
+
+      await deleteItemRow(page, page.locator('.item-row').filter({ hasText: itemName }));
+    });
+
+    test('changing unit on edit and saving cleared persists empty, not the sentinel (#222)', async ({ page, account }) => {
+      requireWrites();
+      await createHousehold(page, account);
+
+      const itemName = `Article unité vide ${randomUUID().slice(0, 8)}`;
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(itemName);
+      await page.getByLabel('Quantité', { exact: true }).fill('5');
+      await page.getByLabel('Seuil stock bas').fill('3');
+      await page.getByTestId('btn-create-item').click();
+      await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+
+      const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+      await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
+      await page.locator('[data-testid="input-item-unit"], #item-unit').selectOption('kg');
+      // Saving cleared is allowed on edit: no threshold-required error.
+      await page.getByTestId('btn-create-item').click();
+      await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId('error-threshold-required')).toHaveCount(0);
+      await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.item-sub')).toContainText('—');
+
+      // Reopen: quantity zeroed, threshold empty (NULL, not sentinel 1).
+      await page.locator('.item-row').filter({ hasText: itemName }).getByRole('button', { name: /Modifier l'article/ }).click();
+      await expect(page.getByLabel('Quantité', { exact: true })).toHaveValue('0');
+      await expect(page.getByLabel('Seuil stock bas')).toHaveValue('');
+      await page.getByTestId('btn-cancel-item').click();
+
+      await deleteItemRow(page, page.locator('.item-row').filter({ hasText: itemName }));
+    });
+
     test('unit select offers exactly the 5 closed PRD values', async ({ page, account }) => {
       requireWrites();
       await createHousehold(page, account);

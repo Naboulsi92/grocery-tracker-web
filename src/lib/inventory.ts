@@ -39,7 +39,9 @@ export function groupItems(items: InventoryItem[], categories: Category[]): Item
 }
 
 export function getLowStockItems(items: InventoryItem[]): InventoryItem[] {
-  return items.filter((item) => item.quantity <= item.low_stock_threshold);
+  // Ticket #222 : a threshold cleared by a unit change is NULL — unknown, so
+  // the item cannot evaluate as low-stock (NULL comparisons never qualify).
+  return items.filter((item) => item.low_stock_threshold !== null && item.quantity <= item.low_stock_threshold);
 }
 
 export function getNextCategoryOrder(positions: number[]): number {

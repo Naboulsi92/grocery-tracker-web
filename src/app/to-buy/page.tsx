@@ -142,7 +142,9 @@ export default function ToBuyPage() {
     try {
       const { error } = await updateItemQuantity(id, delta);
       if (error) throw error;
-      if (currentItem.quantity + delta > currentItem.low_stock_threshold) {
+      // Ticket #222 : without a threshold (NULL, cleared by a unit change) no
+      // target exists to compare against — restocking marks the item checked.
+      if (currentItem.low_stock_threshold === null || currentItem.quantity + delta > currentItem.low_stock_threshold) {
         markChecked(id);
       } else {
         setThresholdNoticeId(id);

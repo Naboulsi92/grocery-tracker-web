@@ -1,15 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { requireWrites, createAccount, createHousehold, ensureAuthenticatedPage, expect, signUp, test } from './fixtures';
 import { confirmDeleteDialog, deleteItemRow, fetchInviteToken } from './helpers';
 
 test.describe('Real-time Collaboration', () => {
   test.describe('Real-time Item Updates (US 56)', () => {
-    test('updates item quantity in real-time across browser contexts', async ({ page, account, browser }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('updates item quantity in real-time across browser contexts', async ({ authenticatedPage: page, browser }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article rt ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -18,21 +16,9 @@ test.describe('Real-time Collaboration', () => {
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      const secondContext = await browser.newContext();
-      const secondPage = await secondContext.newPage();
-      const secondAccount = createAccount('e2e-rt-item');
-      await signUp(secondPage, secondAccount);
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-
-      // Invite tokens render on /household (never on /items): fetch one via the
-      // proven onboarding pattern so the two-context flow below always runs.
-      const token = await fetchInviteToken(page);
-      await page.goto('/items');
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
-      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-      await secondPage.waitForURL('/home', { timeout: 20000 });
+      // #237 : second seeded member of the same foyer (foyer 1 is already
+      // full at 2/2, so no invite choreography).
+      const secondPage = await ensureAuthenticatedPage(browser, 'household1.userB');
 
       await secondPage.getByTestId('dashboard-card-items').click();
       await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
@@ -43,15 +29,13 @@ test.describe('Real-time Collaboration', () => {
 
       await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('2', { timeout: 10000 });
 
-      await secondContext.close();
+      await secondPage.context().close();
 
       await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
-    test('updates item name in real-time across browser contexts', async ({ page, account, browser }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('updates item name in real-time across browser contexts', async ({ authenticatedPage: page, browser }) => {
+      // #237 : seeded session (UUID names, deleted at the end).
       const originalName = `Article orig ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -59,21 +43,9 @@ test.describe('Real-time Collaboration', () => {
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(originalName)).toBeVisible({ timeout: 10000 });
 
-      const secondContext = await browser.newContext();
-      const secondPage = await secondContext.newPage();
-      const secondAccount = createAccount('e2e-rt-name');
-      await signUp(secondPage, secondAccount);
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-
-      // Invite tokens render on /household (never on /items): fetch one via the
-      // proven onboarding pattern so the two-context flow below always runs.
-      const token = await fetchInviteToken(page);
-      await page.goto('/items');
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
-      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-      await secondPage.waitForURL('/home', { timeout: 20000 });
+      // #237 : second seeded member of the same foyer (foyer 1 is already
+      // full at 2/2, so no invite choreography).
+      const secondPage = await ensureAuthenticatedPage(browser, 'household1.userB');
 
       await secondPage.getByTestId('dashboard-card-items').click();
       await expect(secondPage.getByText(originalName)).toBeVisible({ timeout: 10000 });
@@ -89,15 +61,13 @@ test.describe('Real-time Collaboration', () => {
 
       await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: newName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
 
-      await secondContext.close();
+      await secondPage.context().close();
     });
   });
 
   test.describe('Real-time Category Updates (US 57)', () => {
-    test('updates category in real-time across browser contexts', async ({ page, account, browser }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('updates category in real-time across browser contexts', async ({ authenticatedPage: page, browser }) => {
+      // #237 : seeded session (UUID names, item + category deleted at the end).
       const categoryName = `Catégorie rt ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
@@ -113,21 +83,9 @@ test.describe('Real-time Collaboration', () => {
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      const secondContext = await browser.newContext();
-      const secondPage = await secondContext.newPage();
-      const secondAccount = createAccount('e2e-rt-cat');
-      await signUp(secondPage, secondAccount);
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-
-      // Invite tokens render on /household (never on /items): fetch one via the
-      // proven onboarding pattern so the two-context flow below always runs.
-      const token = await fetchInviteToken(page);
-      await page.goto('/items');
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
-      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-      await secondPage.waitForURL('/home', { timeout: 20000 });
+      // #237 : second seeded member of the same foyer (foyer 1 is already
+      // full at 2/2, so no invite choreography).
+      const secondPage = await ensureAuthenticatedPage(browser, 'household1.userB');
 
       await secondPage.getByTestId('dashboard-card-items').click();
       await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
@@ -140,7 +98,7 @@ test.describe('Real-time Collaboration', () => {
       await expect(page.locator('h3').filter({ hasText: categoryName })).toBeVisible();
       await expect(secondPage.locator('h3').filter({ hasText: categoryName })).toBeVisible({ timeout: 10000 });
 
-      await secondContext.close();
+      await secondPage.context().close();
 
       await deleteItemRow(page, page.locator('.item-row').filter({ hasText: itemName }));
       await page.goto('/home');
@@ -150,10 +108,8 @@ test.describe('Real-time Collaboration', () => {
   });
 
   test.describe('To-Buy List Real-time Updates (US 58)', () => {
-    test('auto-updates to-buy list when items change', async ({ page, account, browser }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('auto-updates to-buy list when items change', async ({ authenticatedPage: page, browser }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article ach ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -167,21 +123,9 @@ test.describe('Real-time Collaboration', () => {
       await page.getByTestId('dashboard-card-to-buy').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      const secondContext = await browser.newContext();
-      const secondPage = await secondContext.newPage();
-      const secondAccount = createAccount('e2e-rt-tobuy');
-      await signUp(secondPage, secondAccount);
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-
-      // Invite tokens render on /household (never on /to-buy): fetch one via the
-      // proven onboarding pattern so the two-context flow below always runs.
-      const token = await fetchInviteToken(page);
-      await page.goto('/to-buy');
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
-      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-      await secondPage.waitForURL('/home', { timeout: 20000 });
+      // #237 : second seeded member of the same foyer (foyer 1 is already
+      // full at 2/2, so no invite choreography).
+      const secondPage = await ensureAuthenticatedPage(browser, 'household1.userB');
 
       await secondPage.getByTestId('dashboard-card-to-buy').click();
       await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
@@ -196,7 +140,7 @@ test.describe('Real-time Collaboration', () => {
       await page.getByTestId('dashboard-card-to-buy').click();
       await expect(page.getByText(itemName)).not.toBeVisible({ timeout: 10000 });
 
-      await secondContext.close();
+      await secondPage.context().close();
 
       await page.goto('/items');
       await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
@@ -204,10 +148,8 @@ test.describe('Real-time Collaboration', () => {
   });
 
   test.describe('Debounce Mechanism (US 59, 60)', () => {
-    test('prevents excessive re-fetches during rapid updates', async ({ page, account, browser }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('prevents excessive re-fetches during rapid updates', async ({ authenticatedPage: page, browser }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article deb ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -216,21 +158,9 @@ test.describe('Real-time Collaboration', () => {
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      const secondContext = await browser.newContext();
-      const secondPage = await secondContext.newPage();
-      const secondAccount = createAccount('e2e-rt-debounce');
-      await signUp(secondPage, secondAccount);
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-
-      // Invite tokens render on /household (never on /items): fetch one via the
-      // proven onboarding pattern so the two-context flow below always runs.
-      const token = await fetchInviteToken(page);
-      await page.goto('/items');
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
-      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-      await secondPage.waitForURL('/home', { timeout: 20000 });
+      // #237 : second seeded member of the same foyer (foyer 1 is already
+      // full at 2/2, so no invite choreography).
+      const secondPage = await ensureAuthenticatedPage(browser, 'household1.userB');
 
       await secondPage.getByTestId('dashboard-card-items').click();
 
@@ -245,7 +175,7 @@ test.describe('Real-time Collaboration', () => {
       await expect(secondItemRow.locator('.qty-value')).toContainText('6', { timeout: 10000 });
       await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('6', { timeout: 10000 });
 
-      await secondContext.close();
+      await secondPage.context().close();
 
       await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
@@ -295,10 +225,8 @@ test.describe('Real-time Collaboration', () => {
   });
 
   test.describe('Concurrent Updates', () => {
-    test('handles concurrent updates from multiple users without race conditions', async ({ page, account, browser }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('handles concurrent updates from multiple users without race conditions', async ({ authenticatedPage: page, browser }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article conc ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -307,21 +235,9 @@ test.describe('Real-time Collaboration', () => {
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      const secondContext = await browser.newContext();
-      const secondPage = await secondContext.newPage();
-      const secondAccount = createAccount('e2e-concurrent');
-      await signUp(secondPage, secondAccount);
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-
-      // Invite tokens render on /household (never on /items): fetch one via the
-      // proven onboarding pattern so the two-context flow below always runs.
-      const token = await fetchInviteToken(page);
-      await page.goto('/items');
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
-      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-      await secondPage.waitForURL('/home', { timeout: 20000 });
+      // #237 : second seeded member of the same foyer (foyer 1 is already
+      // full at 2/2, so no invite choreography).
+      const secondPage = await ensureAuthenticatedPage(browser, 'household1.userB');
 
       await secondPage.getByTestId('dashboard-card-items').click();
       const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
@@ -338,17 +254,15 @@ test.describe('Real-time Collaboration', () => {
       await expect(secondItemRow.locator('.qty-value')).toContainText('4', { timeout: 10000 });
       await expect(firstPageItemRow.locator('.qty-value')).toContainText('4', { timeout: 10000 });
 
-      await secondContext.close();
+      await secondPage.context().close();
 
       await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 
   test.describe('Subscription Lifecycle', () => {
-    test('validates subscription cleanup on page navigation', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('validates subscription cleanup on page navigation', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       await page.getByTestId('dashboard-card-items').click();
       await expect(page.getByRole('heading', { name: 'Articles', level: 1 })).toBeVisible();
 
@@ -370,10 +284,8 @@ test.describe('Real-time Collaboration', () => {
       await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
-    test('validates channel creation and subscription lifecycle', async ({ page, account, browser }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('validates channel creation and subscription lifecycle', async ({ authenticatedPage: page, browser }) => {
+      // #237 : seeded session (UUID names, deleted at the end).
       const itemName = `Article ch ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -381,21 +293,9 @@ test.describe('Real-time Collaboration', () => {
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      const secondContext = await browser.newContext();
-      const secondPage = await secondContext.newPage();
-      const secondAccount = createAccount('e2e-channel');
-      await signUp(secondPage, secondAccount);
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-
-      // Invite tokens render on /household (never on /items): fetch one via the
-      // proven onboarding pattern so the two-context flow below always runs.
-      const token = await fetchInviteToken(page);
-      await page.goto('/items');
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
-      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-      await secondPage.waitForURL('/home', { timeout: 20000 });
+      // #237 : second seeded member of the same foyer (foyer 1 is already
+      // full at 2/2, so no invite choreography).
+      const secondPage = await ensureAuthenticatedPage(browser, 'household1.userB');
 
       await secondPage.getByTestId('dashboard-card-items').click();
       await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
@@ -411,17 +311,16 @@ test.describe('Real-time Collaboration', () => {
 
       await expect(page.getByText(newItemName)).toBeVisible({ timeout: 10000 });
 
-      await secondContext.close();
+      await secondPage.context().close();
 
       await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
+      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: newItemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
   });
 
   test.describe('No Duplicate Updates', () => {
-    test('validates no duplicate updates or race conditions', async ({ page, account, browser }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('validates no duplicate updates or race conditions', async ({ authenticatedPage: page, browser }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article dup ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -430,21 +329,9 @@ test.describe('Real-time Collaboration', () => {
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      const secondContext = await browser.newContext();
-      const secondPage = await secondContext.newPage();
-      const secondAccount = createAccount('e2e-dup');
-      await signUp(secondPage, secondAccount);
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-
-      // Invite tokens render on /household (never on /items): fetch one via the
-      // proven onboarding pattern so the two-context flow below always runs.
-      const token = await fetchInviteToken(page);
-      await page.goto('/items');
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
-      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-      await secondPage.waitForURL('/home', { timeout: 20000 });
+      // #237 : second seeded member of the same foyer (foyer 1 is already
+      // full at 2/2, so no invite choreography).
+      const secondPage = await ensureAuthenticatedPage(browser, 'household1.userB');
 
       await secondPage.getByTestId('dashboard-card-items').click();
       const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
@@ -465,7 +352,7 @@ test.describe('Real-time Collaboration', () => {
       const firstPageCount = await firstPageItemRow.count();
       expect(firstPageCount).toBe(1);
 
-      await secondContext.close();
+      await secondPage.context().close();
 
       await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });

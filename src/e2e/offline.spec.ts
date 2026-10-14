@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { requireWrites, createHousehold, expect, test } from './fixtures';
+import { expect, test } from './fixtures';
 
 function pendingQueueCount(page: import('@playwright/test').Page) {
   // Read the IndexedDB store the queue persists to (offlineQueue.ts). The app
@@ -32,10 +32,8 @@ function pendingQueueCount(page: import('@playwright/test').Page) {
 }
 
 test.describe('Offline read-only mode (PRD §8 #11)', () => {
-  test('items page: consultation kept, every action blocked, nothing queued', async ({ page, account }) => {
-    requireWrites();
-    await createHousehold(page, account);
-
+  test('items page: consultation kept, every action blocked, nothing queued', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (unique item name, read-only assertions).
     const itemName = `Article hors-ligne ${randomUUID().slice(0, 8)}`;
     await page.getByTestId('dashboard-card-items').click();
     await page.getByTestId('btn-new-item').click();
@@ -66,10 +64,8 @@ test.describe('Offline read-only mode (PRD §8 #11)', () => {
     await expect(await pendingQueueCount(page)).toBe(0);
   });
 
-  test('to-buy page: list still consultable, quantity confirmation blocked', async ({ page, account }) => {
-    requireWrites();
-    await createHousehold(page, account);
-
+  test('to-buy page: list still consultable, quantity confirmation blocked', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (unique item name, read-only assertions).
     const itemName = `Article à acheter ${randomUUID().slice(0, 8)}`;
     await page.getByTestId('dashboard-card-items').click();
     await page.getByTestId('btn-new-item').click();
@@ -98,10 +94,8 @@ test.describe('Offline read-only mode (PRD §8 #11)', () => {
     await expect(await pendingQueueCount(page)).toBe(0);
   });
 
-  test('items page: offline banner shows the exact read-only text', async ({ page, account }) => {
-    requireWrites();
-    await createHousehold(page, account);
-
+  test('items page: offline banner shows the exact read-only text', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (unique item name, read-only assertions).
     const itemName = `Article bandeau ${randomUUID().slice(0, 8)}`;
     await page.getByTestId('dashboard-card-items').click();
     await page.getByTestId('btn-new-item').click();
@@ -125,12 +119,10 @@ test.describe('Offline read-only mode (PRD §8 #11)', () => {
   });
 
   test('micro-coupure in-flight: queued in IndexedDB, survives reload, replayed after reconnexion sans reload (PRD §4.12 + §5)', async ({
-    page,
-    account,
+    authenticatedPage: page,
   }) => {
-    requireWrites();
-    await createHousehold(page, account);
-
+    // #237 : seeded session (unique item name; the IndexedDB queue is
+    // per-context, so parallel workers never share pending actions).
     const itemName = `Article resync ${randomUUID().slice(0, 8)}`;
     await page.getByTestId('dashboard-card-items').click();
     await page.getByTestId('btn-new-item').click();

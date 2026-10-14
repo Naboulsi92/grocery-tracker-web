@@ -86,6 +86,55 @@ test.describe('Join Household Flow', () => {
       }
     });
 
+    test.describe('Invitation code lockout (P1-12, #226)', () => {
+      test('5 attempts with a revoked code lock it; the live code still joins', async ({ page, account, browser }) => {
+        requireWrites();
+        await createHousehold(page, account);
+
+        await page.getByTestId('dashboard-card-household').click();
+        await page.getByRole('button', { name: 'Générer un code' }).click();
+        const token = page.locator('.invite-code-text');
+        await expect(token).toBeVisible();
+        const revokedToken = await token.textContent();
+
+        // Regen revokes the first code and issues a live one.
+        await page.getByRole('button', { name: 'Régénérer' }).click();
+        await expect(page.getByTestId('invite-regenerate-dialog')).toBeVisible();
+        await page.getByTestId('invite-code-regenerate-confirm').click();
+        await expect(page.getByTestId('invite-regenerate-dialog')).toHaveCount(0);
+        const liveToken = await page.locator('.invite-code-text').textContent();
+        expect(liveToken).not.toBe(revokedToken);
+
+        const attackerContext = await browser.newContext();
+        const attackerPage = await attackerContext.newPage();
+        const attackerAccount = createAccount('e2e-lockout');
+        try {
+          await signUp(attackerPage, attackerAccount);
+          const codeInput = attackerPage.getByLabel(/Code d'invitation complet/);
+
+          // 5 attempts with the revoked (but well-formed) code: plain invalid.
+          for (let attempt = 0; attempt < 5; attempt += 1) {
+            await codeInput.fill(revokedToken!);
+            await attackerPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+            await expect(attackerPage.getByTestId('invite-code-error')).toBeVisible();
+          }
+
+          // 6th attempt: locked, even though the code string is genuine.
+          await codeInput.fill(revokedToken!);
+          await attackerPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+          await expect(attackerPage.getByTestId('invite-code-locked-message')).toBeVisible();
+          await expect(attackerPage).toHaveURL(/join-household/);
+
+          // Regen escape hatch: the live code joins without waiting out the minute.
+          await codeInput.fill(liveToken!);
+          await attackerPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
+          await attackerPage.waitForURL('/home', { timeout: 20000 });
+        } finally {
+          await attackerContext.close();
+        }
+      });
+    });
+
     test('US 22: invite link survives the signup detour with the code prefilled (ticket #58)', async ({ page, account, browser }) => {
       requireWrites();
       await createHousehold(page, account);

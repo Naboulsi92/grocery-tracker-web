@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures';
+import { expect, requireWrites, test } from './fixtures';
 import { e2eEnvironment } from './environment';
 
 test.describe('Homepage', () => {
@@ -52,24 +52,20 @@ test.describe('Homepage', () => {
   });
 
   test('navigation links work - Signup button in header', async ({ page }) => {
+    requireWrites();
+
     await page.getByRole('link', { name: /S'inscrire/i }).click();
     await page.waitForURL(/signup/);
     await expect(page).toHaveURL('/signup');
-    const loadingText = page.getByText('Chargement...');
-    if (await loadingText.isVisible()) {
-      test.skip(true, 'No Supabase backend available - auth loading never completes');
-    }
     await expect(page.getByRole('heading', { name: /Inscription/i })).toBeVisible();
   });
 
   test('navigation links work - Login button in header', async ({ page }) => {
+    requireWrites();
+
     await page.goto('/');
     await page.getByRole('link', { name: /Connexion/i }).click();
     await expect(page).toHaveURL('/login');
-    const loadingText = page.getByText('Chargement...');
-    if (await loadingText.isVisible()) {
-      test.skip(true, 'No Supabase backend available - auth loading never completes');
-    }
     await expect(page.getByRole('heading', { name: /Connexion/i })).toBeVisible();
   });
 

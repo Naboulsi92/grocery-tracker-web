@@ -10,13 +10,10 @@ async function fillOnboardingNames(page: Page) {
 test.describe('Error States', () => {
   test.describe('Authentication Error States', () => {
     test('login shows error for invalid credentials', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await page.getByLabel('Email').fill('nonexistent@example.com');
       await page.getByLabel('Mot de passe').fill('wrongpassword123');
@@ -26,13 +23,10 @@ test.describe('Error States', () => {
     });
 
     test('signup shows error for existing email', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/signup');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await page.getByLabel('Email').fill('admin@example.com');
       // Mot de passe non compromis (fixe, haute entropie) : le contrôle
@@ -47,13 +41,10 @@ test.describe('Error States', () => {
     });
 
     test('signup shows error for mismatched passwords', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/signup');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await page.getByLabel('Email').fill('test@example.com');
       await page.getByLabel('Mot de passe', { exact: true }).fill('Password123!');
@@ -65,13 +56,10 @@ test.describe('Error States', () => {
     });
 
     test('login page has loading state during submission', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await page.getByLabel('Email').fill('test@example.com');
       await page.getByLabel('Mot de passe').fill('password123');
@@ -86,13 +74,10 @@ test.describe('Error States', () => {
 
   test.describe('Join Household Error States', () => {
     test('join household shows error for invalid token', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/join-household');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await fillOnboardingNames(page);
       await page.getByLabel('Code d\'invitation complet').fill('invalid-token-12345');
@@ -107,11 +92,6 @@ test.describe('Error States', () => {
       await page.goto('/join-household');
       await page.waitForLoadState('domcontentloaded');
 
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
-
       await fillOnboardingNames(page);
       await page.getByLabel('Nom du foyer').fill('');
       await page.getByRole('button', { name: 'Créer mon foyer' }).click();
@@ -125,13 +105,10 @@ test.describe('Error States', () => {
     });
 
     test('join household has loading state during create', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/join-household');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await fillOnboardingNames(page);
       await page.getByLabel('Nom du foyer').fill('Test Household');
@@ -144,13 +121,10 @@ test.describe('Error States', () => {
     });
 
     test('join household has loading state during join', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/join-household');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await fillOnboardingNames(page);
       await page.getByLabel('Code d\'invitation complet').fill('some-valid-token');
@@ -162,13 +136,10 @@ test.describe('Error States', () => {
     });
 
     test('join household has retry button on error', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/join-household');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await fillOnboardingNames(page);
       await page.getByLabel('Code d\'invitation complet').fill('invalid-token');
@@ -185,11 +156,6 @@ test.describe('Error States', () => {
     test('items page shows error state when load fails', async ({ authenticatedPage: page }) => {
       await page.goto('/items');
       await page.waitForLoadState('domcontentloaded');
-
-      const loginRedirect = page.getByRole('heading', { name: 'Connexion' });
-      if (await loginRedirect.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'Not authenticated');
-      }
 
       // Settle web-first: resolve on whichever terminal signal lands first
       // (error banner or page content) instead of a fixed sleep.
@@ -210,11 +176,6 @@ test.describe('Error States', () => {
     test('items page has loading state when creating item', async ({ authenticatedPage: page }) => {
       await page.goto('/items');
       await page.waitForLoadState('domcontentloaded');
-
-      const loginRedirect = page.getByRole('heading', { name: 'Connexion' });
-      if (await loginRedirect.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'Not authenticated');
-      }
 
       // Settle web-first: content or error, whichever lands first.
       const newItemButton = page.getByTestId('btn-new-item');
@@ -237,11 +198,6 @@ test.describe('Error States', () => {
       await page.goto('/items');
       await page.waitForLoadState('domcontentloaded');
 
-      const loginRedirect = page.getByRole('heading', { name: 'Connexion' });
-      if (await loginRedirect.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'Not authenticated');
-      }
-
       // Settle web-first: rows or error, whichever lands first.
       const deleteButtons = page.locator('[data-testid^="btn-delete-item-"]');
       await didBecomeVisible(deleteButtons.or(page.locator('.error, .auth-error, [role="alert"]')), 8000);
@@ -260,11 +216,6 @@ test.describe('Error States', () => {
     test('categories page has loading state when creating category', async ({ authenticatedPage: page }) => {
       await page.goto('/categories');
       await page.waitForLoadState('domcontentloaded');
-
-      const loginRedirect = page.getByRole('heading', { name: 'Connexion' });
-      if (await loginRedirect.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'Not authenticated');
-      }
 
       // Settle web-first: content or error, whichever lands first.
       const newCategoryButton = page.getByTestId('btn-new-category');
@@ -286,11 +237,6 @@ test.describe('Error States', () => {
 
       await page.goto('/categories');
       await page.waitForLoadState('domcontentloaded');
-
-      const loginRedirect = page.getByRole('heading', { name: 'Connexion' });
-      if (await loginRedirect.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'Not authenticated');
-      }
 
       // Settle web-first: content or error, whichever lands first.
       const newCategoryButton = page.getByTestId('btn-new-category');
@@ -317,11 +263,6 @@ test.describe('Error States', () => {
       await page.goto('/household');
       await page.waitForLoadState('domcontentloaded');
 
-      const loginRedirect = page.getByRole('heading', { name: 'Connexion' });
-      if (await loginRedirect.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'Not authenticated');
-      }
-
       // Settle web-first: error banner or page content, whichever first.
       const errorBanner = page.locator('.error, .auth-error, [role="alert"]');
       const heading = page.getByRole('heading', { name: /membres|household/i });
@@ -347,11 +288,6 @@ test.describe('Error States', () => {
       await page.goto('/home');
       await page.waitForLoadState('domcontentloaded');
 
-      const loginRedirect = page.getByRole('heading', { name: 'Connexion' });
-      if (await loginRedirect.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'Not authenticated - redirected to login');
-      }
-
       // Optional network-failure error: bounded web-first wait, same branch.
       const errorMessage = page.locator('.error, .auth-error, [role="alert"]');
       if (await didBecomeVisible(errorMessage, 5000)) {
@@ -373,11 +309,6 @@ test.describe('Error States', () => {
       await page.goto('/home');
       await page.waitForLoadState('domcontentloaded');
 
-      const loginRedirect = page.getByRole('heading', { name: 'Connexion' });
-      if (await loginRedirect.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'Not authenticated - redirected to login');
-      }
-
       // Retry surfaces after the first failures: bounded wait, same branch.
       const retryButton = page.getByRole('button', { name: /réessayer|retry|réessayer/i });
       if (await didBecomeVisible(retryButton, 5000)) {
@@ -390,62 +321,47 @@ test.describe('Error States', () => {
 
   test.describe('Permission Denied Scenarios', () => {
     test('redirects to login when accessing protected page without auth', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/home');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       // Ticket #71 : the destination survives via ?next=.
       await expect(page).toHaveURL('/login?next=%2Fhome');
     });
 
     test('redirects to login when accessing items without auth', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/items');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await expect(page).toHaveURL('/login?next=%2Fitems');
     });
 
     test('redirects to login when accessing categories without auth', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/categories');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await expect(page).toHaveURL('/login?next=%2Fcategories');
     });
 
     test('redirects to login when accessing members without auth', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/members');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await expect(page).toHaveURL('/login?next=%2Fmembers');
     });
 
     test('redirects to login when accessing to-buy without auth', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/to-buy');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await expect(page).toHaveURL('/login?next=%2Fto-buy');
     });
@@ -453,13 +369,10 @@ test.describe('Error States', () => {
 
   test.describe('Error Message Formatting', () => {
     test('error messages are in French', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await page.getByLabel('Email').fill('invalid@example.com');
       await page.getByLabel('Mot de passe').fill('wrong');
@@ -474,13 +387,10 @@ test.describe('Error States', () => {
     });
 
     test('loading states show French text', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await page.getByLabel('Email').fill('test@example.com');
       await page.getByLabel('Mot de passe').fill('password123');
@@ -494,13 +404,10 @@ test.describe('Error States', () => {
 
   test.describe('Error Recovery Flow', () => {
     test('can recover from login error by correcting input', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await page.getByLabel('Email').fill('invalid@example.com');
       await page.getByLabel('Mot de passe').fill('wrong');
@@ -516,13 +423,10 @@ test.describe('Error States', () => {
     });
 
     test('can recover from invalid token error', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/join-household');
       await page.waitForLoadState('domcontentloaded');
-
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible({ timeout: 5000 })) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
 
       await fillOnboardingNames(page);
       await page.getByLabel('Code d\'invitation complet').fill('invalid-token');

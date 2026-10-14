@@ -16,26 +16,21 @@ test.describe('Accessibility', () => {
     });
 
     test('login page has proper heading hierarchy', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       await expect(page.getByRole('heading', { level: 1, name: 'Connexion' })).toBeVisible();
     });
 
     test('signup page has proper heading hierarchy', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/signup');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       await expect(page.getByRole('heading', { level: 1, name: 'Inscription' })).toBeVisible();
     });
 
-    test('app pages have exactly one h1', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
+    test('app pages have exactly one h1', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (navigation-only, no test data).
       for (const route of [
         '/home',
         '/items',
@@ -71,11 +66,9 @@ test.describe('Accessibility', () => {
     });
 
     test('login page interactive elements have accessible names', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       const links = page.locator('a');
       const linkCount = await links.count();
       for (let i = 0; i < linkCount; i++) {
@@ -89,11 +82,9 @@ test.describe('Accessibility', () => {
     });
 
     test('signup page form inputs have accessible names', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/signup');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       await expect(page.getByLabel('Email')).toBeVisible();
       await expect(page.getByLabel('Mot de passe', { exact: true })).toBeVisible();
       await expect(page.getByLabel('Confirmer le mot de passe')).toBeVisible();
@@ -104,10 +95,6 @@ test.describe('Accessibility', () => {
     test('loading state has role=status', async ({ page, account }) => {
       requireWrites();
       await page.goto('/login');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       await page.getByLabel('Email').fill(account.email);
       await page.getByLabel('Mot de passe').fill(account.password);
       await page.getByRole('button', { name: 'Se connecter' }).click();
@@ -121,11 +108,9 @@ test.describe('Accessibility', () => {
 
   test.describe('Error Messages Announced with role=alert (US 102)', () => {
     test('form validation errors have role=alert', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/signup');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       await page.getByRole('button', { name: "S'inscrire" }).click();
       const alert = page.locator('[role="alert"]');
       const count = await alert.count();
@@ -137,10 +122,6 @@ test.describe('Accessibility', () => {
     test('login error has role=alert', async ({ page, account }) => {
       requireWrites();
       await page.goto('/login');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       await page.getByLabel('Email').fill(account.email);
       await page.getByLabel('Mot de passe').fill('wrongpassword');
       await page.getByRole('button', { name: 'Se connecter' }).click();
@@ -154,11 +135,9 @@ test.describe('Accessibility', () => {
 
   test.describe('Form Labels Properly Associated (US 103)', () => {
     test('login form labels are associated', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       const emailLabel = page.locator('label').filter({ has: page.getByLabel('Email') });
       await expect(emailLabel).toHaveCount(1);
       const passwordLabel = page.locator('label').filter({ has: page.getByLabel('Mot de passe') });
@@ -166,11 +145,9 @@ test.describe('Accessibility', () => {
     });
 
     test('signup form labels are associated', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/signup');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       await expect(page.getByLabel('Email')).toBeVisible();
       await expect(page.getByLabel('Mot de passe', { exact: true })).toBeVisible();
       await expect(page.getByLabel('Confirmer le mot de passe')).toBeVisible();
@@ -186,11 +163,9 @@ test.describe('Accessibility', () => {
     });
 
     test('tab order is logical on login page', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       const emailInput = page.getByLabel('Email');
       const passwordInput = page.getByLabel('Mot de passe');
       const submitButton = page.getByRole('button', { name: 'Se connecter' });
@@ -203,11 +178,9 @@ test.describe('Accessibility', () => {
     });
 
     test('tab order is logical on signup page', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/signup');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       const emailInput = page.getByLabel('Email');
       const passwordInput = page.getByLabel('Mot de passe', { exact: true });
       const confirmPasswordInput = page.getByLabel('Confirmer le mot de passe');
@@ -236,11 +209,9 @@ test.describe('Accessibility', () => {
     });
 
     test('focus indicators visible on links', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       const link = page.getByRole('link', { name: "S'inscrire" });
       await link.focus();
       const outline = await link.evaluate((el) => {
@@ -251,11 +222,9 @@ test.describe('Accessibility', () => {
     });
 
     test('focus indicators visible on form inputs', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       const input = page.getByLabel('Email');
       await input.focus();
       const outline = await input.evaluate((el) => {
@@ -267,9 +236,9 @@ test.describe('Accessibility', () => {
   });
 
   test.describe('Focus Trap in Dialogs/Modals (US 107)', () => {
-    test('dialog traps focus within modal', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
+    test('dialog traps focus within modal', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (the invitation dialog is additive; no other
+      // spec reads the seeded invitations).
       await page.goto('/household');
       await page.getByTestId('invite-code-create-button').click();
       const regenButton = page.getByTestId('invite-code-regenerate-button');
@@ -302,9 +271,8 @@ test.describe('Accessibility', () => {
       await expect(page.locator('#main')).toBeVisible();
     });
 
-    test('app pages have logical tab order', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
+    test('app pages have logical tab order', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (navigation-only, no test data).
       const main = page.locator('main, #main, [role="main"]');
       const mainCount = await main.count();
       expect(mainCount).toBeGreaterThan(0);
@@ -409,11 +377,9 @@ test.describe('Accessibility', () => {
     });
 
     test('body text has sufficient color contrast', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       const bodyText = page.locator('p').first();
       const contrastInfo = await bodyText.evaluate((el) => {
         const style = window.getComputedStyle(el);
@@ -465,9 +431,8 @@ test.describe('Accessibility', () => {
   });
 
   test.describe('ARIA Labels on Icon-Only Buttons', () => {
-    test('icon-only buttons have aria-label', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
+    test('icon-only buttons have aria-label', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (read-only scan, no test data).
       await page.getByTestId('dashboard-card-items').click();
       const iconButtons = page.locator('button').filter({ has: page.locator('svg') });
       const count = await iconButtons.count();
@@ -485,9 +450,8 @@ test.describe('Accessibility', () => {
   });
 
   test.describe('Live Regions Announcing Dynamic Content', () => {
-    test('dynamic content updates are announced', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
+    test('dynamic content updates are announced', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (read-only scan, no test data).
       await page.getByTestId('dashboard-card-items').click();
       const liveRegion = page.locator('[aria-live], [role="status"], [role="log"], [role="alert"]');
       const count = await liveRegion.count();
@@ -527,33 +491,27 @@ test.describe('Accessibility', () => {
     });
 
     test('form inputs have proper type attributes', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       const emailInput = page.getByLabel('Email');
       const type = await emailInput.getAttribute('type');
       expect(type).toBe('email');
     });
 
     test('password inputs have proper type', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/login');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       const passwordInput = page.getByLabel('Mot de passe');
       const type = await passwordInput.getAttribute('type');
       expect(type).toBe('password');
     });
 
     test('required fields are marked', async ({ page }) => {
+      requireWrites();
+
       await page.goto('/signup');
-      const loadingText = page.getByText('Chargement...');
-      if (await loadingText.isVisible()) {
-        test.skip(true, 'No Supabase backend available - auth loading never completes');
-      }
       const emailInput = page.getByLabel('Email');
       const required = await emailInput.getAttribute('aria-required');
       const requiredAttr = await emailInput.getAttribute('required');

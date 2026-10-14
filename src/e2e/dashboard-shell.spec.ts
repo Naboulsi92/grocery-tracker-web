@@ -1,10 +1,8 @@
-import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { requireWrites, createAccount, expect, signUp, test } from './fixtures';
 
 test.describe('Dashboard shell (ticket #56)', () => {
-  test('signed-in member visiting the landing is taken to the dashboard', async ({ page, account }) => {
-    requireWrites();
-    await createHousehold(page, account);
-
+  test('signed-in member visiting the landing is taken to the dashboard', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (navigation-only, no test data).
     await page.goto('/');
     await page.waitForURL('/home', { timeout: 20000 });
     await expect(page.getByRole('heading', { name: 'Tableau de bord' })).toBeVisible();
@@ -56,10 +54,8 @@ test.describe('Dashboard shell (ticket #56)', () => {
     // pouvait que échouer. À 400px le scroll max est ~160px : le seuil garde
     // son sens (prouve un vrai scroll, pas de passe-droit vacuous).
     test.use({ viewport: { width: 1280, height: 400 } });
-    test('app header stays pinned while scrolling the dashboard', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('app header stays pinned while scrolling the dashboard', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (navigation-only, no test data).
       await page.goto('/');
       await page.waitForURL('/home', { timeout: 20000 });
       await expect(page.getByRole('heading', { name: 'Tableau de bord' })).toBeVisible();

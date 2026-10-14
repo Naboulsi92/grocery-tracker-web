@@ -3,10 +3,8 @@ import { requireWrites, createAccount, createHousehold, expect, signUp, test } f
 import { confirmDeleteDialog } from './helpers';
 
 test.describe('App Flow', () => {
-  test('complete user flow: signup and navigate', async ({ page, account }) => {
-    requireWrites();
-    await createHousehold(page, account);
-    
+  test('complete user flow: signup and navigate', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (navigation-only, no test data).
     await page.getByTestId('dashboard-card-categories').click();
     await expect(page).toHaveURL('/categories');
     await expect(page.getByRole('heading', { name: 'Catégories', exact: true })).toBeVisible();
@@ -26,10 +24,8 @@ test.describe('App Flow', () => {
     await expect(page.getByRole('heading', { name: 'À acheter', exact: true })).toBeVisible();
   });
 
-  test('can add and remove a new category', async ({ page, account }) => {
-    requireWrites();
-    await createHousehold(page, account);
-
+  test('can add and remove a new category', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (unique name, deleted at the end).
     const categoryName = `Catégorie e2e ${randomUUID().slice(0, 8)}`;
     await page.getByTestId('dashboard-card-categories').click();
     await page.getByTestId('btn-new-category').click();
@@ -41,10 +37,8 @@ test.describe('App Flow', () => {
     await expect(page.getByText(categoryName)).toHaveCount(0);
   });
 
-  test('can add and remove a new item', async ({ page, account }) => {
-    requireWrites();
-    await createHousehold(page, account);
-
+  test('can add and remove a new item', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (unique name, deleted at the end).
     const itemName = `Article e2e ${randomUUID()}`;
     await page.getByTestId('dashboard-card-items').click();
     await page.getByTestId('btn-new-item').click();
@@ -87,9 +81,8 @@ test.describe('App Flow', () => {
     }
   });
 
-  test('updates an item quantity atomically through the UI', async ({ page, account }) => {
-    requireWrites();
-    await createHousehold(page, account);
+  test('updates an item quantity atomically through the UI', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (unique name, deleted at the end).
     await page.getByRole('link', { name: 'Articles Voir et modifier' }).click();
 
     const itemName = `Article quantité ${randomUUID().slice(0, 8)}`;

@@ -34,10 +34,8 @@ async function pointerDragDownOneRow(page: Page, cards: Locator, index: number):
 
 test.describe('Categories CRUD', () => {
   test.describe('Create Category', () => {
-    test('shows error message on create failure', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('shows error message on create failure', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (route interception, no write).
       const categoryName = `Catégorie E ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
@@ -64,10 +62,8 @@ test.describe('Categories CRUD', () => {
       await expect(page.locator('.auth-error')).toBeVisible();
     });
 
-    test('validates duplicate category name', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('validates duplicate category name', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const categoryName = `Catégorie D ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
@@ -84,10 +80,8 @@ test.describe('Categories CRUD', () => {
       await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
     });
 
-    test('validates maximum name length', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('validates maximum name length', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (validation-only, no write).
       const tooLongName = 'Catégorie avec un nom vraiment beaucoup trop long pour dépasser la limite de cinquante caractères';
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
@@ -97,10 +91,8 @@ test.describe('Categories CRUD', () => {
       await expect(page.getByTestId('error-name-too-long')).toBeVisible();
     });
 
-    test('displays default and custom category icons', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('displays default and custom category icons', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       await page.getByTestId('dashboard-card-categories').click();
 
       const defaultSection = page.locator('[data-testid="category-section-default"]');
@@ -127,10 +119,8 @@ test.describe('Categories CRUD', () => {
   });
 
   test.describe('Edit Category', () => {
-    test('can edit category name (US 34)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('can edit category name (US 34)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID names, deleted at the end).
       const originalName = `Catégorie ${randomUUID()}`;
       const newName = `Catégorie v2 ${randomUUID()}`;
 
@@ -153,10 +143,8 @@ test.describe('Categories CRUD', () => {
       await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${newName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
     });
 
-    test('default categories cannot be edited or deleted', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('default categories cannot be edited or deleted', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (default catalog is identical in the seeded foyer).
       await page.getByTestId('dashboard-card-categories').click();
 
       const defaultCards = page.locator('[data-testid="category-section-default"] .category-card');
@@ -214,10 +202,8 @@ test.describe('Categories CRUD', () => {
   });
 
   test.describe('Delete Category', () => {
-    test('shows confirmation dialog before deleting (US 35)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('shows confirmation dialog before deleting (US 35)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const categoryName = `Catégorie ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
@@ -239,10 +225,8 @@ test.describe('Categories CRUD', () => {
       await expect(page.getByText(categoryName)).toHaveCount(0);
     });
 
-    test('shows error message on delete failure (US 37)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('shows error message on delete failure (US 37)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (route interception, UUID residue).
       const categoryName = `Catégorie E ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
@@ -311,10 +295,8 @@ test.describe('Categories CRUD', () => {
   });
 
   test.describe('Empty State', () => {
-    test('shows the default catalog for a new household (US 33, 80)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('shows the default catalog for a new household (US 33, 80)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (default catalog is identical in the seeded foyer).
       await page.getByTestId('dashboard-card-categories').click();
 
       const defaultSection = page.locator('[data-testid="category-section-default"]');
@@ -420,12 +402,9 @@ test.describe('Categories CRUD', () => {
 
   test.describe('Seed Categories Bilingual (P1-13, #107)', () => {
     test('new household lists the 10 default seed categories with French names', async ({
-      page,
-      account,
+      authenticatedPage: page,
     }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+      // #237 : seeded session (default catalog is identical in the seeded foyer).
       await page.getByTestId('dashboard-card-categories').click();
 
       const defaultSection = page.locator('[data-testid="category-section-default"]');
@@ -452,10 +431,8 @@ test.describe('Categories CRUD', () => {
   });
 
   test.describe('Category Field Validation (P1-7, #107)', () => {
-    test('rejects a category name without any letter', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('rejects a category name without any letter', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (validation-only, no write).
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
       await page.getByTestId('input-category-name').fill('12345');
@@ -464,10 +441,8 @@ test.describe('Categories CRUD', () => {
       await expect(page.getByTestId('error-name-required-letter')).toBeVisible();
     });
 
-    test('rejects a case-insensitive duplicate category name', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('rejects a case-insensitive duplicate category name', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const baseName = `Catdup ${randomUUID().slice(0, 8)}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
@@ -488,10 +463,8 @@ test.describe('Categories CRUD', () => {
   });
 
   test.describe('Delete Blocked When Not Empty (#107)', () => {
-    test('shows the move-or-delete message instead of deleting', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('shows the move-or-delete message instead of deleting', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID names, item + category deleted at the end).
       const categoryName = `Catégorie pleine ${randomUUID().slice(0, 8)}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();

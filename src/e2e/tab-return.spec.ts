@@ -1,5 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
-import { requireWrites, createAccount, createHousehold } from './fixtures';
+import { test, expect } from './fixtures';
+import type { Page } from '@playwright/test';
+import { requireWrites, createAccount } from './fixtures';
 import { didBecomeVisible } from './helpers';
 
 /**
@@ -51,12 +52,8 @@ async function expireSessionCookie(page: Page) {
 }
 
 test.describe('Tab return behavior', () => {
-  test('returning to tab shows no spinner and preserves form state', async ({ page }) => {
-    requireWrites();
-
-    const account = createAccount('tab-return');
-    await createHousehold(page, account);
-
+  test('returning to tab shows no spinner and preserves form state', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (unique category name, submitted at the end).
     // Navigate to categories page and fill a form
     await page.getByTestId('dashboard-card-categories').click();
     await expect(page).toHaveURL('/categories');
@@ -94,12 +91,8 @@ test.describe('Tab return behavior', () => {
     await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
   });
 
-  test('returning to tab does not trigger household members refetch', async ({ page }) => {
-    requireWrites();
-
-    const account = createAccount('tab-return-refetch');
-    await createHousehold(page, account);
-
+  test('returning to tab does not trigger household members refetch', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (request counting only, no test data).
     // Go to home page
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
@@ -179,12 +172,9 @@ test.describe('Tab return behavior', () => {
     await expect(page.getByTestId('header-household-name')).toHaveText(householdName);
   });
 
-  test('signing out still clears the screen', async ({ page }) => {
-    requireWrites();
-
-    const account = createAccount('signout');
-    await createHousehold(page, account);
-
+  test('signing out still clears the screen', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (sign-out only closes this test's context, the
+    // saved storageState is untouched).
     // Sign out via the header's Déconnexion button
     await page.getByRole('button', { name: 'Déconnexion' }).click();
 

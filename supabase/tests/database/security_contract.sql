@@ -1941,6 +1941,30 @@ begin
 end;
 $$;
 
+-- Ticket #224 — badge/none éligibles au rappel (PRD §4.6) : même heure due
+-- et même file non vide → enfilé comme push/both.
+update public.profiles set notification_type = 'badge', reminder_time = '08:07' where id = '00000000-0000-4000-8000-000000000015';
+select public.enqueue_daily_reminders('08:15'::time);
+do $$
+begin
+  if (select count(*) from public.pending_notifications where target_user_id = '00000000-0000-4000-8000-000000000015' and processed_at is null) <> 1 then
+    raise exception 'badge reminder 08:07 was not enqueued at 08:15';
+  end if;
+end;
+$$;
+delete from public.pending_notifications where target_user_id = '00000000-0000-4000-8000-000000000015';
+update public.profiles set notification_type = 'none', reminder_time = '08:07' where id = '00000000-0000-4000-8000-000000000015';
+select public.enqueue_daily_reminders('08:15'::time);
+do $$
+begin
+  if (select count(*) from public.pending_notifications where target_user_id = '00000000-0000-4000-8000-000000000015' and processed_at is null) <> 1 then
+    raise exception 'none reminder 08:07 was not enqueued at 08:15';
+  end if;
+end;
+$$;
+delete from public.pending_notifications where target_user_id = '00000000-0000-4000-8000-000000000015';
+update public.profiles set notification_type = 'push', reminder_time = '09:00' where id = '00000000-0000-4000-8000-000000000015';
+
 -- Sweep >7j : purge 013, retient 014, idempotent (2e passage → 0).
 select public.sweep_fully_deleted_members() as lc_sweep1 \gset
 select set_config('test.lc_sweep1', :'lc_sweep1', true);

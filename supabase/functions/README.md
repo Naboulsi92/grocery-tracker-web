@@ -112,7 +112,11 @@ supabase secrets set CRON_SECRET=<your-secret> --project-ref <project-ref>
 
 ### Scheduling Daily Reminders
 
-Daily reminders can be triggered in two ways:
+Daily reminders can be triggered in two ways. In this repo the schedule is
+live via `.github/workflows/notify-automation.yml` (cron `*/15` : 1. POST
+`/daily-reminders` → enqueue for every due `reminder_time` whatever the
+channel — `push`, `both`, `badge`, `none` (#224), 2. POST `/` → VAPID send ;
+`environment: production`, secrets `SUPABASE_URL` + `SUPABASE_CRON_SECRET`) :
 
 **Option A: pg_cron (if available) — call the RPC directly**
 ```sql

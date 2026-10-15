@@ -187,7 +187,7 @@ function JoinHouseholdPageInner() {
     if (!persisted) { setPendingAction(null); return; }
 
     const token = normalizeInvitationToken(invitationToken);
-    const { error: joinError } = await supabase.rpc('consume_household_invitation', { p_token: token });
+    const { data: joinData, error: joinError } = await supabase.rpc('consume_household_invitation', { p_token: token });
 
     if (joinError) {
       setError(householdActionError('join', joinError));
@@ -196,6 +196,15 @@ function JoinHouseholdPageInner() {
       if (joinError.code === 'P0001') {
         setLockoutSeconds(60);
       }
+      return;
+    }
+
+    // Ticket #239 : known-but-invalid tokens return the 'invalid' status
+    // instead of raising (raising would roll back the attempt counter).
+    // Same message as unknown tokens: the two stay indistinguishable.
+    if (joinData === 'invalid') {
+      setError('errors.join.invalid_or_expired');
+      setPendingAction(null);
       return;
     }
 

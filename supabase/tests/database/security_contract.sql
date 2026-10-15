@@ -624,12 +624,14 @@ select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000006
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 do $$
+declare v_result text;
 begin
-  begin
-    perform public.consume_household_invitation(current_setting('test.capfull_token'));
-    raise exception 'invalidated invitation unexpectedly reusable after departure';
-  exception when sqlstate '22023' then null;
-  end;
+  -- Ticket #239 : une invitation invalidée (consumed) retourne 'invalid',
+  -- elle ne lève plus 22023 (le RAISE annulerait le compteur côté lockout).
+  select public.consume_household_invitation(current_setting('test.capfull_token')) into v_result;
+  if v_result is distinct from 'invalid' then
+    raise exception 'invalidated invitation returned %, expected invalid', v_result;
+  end if;
 end;
 $$;
 
@@ -824,18 +826,14 @@ begin
 end;
 $$;
 
--- Ticket #106 iteration 9, C2 (PRD §5: 5 essais / 1 minute): lockout prouvé
--- sur foyer NON-PLEIN (1/2). Chemin connu-invalide (invitation révoquée) 5x
--- -> 22023 à chaque fois. Note transactionnelle (même anti-pattern que le
--- cap itération 8) : UPDATE failed_attempts + RAISE 22023 dans la même
--- fonction, catché par le EXCEPTION du contrat (mono-transaction begin:2
--- rollback:907) => savepoint rollback défait l'incrément. Le harness
--- mono-transaction ne peut donc pas armer blocked_until par boucle catchée ;
--- on seed l'état bloqué directement pour prouver l'enforcement P0001
--- 'temporarily locked' -> une invitation live fraîche reste consommable
--- (lockout par invitation, pas par foyer) et son succès reset
--- failed_attempts à 0 / blocked_until à NULL. Migration inchangée (contrat
--- seul), cap non cassé.
+-- Ticket #106 iteration 9, C2 (PRD §5: 5 essais / 1 minute), fix #239 :
+-- lockout prouvé sur foyer NON-PLEIN (1/2). Chemin connu-invalide
+-- (invitation révoquée) 5x -> RETURN 'invalid' à chaque fois (le RAISE
+-- annulerait l'incrément par savepoint rollback — bug #239) ; la 6e
+-- tentative lève P0001 'temporarily locked'. Le lockout est par invitation
+-- (pas par foyer) : une invitation live fraîche reste consommable et son
+-- succès reset failed_attempts à 0 / blocked_until à NULL. Migration
+-- 20261015000000 (return status), contrat seul au-delà.
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
 values
   ('00000000-0000-4000-8000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lockowner@example.test', '', now(), now()),
@@ -864,24 +862,20 @@ select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000008
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 do $$
-declare i int;
+declare i int; v_result text;
 begin
+  -- Ticket #239 : le chemin connu-invalide ne RAISE plus (sinon savepoint
+  -- rollback) — il RETURN 'invalid', donc la boucle arme blocked_until
+  -- pour de vrai, sans seed direct.
   for i in 1..5 loop
-    begin
-      perform public.consume_household_invitation(current_setting('test.lock_token'));
-      raise exception 'revoked invitation unexpectedly consumed on attempt %', i;
-    exception when sqlstate '22023' then null;
-    end;
+    select public.consume_household_invitation(current_setting('test.lock_token')) into v_result;
+    if v_result is distinct from 'invalid' then
+      raise exception 'revoked invitation attempt % returned %, expected invalid', i, v_result;
+    end if;
   end loop;
 end;
 $$;
 reset role;
--- Seed the armed lockout state (see note above): 5 failed attempts, blocked 1 minute.
--- Direct UPDATE as superuser (bypasses function-only RLS), car la boucle
--- catchée ne persiste pas l'incrément en mono-transaction.
-update public.household_invitations
-set failed_attempts = 5, blocked_until = now() + interval '1 minute'
-where id = current_setting('test.lock_id')::uuid;
 do $$
 begin
   if not exists (
@@ -890,7 +884,7 @@ begin
       and failed_attempts >= 5
       and blocked_until is not null
       and blocked_until > now()
-  ) then raise exception 'lockout seed did not arm (failed_attempts/blocked_until)'; end if;
+  ) then raise exception 'lockout loop did not genuinely arm (failed_attempts/blocked_until)'; end if;
 end;
 $$;
 

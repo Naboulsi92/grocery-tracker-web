@@ -81,4 +81,17 @@ describe('JoinHouseholdPage', () => {
     expect(screen.getByRole('button', { name: 'Rejoindre le foyer' })).toBeEnabled();
     expect(replace).not.toHaveBeenCalled();
   });
+
+  it('maps the #239 invalid status to the same recoverable message (no raise)', async () => {
+    rpc.mockResolvedValue({ data: 'invalid', error: null });
+    render(<LanguageProvider><JoinHouseholdPage /></LanguageProvider>);
+    fillNames('Alex', 'Dupont');
+    fireEvent.change(screen.getByLabelText(/Code d.invitation complet/), { target: { value: 'revoked-token' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Rejoindre le foyer' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Code invalide ou expiré');
+    expect(rpc).toHaveBeenCalledWith('consume_household_invitation', { p_token: 'revoked-token' });
+    expect(screen.getByRole('button', { name: 'Rejoindre le foyer' })).toBeEnabled();
+    expect(replace).not.toHaveBeenCalled();
+  });
 });

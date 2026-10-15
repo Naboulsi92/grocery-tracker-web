@@ -162,7 +162,7 @@ test.describe('Error States', () => {
       await expect(page.getByRole('button', { name: 'Connexion...' })).toBeDisabled();
     });
 
-    test('join household has retry button on error', async ({ page, account }) => {
+    test('join stays interactive after an error so the user can retry', async ({ page, account }) => {
       requireWrites();
       // Household-less fresh user: anonymous visitors are detoured to /login.
       await signUp(page, account);
@@ -173,8 +173,9 @@ test.describe('Error States', () => {
 
       await expect(page.getByTestId('invite-code-error')).toContainText(/invalide|expir/i, { timeout: 10000 });
 
-      const retryButton = page.getByRole('button', { name: /réessayer|retry/i });
-      await expect(retryButton).toBeVisible();
+      // No dedicated retry button exists: retrying means correcting the code
+      // and resubmitting — the join button stays enabled for that.
+      await expect(page.getByRole('button', { name: 'Rejoindre le foyer' })).toBeEnabled();
     });
   });
 

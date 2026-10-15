@@ -1,5 +1,5 @@
 import { requireWrites, createHousehold, expect, signUp, test } from './fixtures';
-import { didBecomeVisible } from './helpers';
+import { didBecomeVisible, waitForAnimationsToSettle } from './helpers';
 
 test.describe('Accessibility', () => {
   test.describe('Heading Hierarchy (US 99)', () => {
@@ -138,10 +138,14 @@ test.describe('Accessibility', () => {
       requireWrites();
 
       await page.goto('/login');
-      const emailLabel = page.locator('label').filter({ has: page.getByLabel('Email') });
-      await expect(emailLabel).toHaveCount(1);
-      const passwordLabel = page.locator('label').filter({ has: page.getByLabel('Mot de passe') });
-      await expect(passwordLabel).toHaveCount(1);
+      // The form uses aria-labels (no <label> elements): association means
+      // the inputs resolve by accessible name and expose it.
+      const emailInput = page.getByLabel('Email');
+      await expect(emailInput).toBeVisible();
+      expect(await emailInput.getAttribute('aria-label')).toBeTruthy();
+      const passwordInput = page.getByLabel('Mot de passe');
+      await expect(passwordInput).toBeVisible();
+      expect(await passwordInput.getAttribute('aria-label')).toBeTruthy();
     });
 
     test('signup form labels are associated', async ({ page }) => {
@@ -191,6 +195,9 @@ test.describe('Accessibility', () => {
       await expect(passwordInput).toBeFocused();
       await page.keyboard.press('Tab');
       await expect(confirmPasswordInput).toBeFocused();
+      // Consent checkbox (#225) sits between the password fields and submit.
+      await page.keyboard.press('Tab');
+      await expect(page.getByTestId('signup-consent-checkbox')).toBeFocused();
       await page.keyboard.press('Tab');
       await expect(submitButton).toBeFocused();
     });
@@ -236,6 +243,9 @@ test.describe('Accessibility', () => {
   });
 
   test.describe('Focus Trap in Dialogs/Modals (US 107)', () => {
+    // Isolated foyer 2 (foyer 1 is full at 2/2, which hides the invite
+    // creation button behind household-full).
+    test.use({ accountRole: 'household2.userA' });
     test('dialog traps focus within modal', async ({ authenticatedPage: page }) => {
       // #237 : seeded session (the invitation dialog is additive; no other
       // spec reads the seeded invitations).
@@ -380,11 +390,29 @@ test.describe('Accessibility', () => {
       requireWrites();
 
       await page.goto('/login');
-      const bodyText = page.locator('p').first();
+      // Measure the loaded subtitle (not the 'Chargement...' placeholder):
+      // the auth gate resolves asynchronously, especially remote.
+      const bodyText = page.locator('main p.text-muted').first();
+      await expect(bodyText).toBeVisible({ timeout: 15000 });
+      // Settle entrance animations first: a mid-fade capture depresses the
+      // measured contrast (same caveat as the axe gates).
+      await waitForAnimationsToSettle(page, 5000).catch(() => undefined);
       const contrastInfo = await bodyText.evaluate((el) => {
         const style = window.getComputedStyle(el);
         const color = style.color;
-        const bgColor = style.backgroundColor;
+        // Walk up to the first opaque background (same as the heading test):
+        // the element itself is transparent, which would read as black.
+        let bgColor = style.backgroundColor;
+        let parent = el.parentElement;
+        while (parent && (bgColor === 'rgba(0, 0, 0, 0)' || bgColor === 'transparent' || bgColor === '')) {
+          const parentStyle = window.getComputedStyle(parent);
+          bgColor = parentStyle.backgroundColor;
+          parent = parent.parentElement;
+          if (!parent || parent.tagName === 'BODY') {
+            bgColor = window.getComputedStyle(document.body).backgroundColor;
+            break;
+          }
+        }
         const rgb = color.match(/\d+/g);
         const bgRgb = bgColor.match(/\d+/g);
         if (!rgb || !bgRgb) return null;

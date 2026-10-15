@@ -46,10 +46,13 @@ async function globalSetup() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const wantedEmails = new Set(PRD_ACCOUNTS.map((account) => account.email));
+  // GoTrue lowercases emails on creation while PRD literals use mixed case:
+  // match case-insensitively, or every reseed against a persistent backend
+  // fails with email_exists (found on the preview throwaway, #237).
+  const wantedEmails = new Set(PRD_ACCOUNTS.map((account) => account.email.toLowerCase()));
   const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   if (error) throw error;
-  const staleUsers = data.users.filter((user) => user.email && wantedEmails.has(user.email));
+  const staleUsers = data.users.filter((user) => user.email && wantedEmails.has(user.email.toLowerCase()));
 
   if (staleUsers.length > 0) {
     const staleIds = staleUsers.map((user) => user.id);

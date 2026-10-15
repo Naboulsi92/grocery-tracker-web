@@ -138,14 +138,20 @@ test.describe('Accessibility', () => {
       requireWrites();
 
       await page.goto('/login');
-      // The form uses aria-labels (no <label> elements): association means
-      // the inputs resolve by accessible name and expose it.
+      // Sibling labels (for/id), not wrapping ones: assert the association
+      // explicitly instead of filtering descendants.
       const emailInput = page.getByLabel('Email');
       await expect(emailInput).toBeVisible();
-      expect(await emailInput.getAttribute('aria-label')).toBeTruthy();
+      const emailId = await emailInput.getAttribute('id');
+      const emailLabel = page.locator(`label[for="${emailId}"]`);
+      await expect(emailLabel).toHaveCount(1);
+      await expect(emailLabel).toContainText('Email');
       const passwordInput = page.getByLabel('Mot de passe');
       await expect(passwordInput).toBeVisible();
-      expect(await passwordInput.getAttribute('aria-label')).toBeTruthy();
+      const passwordId = await passwordInput.getAttribute('id');
+      const passwordLabel = page.locator(`label[for="${passwordId}"]`);
+      await expect(passwordLabel).toHaveCount(1);
+      await expect(passwordLabel).toContainText('Mot de passe');
     });
 
     test('signup form labels are associated', async ({ page }) => {

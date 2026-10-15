@@ -88,6 +88,9 @@ test.describe('Join Household Flow', () => {
 
     test.describe('Invitation code lockout (P1-12, #226)', () => {
       test('5 attempts with a revoked code lock it; the live code still joins', async ({ page, account, browser }) => {
+        // Two full signup flows + 6 sequential submits exceed the 30s
+        // default timeout even on a fast local backend.
+        test.setTimeout(120000);
         requireWrites();
         await createHousehold(page, account);
 

@@ -203,10 +203,12 @@ test.describe('Accessibility', () => {
       await expect(confirmPasswordInput).toBeFocused();
       // Consent checkbox (#225) sits between the password fields and submit,
       // and submit stays disabled (hence untabbable) until it is checked:
-      // exercise the real keyboard flow (Tab, Space, Tab).
+      // exercise the real keyboard flow (Tab, Space, Tab), waiting for the
+      // consent state to enable submit before tabbing on.
       await page.keyboard.press('Tab');
       await expect(page.getByTestId('signup-consent-checkbox')).toBeFocused();
       await page.keyboard.press('Space');
+      await expect(submitButton).toBeEnabled();
       await page.keyboard.press('Tab');
       await expect(submitButton).toBeFocused();
     });

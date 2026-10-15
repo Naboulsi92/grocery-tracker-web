@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { didBecomeVisible } from './helpers';
-import { requireWrites, test, expect } from './fixtures';
+import { requireWrites, signUp, test, expect } from './fixtures';
 
 async function fillOnboardingNames(page: Page) {
   await page.getByTestId('onboarding-first-name-input').fill('Camille');
@@ -19,7 +19,9 @@ test.describe('Error States', () => {
       await page.getByLabel('Mot de passe').fill('wrongpassword123');
       await page.getByRole('button', { name: 'Se connecter' }).click();
 
-      await expect(page.getByText(/identifiants incorrects|mot de passe|email/i)).toBeVisible({ timeout: 10000 });
+      // Scoped to the banner: the page labels statically match the broad
+      // regex, so an unscoped getByText can never resolve to one element.
+      await expect(page.locator('.auth-error')).toContainText(/mot de passe|incorrect/i, { timeout: 15000 });
     });
 
     test('signup shows error for existing email', async ({ page }) => {
@@ -64,33 +66,42 @@ test.describe('Error States', () => {
       await page.getByLabel('Email').fill('test@example.com');
       await page.getByLabel('Mot de passe').fill('password123');
 
+      // Hold the auth request open so the submitting state is observable
+      // deterministically instead of depending on backend latency.
+      await page.route('**/auth/v1/token**', async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await route.continue();
+      });
+
       const submitButton = page.getByRole('button', { name: 'Se connecter' });
       await submitButton.click();
 
-      await expect(submitButton).toBeDisabled();
-      await expect(page.getByText(/connexion|chargement/i)).toBeVisible();
+      // The submitting button renames itself while pending: assert on the
+      // loading state (the idle name no longer matches anything, and the
+      // static h1 would make an unscoped text assertion ambiguous).
+      const submittingButton = page.getByRole('button', { name: 'Connexion...' });
+      await expect(submittingButton).toBeDisabled();
+      await expect(submittingButton).toContainText('Connexion');
     });
   });
 
   test.describe('Join Household Error States', () => {
-    test('join household shows error for invalid token', async ({ page }) => {
+    test('join household shows error for invalid token', async ({ page, account }) => {
       requireWrites();
-
-      await page.goto('/join-household');
-      await page.waitForLoadState('domcontentloaded');
+      // Household-less fresh user: anonymous visitors are detoured to /login.
+      await signUp(page, account);
 
       await fillOnboardingNames(page);
       await page.getByLabel('Code d\'invitation complet').fill('invalid-token-12345');
       await page.getByRole('button', { name: 'Rejoindre le foyer' }).click();
 
-      await expect(page.getByText(/invitation|token|invalide/i)).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId('invite-code-error')).toContainText(/invalide|expir/i, { timeout: 10000 });
     });
 
-    test('join household shows error for duplicate household creation', async ({ page }) => {
+    test('join household shows error for duplicate household creation', async ({ page, account }) => {
       requireWrites();
-
-      await page.goto('/join-household');
-      await page.waitForLoadState('domcontentloaded');
+      // Household-less fresh user: anonymous visitors are detoured to /login.
+      await signUp(page, account);
 
       await fillOnboardingNames(page);
       await page.getByLabel('Nom du foyer').fill('');
@@ -104,48 +115,63 @@ test.describe('Error States', () => {
       }
     });
 
-    test('join household has loading state during create', async ({ page }) => {
+    test('join household has loading state during create', async ({ page, account }) => {
       requireWrites();
-
-      await page.goto('/join-household');
-      await page.waitForLoadState('domcontentloaded');
+      // Household-less fresh user: anonymous visitors are detoured to /login.
+      await signUp(page, account);
 
       await fillOnboardingNames(page);
       await page.getByLabel('Nom du foyer').fill('Test Household');
 
+      // Hold the create RPC open so the submitting state is observable
+      // deterministically instead of depending on backend latency.
+      await page.route('**/rest/v1/rpc/create_household**', async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await route.continue();
+      });
+
       const createButton = page.getByRole('button', { name: 'Créer mon foyer' });
       await createButton.click();
 
-      await expect(createButton).toBeDisabled();
+      // The submitting button renames itself while pending: assert on the
+      // loading state (the idle name no longer matches anything).
+      await expect(page.getByRole('button', { name: 'Création...' })).toBeDisabled();
       await expect(page.getByText('Création...')).toBeVisible();
     });
 
-    test('join household has loading state during join', async ({ page }) => {
+    test('join household has loading state during join', async ({ page, account }) => {
       requireWrites();
-
-      await page.goto('/join-household');
-      await page.waitForLoadState('domcontentloaded');
+      // Household-less fresh user: anonymous visitors are detoured to /login.
+      await signUp(page, account);
 
       await fillOnboardingNames(page);
       await page.getByLabel('Code d\'invitation complet').fill('some-valid-token');
 
+      // Hold the consume RPC open so the submitting state is observable
+      // deterministically instead of depending on backend latency.
+      await page.route('**/rest/v1/rpc/consume_household_invitation**', async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await route.continue();
+      });
+
       const joinButton = page.getByRole('button', { name: 'Rejoindre le foyer' });
       await joinButton.click();
 
-      await expect(joinButton).toBeDisabled();
+      // The submitting button renames itself while pending: assert on the
+      // loading state (the idle name no longer matches anything).
+      await expect(page.getByRole('button', { name: 'Connexion...' })).toBeDisabled();
     });
 
-    test('join household has retry button on error', async ({ page }) => {
+    test('join household has retry button on error', async ({ page, account }) => {
       requireWrites();
-
-      await page.goto('/join-household');
-      await page.waitForLoadState('domcontentloaded');
+      // Household-less fresh user: anonymous visitors are detoured to /login.
+      await signUp(page, account);
 
       await fillOnboardingNames(page);
       await page.getByLabel('Code d\'invitation complet').fill('invalid-token');
       await page.getByRole('button', { name: 'Rejoindre le foyer' }).click();
 
-      await expect(page.getByText(/invitation|token|invalide/i)).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId('invite-code-error')).toContainText(/invalide|expir/i, { timeout: 10000 });
 
       const retryButton = page.getByRole('button', { name: /réessayer|retry/i });
       await expect(retryButton).toBeVisible();
@@ -378,7 +404,8 @@ test.describe('Error States', () => {
       await page.getByLabel('Mot de passe').fill('wrong');
       await page.getByRole('button', { name: 'Se connecter' }).click();
 
-      const errorText = await page.locator('.error, .auth-error, [role="alert"]').first().textContent();
+      // Hard assertion (was conditional): a bad login must surface a banner.
+      const errorText = await page.locator('.error, .auth-error, [role="alert"]').first().textContent({ timeout: 15000 });
       if (errorText) {
         const frenchPatterns = [/mot de passe/i, /identifiant/i, /erreur/i, /incorrect/i];
         const isFrench = frenchPatterns.some(pattern => pattern.test(errorText));
@@ -395,10 +422,21 @@ test.describe('Error States', () => {
       await page.getByLabel('Email').fill('test@example.com');
       await page.getByLabel('Mot de passe').fill('password123');
 
+      // Hold the auth request open so the submitting state is observable
+      // deterministically instead of depending on backend latency.
+      await page.route('**/auth/v1/token**', async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await route.continue();
+      });
+
       const submitButton = page.getByRole('button', { name: 'Se connecter' });
       await submitButton.click();
 
-      await expect(page.getByText(/connexion|chargement/i)).toBeVisible();
+      // Same loading-state scoping as above (static h1 would make an
+      // unscoped text assertion ambiguous).
+      const submittingButton = page.getByRole('button', { name: 'Connexion...' });
+      await expect(submittingButton).toBeDisabled();
+      await expect(submittingButton).toContainText('Connexion');
     });
   });
 
@@ -413,7 +451,8 @@ test.describe('Error States', () => {
       await page.getByLabel('Mot de passe').fill('wrong');
       await page.getByRole('button', { name: 'Se connecter' }).click();
 
-      await expect(page.getByText(/identifiants|mot de passe|incorrect/i)).toBeVisible({ timeout: 10000 });
+      // Scoped to the banner (see 'login shows error for invalid credentials').
+      await expect(page.locator('.auth-error')).toContainText(/mot de passe|incorrect/i, { timeout: 15000 });
 
       await page.getByLabel('Email').fill('valid@example.com');
       await page.getByLabel('Mot de passe').fill('CorrectPassword123!');
@@ -422,17 +461,17 @@ test.describe('Error States', () => {
       await expect(submitButton).toBeEnabled();
     });
 
-    test('can recover from invalid token error', async ({ page }) => {
+    test('can recover from invalid token error', async ({ page, account }) => {
       requireWrites();
-
-      await page.goto('/join-household');
-      await page.waitForLoadState('domcontentloaded');
+      // Household-less fresh user: anonymous visitors are detoured to /login.
+      await signUp(page, account);
 
       await fillOnboardingNames(page);
       await page.getByLabel('Code d\'invitation complet').fill('invalid-token');
       await page.getByRole('button', { name: 'Rejoindre le foyer' }).click();
 
-      await expect(page.getByText(/invitation|token|invalide/i)).toBeVisible({ timeout: 10000 });
+      // Scoped to the banner (see 'join household shows error for invalid token').
+      await expect(page.getByTestId('invite-code-error')).toContainText(/invalide|expir/i, { timeout: 10000 });
 
       await page.getByLabel('Code d\'invitation complet').fill('');
       await expect(page.getByRole('button', { name: 'Rejoindre le foyer' })).toBeEnabled();

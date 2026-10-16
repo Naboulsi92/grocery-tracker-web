@@ -6,7 +6,7 @@ import { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
-import { householdActionError, normalizeInvitationToken } from '@/lib/household';
+import { householdActionError, INVITATION_INVALID_STATUS, normalizeInvitationToken } from '@/lib/household';
 import { joinWithCode, loginWithNext, peekPendingInvite, stashPendingInvite, takePendingInvite } from '@/lib/invite-detour';
 import { translateMessage } from '@/lib/i18n';
 import { createClient } from '@/utils/supabase/client';
@@ -202,7 +202,7 @@ function JoinHouseholdPageInner() {
     // Ticket #239 : known-but-invalid tokens return the 'invalid' status
     // instead of raising (raising would roll back the attempt counter).
     // Same message as unknown tokens: the two stay indistinguishable.
-    if (joinData === 'invalid') {
+    if (joinData === INVITATION_INVALID_STATUS) {
       setError('errors.join.invalid_or_expired');
       setPendingAction(null);
       return;

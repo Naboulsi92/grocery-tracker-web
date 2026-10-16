@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import JoinHouseholdPage from '@/app/(auth)/join-household/page';
 import { createClient } from '@/utils/supabase/client';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { INVITATION_INVALID_STATUS } from '@/lib/household';
 
 const replace = jest.fn();
 const retryHousehold = jest.fn();
@@ -83,7 +84,7 @@ describe('JoinHouseholdPage', () => {
   });
 
   it('maps the #239 invalid status to the same recoverable message (no raise)', async () => {
-    rpc.mockResolvedValue({ data: 'invalid', error: null });
+    rpc.mockResolvedValue({ data: INVITATION_INVALID_STATUS, error: null });
     render(<LanguageProvider><JoinHouseholdPage /></LanguageProvider>);
     fillNames('Alex', 'Dupont');
     fireEvent.change(screen.getByLabelText(/Code d.invitation complet/), { target: { value: 'used-token' } });

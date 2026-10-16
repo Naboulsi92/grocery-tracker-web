@@ -167,9 +167,9 @@ test.describe('Real-time Collaboration', () => {
       const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
       for (let i = 0; i < 5; i++) {
         await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-        // #237 intentional delay (stimulus pacing — the delay IS the test input: rapid distinct clicks, not synchronized) — not a settle-sleep.
-        // Intentional debounce stimulus pacing (not a settle sleep): the test
-        // needs rapid successive updates, not synchronized ones.
+        // #237 intentional delay (debounce stimulus pacing — the delay IS the
+        // test input: rapid successive, distinct updates, not synchronized) —
+        // not a settle-sleep.
         await page.waitForTimeout(50);
       }
 
@@ -339,14 +339,14 @@ test.describe('Real-time Collaboration', () => {
       const firstPageItemRow = page.locator('.item-row').filter({ hasText: itemName });
 
       await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-      // #237 intentional delay (race-test stimulus pacing — overlapping in-flight updates, not lockstep) — not a settle-sleep.
-      // Intentional race-test pacing between interleaved updates (stimulus:
-      // the race needs overlapping in-flight updates, not lockstep sync).
+      // #237 intentional delay (race-test stimulus pacing between interleaved
+      // updates — the race needs overlapping in-flight updates, not lockstep
+      // sync) — not a settle-sleep.
       await page.waitForTimeout(100);
       await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-      // #237 intentional delay (race-test stimulus pacing — overlapping in-flight updates, not lockstep) — not a settle-sleep.
-      // Intentional race-test pacing between interleaved updates (stimulus:
-      // the race needs overlapping in-flight updates, not lockstep sync).
+      // #237 intentional delay (race-test stimulus pacing between interleaved
+      // updates — the race needs overlapping in-flight updates, not lockstep
+      // sync) — not a settle-sleep.
       await page.waitForTimeout(100);
 
       await expect(secondItemRow.locator('.qty-value')).toContainText('3', { timeout: 10000 });
@@ -572,10 +572,10 @@ test.describe('Real-time Collaboration', () => {
 
       await itemRow.getByRole('button', { name: /Réduire la quantité/ }).click();
       await expect(itemRow.locator('.qty-value')).toContainText('0', { timeout: 10000 });
-      // #237 intentional delay (quiescence window for a negative assertion — no wait-while primitive) — not a settle-sleep.
-      // Quiescence window for a NEGATIVE assertion (no duplicate notification
-      // may appear): kept as a bounded sleep on purpose — returning early on
-      // the good state would void the test (Playwright has no wait-while).
+      // #237 intentional delay (quiescence window for a NEGATIVE assertion —
+      // no duplicate notification may appear; returning early on the good
+      // state would void the test, and Playwright has no wait-while) — not a
+      // settle-sleep.
       await page.waitForTimeout(1500);
       expect(await getPending(householdId)).toHaveLength(1);
 

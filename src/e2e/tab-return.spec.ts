@@ -14,9 +14,10 @@ async function simulateTabReturn(page: Page) {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
     window.dispatchEvent(new Event('visibilitychange'));
   });
-  // #237 intentional delay (inter-event gap between visibilitychange hidden→visible — no observable state) — not a settle-sleep.
-  // Intentional inter-event gap (stimulus, not settle): let hidden-state
-  // handlers (supabase-js token refresh) run before the visible event.
+  // #237 intentional delay (inter-event gap between visibilitychange
+  // hidden→visible — let hidden-state handlers (supabase-js token refresh)
+  // run before the visible event; no observable state to wait on) — not a
+  // settle-sleep.
   await page.waitForTimeout(300);
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });

@@ -38,10 +38,20 @@ export function groupItems(items: InventoryItem[], categories: Category[]): Item
   return uncategorized.length > 0 ? [...groups, { category: null, items: uncategorized }] : groups;
 }
 
+/**
+ * Shared low-stock predicate — single source of truth for the rule.
+ *
+ * Ticket #222 : a threshold cleared by a unit change is NULL — unknown, so the
+ * item cannot evaluate as low-stock. The explicit `!== null` guard mirrors the
+ * SQL `quantity <= low_stock_threshold`, which excludes NULL thresholds
+ * naturally (NULL comparisons are never true) — the two stay equivalent.
+ */
+export function isLowStock(item: Pick<Item, 'quantity' | 'low_stock_threshold'>): boolean {
+  return item.low_stock_threshold !== null && item.quantity <= item.low_stock_threshold;
+}
+
 export function getLowStockItems(items: InventoryItem[]): InventoryItem[] {
-  // Ticket #222 : a threshold cleared by a unit change is NULL — unknown, so
-  // the item cannot evaluate as low-stock (NULL comparisons never qualify).
-  return items.filter((item) => item.low_stock_threshold !== null && item.quantity <= item.low_stock_threshold);
+  return items.filter(isLowStock);
 }
 
 export function getNextCategoryOrder(positions: number[]): number {

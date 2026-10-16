@@ -539,7 +539,7 @@ test.describe('Items CRUD', () => {
       await deleteItemRow(page, page.locator('.item-row').filter({ hasText: itemName }));
     });
 
-    test('changing unit on edit and saving cleared persists empty, not the sentinel (#222)', async ({ authenticatedPage: page }) => {
+    test('changing unit on edit requires re-entering the threshold (no NULL persistence, #222)', async ({ authenticatedPage: page }) => {
       // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article unité vide ${randomUUID().slice(0, 8)}`;
       await page.getByTestId('dashboard-card-items').click();
@@ -553,19 +553,21 @@ test.describe('Items CRUD', () => {
       const itemRow = page.locator('.item-row').filter({ hasText: itemName });
       await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
       await page.locator('[data-testid="input-item-unit"], #item-unit').selectOption('kg');
-      // Saving cleared is allowed on edit: no threshold-required error.
+      // Unit change clears quantity AND threshold (PRD §4.4). Saving with the
+      // threshold still empty must be rejected — a NULL threshold is the
+      // "black hole" (never low-stock, never reminded), so re-entry is now
+      // mandatory on edit, not just on create.
       await page.getByTestId('btn-create-item').click();
-      await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
-      await expect(page.getByTestId('error-threshold-required')).toHaveCount(0);
-      await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.item-sub')).toContainText('—');
+      await expect(page.getByTestId('error-threshold-required')).toBeVisible();
 
-      // Reopen: quantity zeroed, threshold empty (NULL, not sentinel 1).
-      await page.locator('.item-row').filter({ hasText: itemName }).getByRole('button', { name: /Modifier l'article/ }).click();
-      await expect(page.getByLabel('Quantité', { exact: true })).toHaveValue('0');
+      // No write happened: the form still holds the cleared values and the row
+      // is unchanged (original unit/quantity/threshold, not kg/0/NULL).
+      await expect(page.getByLabel('Quantité', { exact: true })).toHaveValue('');
       await expect(page.getByLabel('Seuil stock bas')).toHaveValue('');
       await page.getByTestId('btn-cancel-item').click();
+      await expect(itemRow.locator('.item-sub')).toContainText('5 unite · seuil 3');
 
-      await deleteItemRow(page, page.locator('.item-row').filter({ hasText: itemName }));
+      await deleteItemRow(page, itemRow);
     });
 
     test('unit select offers exactly the 5 closed PRD values', async ({ authenticatedPage: page }) => {

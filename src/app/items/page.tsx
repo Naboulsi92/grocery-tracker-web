@@ -10,7 +10,7 @@ import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SyncingIndicator } from '@/components/SyncingIndicator';
-import { getErrorMessage, groupItems, joinInventory, CATEGORY_COLUMNS, ITEM_COLUMNS, type Category, type InventoryItem } from '@/lib/inventory';
+import { getErrorMessage, groupItems, isLowStock, joinInventory, CATEGORY_COLUMNS, ITEM_COLUMNS, type Category, type InventoryItem } from '@/lib/inventory';
 import { applyCategoryPatch, applyItemPatch, clearEmbeddedCategory, refreshEmbeddedCategories } from '@/lib/realtimePatch';
 import { useHouseholdRealtime } from '@/hooks/useHouseholdRealtime';
 import { createItem, updateItem, updateItemQuantity, deleteItem } from '@/lib/itemOperations';
@@ -155,14 +155,17 @@ async function handleSubmit(e: React.FormEvent) {
 
   const thresholdEmpty = formThreshold.trim() === '';
   const thresholdVal = thresholdEmpty ? null : parseInt(formThreshold, 10);
-  // Ticket #222 : on edit an emptied threshold persists as NULL (cleared by a
-  // unit change, PRD §4.4); on create the threshold stays mandatory.
+  // Ticket #222 : the threshold is mandatory in BOTH create and edit. An
+  // emptied threshold (e.g. after a unit change, PRD §4.4) must be re-entered,
+  // never persisted as NULL — a NULL threshold is the "black hole": it is never
+  // low-stock and never reminded. After this check thresholdVal is a number in
+  // every path (empty or non-numeric both fail here / below).
   if (thresholdVal === null) {
-    if (!editingId) { setFieldThresholdError(ThresholdErrors.REQUIRED); return; }
-  } else {
-    const thresholdErr = validateThreshold(thresholdVal);
-    if (thresholdErr) { setFieldThresholdError(thresholdErr); return; }
+    setFieldThresholdError(ThresholdErrors.REQUIRED);
+    return;
   }
+  const thresholdErr = validateThreshold(thresholdVal);
+  if (thresholdErr) { setFieldThresholdError(thresholdErr); return; }
 
   setMutating('form');
 
@@ -188,9 +191,9 @@ async function handleSubmit(e: React.FormEvent) {
         if (error) throw error;
         await fetchData();
       } else {
-        // Create with an empty threshold is rejected above, so thresholdVal
-        // is a number here — the `?? 1` only satisfies the type checker.
-        const { error } = await createItem(householdId, { ...editableItemData, low_stock_threshold: thresholdVal ?? 1 });
+        // An empty threshold is rejected above (create AND edit), so
+        // thresholdVal is a number here — no `?? 1` fallback (ticket #222).
+        const { error } = await createItem(householdId, { ...editableItemData, low_stock_threshold: thresholdVal });
         if (error) throw error;
         await fetchData();
       }
@@ -431,17 +434,17 @@ return (
 }
 
 function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, t }: { item: InventoryItem; index: number; disabled: boolean; onUpdate: (id: string, delta: number) => void; onEdit: (item: InventoryItem) => void; onDelete: (id: string) => void; t: (key: string, vars?: Record<string, string | number>) => string }) {
-  // Ticket #222 : same rule as getLowStockItems — a NULL threshold (cleared by
-  // a unit change) never evaluates as low-stock.
-  const isLowStock = item.low_stock_threshold !== null && item.quantity <= item.low_stock_threshold;
+  // Ticket #222 : shared rule — a NULL threshold (cleared by a unit change)
+  // never evaluates as low-stock (see isLowStock in lib/inventory).
+  const lowStock = isLowStock(item);
   const step = getUnitStep(item.unit);
 
   return (
-    <div className={`item-row animate-fade-in-soft ${isLowStock ? 'low-stock' : ''}`} data-testid={`item-row-${item.name.toLowerCase()}`} style={{ animationDelay: `${Math.min(index, 4) * 20}ms` }}>
+    <div className={`item-row animate-fade-in-soft ${lowStock ? 'low-stock' : ''}`} data-testid={`item-row-${item.name.toLowerCase()}`} style={{ animationDelay: `${Math.min(index, 4) * 20}ms` }}>
       <div className="item-info">
         <span className="item-name">{item.name}</span>
         <span className="item-sub">{t('items.stock_line', { qty: item.quantity, unit: item.unit, threshold: item.low_stock_threshold ?? '—' })}</span>
-        {isLowStock && <span className="badge badge-danger">{t('items.low_stock')}</span>}
+        {lowStock && <span className="badge badge-danger">{t('items.low_stock')}</span>}
       </div>
       <div className="item-controls">
         <div className="quantity-control">

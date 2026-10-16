@@ -942,6 +942,88 @@ $$;
 
 reset role;
 
+-- Ticket #106 iteration 9 / #226 (PRD §5: 5 essais / 1 minute) — lockout
+-- EXPIRATION. Le cas ci-dessus prouve que le lockout S'ARME (5 tentatives
+-- invalides -> blocked_until) et qu'un lockout « frère » ne bloque pas une
+-- invitation valide. Ce cas prouve l'autre moitié : une fois blocked_until
+-- dépassé, la MÊME invitation est de nouveau consommable (code valide ->
+-- jointure effective). Une invitation live ne peut pas être armée via la
+-- boucle de consume (elle joint à la 1re tentative), donc le lockout est
+-- seedé directement ici pour isoler la logique d'expiration ; le mécanisme
+-- d'armement reste couvert par le cas 5-tentatives ci-dessus.
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+values
+  ('00000000-0000-4000-8000-00000000000a', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lockexpowner@example.test', '', now(), now()),
+  ('00000000-0000-4000-8000-00000000000b', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lockexpjoiner@example.test', '', now(), now());
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-00000000000a', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.create_household('Lockout expiry household') as lockexp_household_id \gset
+select * from public.create_household_invitation(:'lockexp_household_id'::uuid, interval '1 day') \gset lockexp_
+reset role;
+select set_config('test.lockexp_household_id', :'lockexp_household_id', true);
+select set_config('test.lockexp_id', :'lockexp_invitation_id', true);
+select set_config('test.lockexp_token', :'lockexp_token', true);
+
+-- Armer le lockout sur l'invitation LIVE (seedé, cf. en-tête).
+update public.household_invitations
+set blocked_until = now() + interval '1 minute'
+where id = current_setting('test.lockexp_id')::uuid;
+
+-- Tant que verrouillé : le code valide est rejeté en P0001 (verrou réel).
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-00000000000b', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+begin
+  begin
+    perform public.consume_household_invitation(current_setting('test.lockexp_token'));
+    raise exception 'locked invitation unexpectedly consumed before expiry';
+  exception when sqlstate 'P0001' then
+    if position('temporarily locked' in sqlerrm) = 0 then
+      raise exception 'wrong P0001 message for lockout expiry: %', sqlerrm;
+    end if;
+  end;
+end;
+$$;
+reset role;
+
+-- Expirer le lockout artificiellement (blocked_until dans le passé).
+update public.household_invitations
+set blocked_until = now() - interval '1 minute'
+where id = current_setting('test.lockexp_id')::uuid;
+
+-- Après expiration : la MÊME code valide joint (jointure effective).
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-00000000000b', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.consume_household_invitation(current_setting('test.lockexp_token')) as lockexp_joined_id \gset
+reset role;
+select set_config('test.lockexp_joined_id', :'lockexp_joined_id', true);
+do $$
+begin
+  if current_setting('test.lockexp_joined_id')::uuid <> current_setting('test.lockexp_household_id')::uuid then
+    raise exception 'valid invitation did not join after lockout expiry';
+  end if;
+  if not exists (
+    select 1 from public.household_members
+    where household_id = current_setting('test.lockexp_household_id')::uuid
+      and user_id = '00000000-0000-4000-8000-00000000000b'
+      and role = 'member'
+  ) then raise exception 'lockout expiry did not create member'; end if;
+  if not exists (
+    select 1 from public.household_invitations
+    where id = current_setting('test.lockexp_id')::uuid
+      and consumed_at is not null
+      and failed_attempts = 0
+      and blocked_until is null
+  ) then raise exception 'successful consume after expiry did not reset failed_attempts/blocked_until'; end if;
+end;
+$$;
+
+reset role;
+
 -- Ticket #107 scope A — Fork ITEM_TEMPLATES + seeds + unites + validations (PRD §4.3/§4.4/§5/§7)
 -- Seeds bilingues durs, fork isole, CHECK unit/seuil/nom, unicites CI, RESTRICT.
 do $$

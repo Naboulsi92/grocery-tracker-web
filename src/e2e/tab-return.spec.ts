@@ -14,6 +14,7 @@ async function simulateTabReturn(page: Page) {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
     window.dispatchEvent(new Event('visibilitychange'));
   });
+  // #237 intentional delay (inter-event gap between visibilitychange hidden→visible — no observable state) — not a settle-sleep.
   // Intentional inter-event gap (stimulus, not settle): let hidden-state
   // handlers (supabase-js token refresh) run before the visible event.
   await page.waitForTimeout(300);
@@ -114,17 +115,25 @@ test.describe('Tab return behavior', () => {
     });
     let quietRounds = 0;
     let lastCount = -1;
-    const deadline = Date.now() + 10000;
-    while (Date.now() < deadline) {
-      await page.waitForTimeout(250);
-      if (requestsBefore.length === lastCount) {
-        quietRounds += 1;
-        if (quietRounds >= 3) break;
-      } else {
-        quietRounds = 0;
-        lastCount = requestsBefore.length;
-      }
-    }
+    // #237: quiescence gate as a state poll — intervals [250] is the former
+    // 250ms round cadence, 10s cap, 3 consecutive quiet rounds. Assumed
+    // behavior change vs the old while-loop: a pathological never-quiet page
+    // now fails outright on the poll timeout instead of proceeding with a
+    // non-quiet baseline — matching the intent documented above.
+    await expect
+      .poll(
+        () => {
+          if (requestsBefore.length === lastCount) {
+            quietRounds += 1;
+          } else {
+            quietRounds = 0;
+            lastCount = requestsBefore.length;
+          }
+          return quietRounds;
+        },
+        { timeout: 10000, intervals: [250] },
+      )
+      .toBeGreaterThanOrEqual(3);
 
     // Simulate tab blur and focus (window-level, as real browsers do).
     // The requestsBefore listener above stays armed across the window.

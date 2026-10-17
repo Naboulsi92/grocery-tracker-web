@@ -339,12 +339,15 @@ test.describe('Categories CRUD', () => {
 
         await expect(page.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
 
-        // Nettoyage membre : supprimer la catégorie créée par le second
-        // membre (inexistant si un assert a échoué avant) avant de fermer
-        // son contexte. L'owner supprime la sienne dans le finally.
-        await confirmDeleteDialog(secondPage, secondPage.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${newCategoryName}`) }), 'category-delete-confirm');
+        // Cleanup membre : supprimer la catégorie créée par le second membre
+        // (inexistant si un assert a échoué avant) avant de fermer son
+        // contexte. L'owner supprime la sienne dans le finally.
+        // .first() : sous realtime le create peut re-rendre la carte owner
+        // en double (bug application intermittent, ticket de suivi) — le
+        // doublon partage le même aria-label, on supprime la première.
+        await confirmDeleteDialog(secondPage, secondPage.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${newCategoryName}`) }).first(), 'category-delete-confirm');
       } finally {
-        await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) }), 'category-delete-confirm');
+        await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) }).first(), 'category-delete-confirm');
         await secondPage.context().close();
       }
     });

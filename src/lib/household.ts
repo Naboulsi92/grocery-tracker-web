@@ -71,15 +71,6 @@ export function normalizeInvitationToken(value: string): string {
  */
 export const INVITATION_INVALID_STATUS = 'invalid' as const;
 
-/**
- * Documented return of `consume_household_invitation` (ticket #239, Option B).
- * The RPC is `returns text`: the household id (uuid as text) on a successful
- * join, or {@link INVITATION_INVALID_STATUS} for a known-but-invalid token.
- * Both are `text`; the union names the two cases so callers branch on the
- * constant instead of a magic string.
- */
-export type ConsumeInvitationResult = string | typeof INVITATION_INVALID_STATUS;
-
 export function mergeHouseholdMembers(
   memberships: Membership[],
   profiles: Profile[],

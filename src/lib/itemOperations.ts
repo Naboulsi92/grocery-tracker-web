@@ -125,6 +125,10 @@ export async function updateItem(
     name?: string;
     unit?: Unit;
     category_id?: string | null;
+    // `null` stays legal at this low-level seam (contract-level callers such as
+    // resync / offline replay can still pass it). The UI no longer sends `null`
+    // since #222 (threshold mandatory on edit); legacy NULL rows in the DB are
+    // handled by the display guards. Column nullable since 20261014000000.
     low_stock_threshold?: number | null;
     quantity?: number;
   },

@@ -15,8 +15,9 @@ automatique.
   custom du projet Vercel, cf. `NEXT_PUBLIC_SITE_URL` en Vercel).
 - **STAGING** : Supabase `mxiduaezelcseymnvdfv` — nom historique
   `grocery-web-e2e-throwaway`, **réaffecté comme staging** (plus un bac à
-  sable jetable). Héberge déjà les migrations du repo (vérifié #237) ; c'est
-  le backend des overrides Preview ci-dessous.
+  sable jetable), région **`eu-west-3`** (Paris). Migrations **alignées sur
+  le repo le 17 oct 2026** (rattrapage détaillé plus bas) ; c'est le backend
+  des overrides Preview ci-dessous.
 
 ## Règle d'or reprise
 
@@ -29,6 +30,34 @@ compare toujours les versions distantes aux noms de fichiers locaux ; une
 dérive staging se répare comme une dérive prod (audit read-only, application
 des fichiers manquants, réécriture d'historique si besoin).
 
+## État des migrations (17 oct 2026)
+
+Le staging a été **rattrapé explicitement** le 17 oct 2026 (option A,
+ticket #230, revue Spec F1) :
+
+- **4 fichiers manquants appliqués** dans l'ordre des versions :
+  `20260929000000_email_exists`, `20260930000000_auth_provider_for_email`,
+  `20260930000001_realtime_household_members`,
+  `20261015000000_lockout_return_status` — tampons MCP
+  `20261017212849/50/51/2917`.
+- **3 versions re-tamponnées, orphelines assumées** face aux noms de
+  fichiers du repo (signature du piège « stamp à aujourd'hui ») :
+  `20261012181652_fork_language` ↔ `20261012000000`,
+  `20261015094812_threshold_nullable` ↔ `20261014000000`,
+  `20261015094813_reminder_badge_none` ↔ `20261014000001`.
+  **Contenu équivalent prouvé** par audit objet du 17 oct 2026 : fonction
+  `create_household(text, text)` avec `DEFAULT 'fr'` et copie `name_en` ;
+  `items.low_stock_threshold` nullable + commentaire « NULL = cleared by a
+  unit change » (#222) ; `enqueue_daily_reminders(time)` canaux badge/none +
+  fenêtre `<=` + commentaire #224. Historique final : **29 records**.
+- **Pré-validation** des clés du staging : chantier preview-run one-off de
+  la **PR #238** (backend jetable) — pas de l'issue #237 (E2E harness).
+- **Région : `eu-west-3`** (Paris, preuve MCP `get_project` du 17 oct).
+
+À recréation future : rejouer les 29 fichiers du repo dans l'ordre,
+jamais en SQL direct. Le détail opératoire de rattrapage reste
+dans ce runbook, pas dans le code.
+
 ## Câblage Preview → staging (PAR BRANCHE, pas global)
 
 Les variables Preview **globales** pointent sur la prod (c'est voulu : une PR
@@ -40,7 +69,7 @@ branch-specific variables will override other preview environment variables
 with the same name ») :
 
 ```bash
-# Valeur par STDIN, jamais en argument (jamais d'URL/ clé sur la ligne de
+# Valeur par STDIN, jamais en argument (jamais d'URL ni de clé sur la ligne de
 # commande ni dans l'historique shell).
 vercel env add NEXT_PUBLIC_SUPABASE_URL preview <branch> --type config
 # → coller https://mxiduaezelcseymnvdfv.supabase.co
@@ -56,9 +85,10 @@ qu'aux nouveaux déploiements) et test manuel sur l'URL Preview de la branche
 
 1. **La branche doit exister sur GitHub AVANT** `vercel env add … preview
    <branch>` — sinon `branch_not_found`. Créer/pousser la branche d'abord.
-2. **`--type config` obligatoire** pour un nom `NEXT_PUBLIC_*` qui ressemble
-   à un credential — sans ce flag, Vercel refuse/traite la variable comme un
-   secret et le câblage échoue.
+2. **`--type config` explicite** pour un nom `NEXT_PUBLIC_*` — vérifié sur
+   CLI 59.11.2 (oct 2026) qui traite une valeur ressemblant à un credential
+   comme un secret si le flag est absent ; re-vérifier à chaque montée de
+   version de la CLI.
 3. La **clé anon vivait déjà** dans `.scratch/e2e-throwaway-keys.json`
    (pattern repo : clés jetables locales, jamais commitées) — l'ajouter
    **depuis ce fichier sans jamais l'imprimer** (pas de `cat`/`echo` de la
@@ -67,6 +97,14 @@ qu'aux nouveaux déploiements) et test manuel sur l'URL Preview de la branche
    déploiements/URLs publiques — cf. la note explicite de
    `.env.local.example` sur le refus de stocker la service role key comme
    secret GitHub). Le staging n'a besoin que de `URL` + `ANON_KEY`.
+5. **MCP `apply_migration` tamponne à aujourd'hui** — pas à la date du
+   fichier (le rattrapage du 17 oct a produit des stamps `2026101721…`
+   pour des fichiers de sept/oct : versions orphelines assumées, cf.
+   l'état ci-dessus). Le « name » du MCP reste le nom logique du fichier.
+6. **Deux `apply_migration` dans la même seconde → collision PK**
+   (`duplicate key … schema_migrations_pkey`) : relancer la migration
+   seule une seconde plus tard — la transaction SQL est annulée
+   proprement (aucun artefact partiel).
 
 ## Limite connue
 
@@ -94,7 +132,14 @@ Avant merge d'une PR :
 ## Discipline protection
 
 Protection de branche **`main` active** depuis le **17 oct 2026** (ticket
-#230) : checks requis **quality, database, e2e (1-4), merge-reports** +
-**résolution des conversations** avant merge. Un merge sans ces checks verts
-est bloqué par GitHub — le staging manuel vient **en plus** de ce filet, pas
-à sa place.
+#230) : checks requis **quality, database, e2e (1-4), merge-reports,
+Vercel Preview Comments** + **résolution des conversations** avant merge.
+
+- **E2E (1-4) requis malgré la loterie apparente** : choix assumé le
+  17 oct 2026 — suite verte sur les runs récents, `trace: on-first-retry` ;
+  si la loterie redevient bruyante, on diagnostique via les artefacts
+  (traces) plutôt que baisser l'exigence.
+- **Vercel Preview Comments requis** (choix fondateur) : une preview
+  cassée ou non générée bloque le merge comme n'importe quel job CI.
+Un merge sans ces checks verts est bloqué par GitHub — le staging manuel
+vient **en plus** de ce filet, pas à sa place.

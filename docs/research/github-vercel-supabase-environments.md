@@ -148,8 +148,10 @@ Photographie datée de l'état réel du repo (pas une source primaire) — le d�
 opératoire vit dans `docs/agents/runbooks/staging-discipline.md` :
 
 - **Staging Supabase `mxiduaezelcseymnvdfv`** — l'ex-`grocery-web-e2e-throwaway`
-  réaffecté comme staging dédié (héberge déjà les migrations du repo, vérifié
-  #237) ; **prod** = `oizfmmnuoqkdqkguynfv`.
+  réaffecté comme staging dédié, région `eu-west-3` (Paris) ; migrations
+  **rattrapées le 17 oct 2026** (4 fichiers appliqués + 3 versions
+  re-tamponnées orphelines auditées équivalentes, historique = 29 records) ;
+  pré-validation pendant la PR #238 ; **prod** = `oizfmmnuoqkdqkguynfv`.
 - Décision v1.5 : le fondateur ne teste plus sur prod/main — le staging sert au
   **test manuel avant merge** (pas de Git Flow complet, `main` reste la branche
   de production).
@@ -164,10 +166,12 @@ opératoire vit dans `docs/agents/runbooks/staging-discipline.md` :
 - **Précédence branch-scope > preview** : cf. §1.3 ci-dessus (les variables
   branch-specific overrident les autres variables preview du même nom).
 - **Leçons oct 2026** : la branche doit exister sur GitHub avant `vercel env
-  add` branch-scoped (`branch_not_found`) ; `--type config` obligatoire pour un
-  nom `NEXT_PUBLIC_*` qui ressemble à un credential ; clé anon lue depuis
+  add` branch-scoped (`branch_not_found`) ; `--type config` explicite pour un
+  nom `NEXT_PUBLIC_*` (CLI 59.11.2 traite une valeur ressemblant à un
+  credential comme un secret sans le flag) ; clé anon lue depuis
   `.scratch/e2e-throwaway-keys.json` sans jamais l'imprimer ; `service_role`
-  **jamais** câblé côté Vercel.
+  **jamais** câblé côté Vercel ; MCP `apply_migration` tamponne à aujourd'hui
+  (stamps orphelines assumés, cf. runbook).
 - **Limite connue** : sur backend hébergé, l'Auth rejette/throttle les emails
   `.test` — les specs E2E fresh-signup restent sur la CI locale ; le staging
   sert au test manuel du fondateur (parcours réels).
@@ -176,6 +180,8 @@ opératoire vit dans `docs/agents/runbooks/staging-discipline.md` :
   après merge** (`vercel env rm … preview <branch>`) pour ne pas laisser une
   branche morte pointer sur staging.
 - **Protection de branche `main` active** depuis le 17 oct 2026 (#230) : checks
-  requis quality, database, e2e (1-4), merge-reports + résolution des
-  conversations.
+  requis quality, database, e2e (1-4), merge-reports, Vercel Preview Comments
+  (choix fondateur : preview cassée = merge bloqué) + résolution des
+  conversations ; E2E requis malgré la loterie apparente (choix assumé,
+  traces CI comme vecteur de diagnostic).
 - Détail complet : `docs/agents/runbooks/staging-discipline.md`.

@@ -188,7 +188,7 @@ npx playwright test  # E2E (Chromium engine; Edge locally, bundled Chromium on C
 ## Pre-Deployment Checklist
 
 Before merging a PR:
-- [ ] Test manuel sur l'URL Preview de la PR (backend staging branch-scoped, cf docs/agents/runbooks/staging-discipline.md)
+- [ ] Test manuel sur l'URL Preview de la PR (backend staging branch-scoped, cf `docs/agents/runbooks/staging-discipline.md`)
 - [ ] All tests pass (unit + E2E)
 - [ ] Typecheck passes
 - [ ] Linting passes

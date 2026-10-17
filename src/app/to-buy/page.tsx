@@ -10,7 +10,7 @@ import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SyncingIndicator } from '@/components/SyncingIndicator';
-import { getErrorMessage, getLowStockItems, joinInventory, CATEGORY_COLUMNS, ITEM_COLUMNS, type Category, type InventoryItem } from '@/lib/inventory';
+import { getErrorMessage, getLowStockItems, isLowStock, joinInventory, CATEGORY_COLUMNS, ITEM_COLUMNS, type Category, type InventoryItem } from '@/lib/inventory';
 import { applyCategoryPatch, applyToBuyPatch } from '@/lib/realtimePatch';
 import { useHouseholdRealtime } from '@/hooks/useHouseholdRealtime';
 import { updateItemQuantity } from '@/lib/itemOperations';
@@ -142,7 +142,15 @@ export default function ToBuyPage() {
     try {
       const { error } = await updateItemQuantity(id, delta);
       if (error) throw error;
-      if (currentItem.quantity + delta > currentItem.low_stock_threshold) {
+      // Ticket #222 : restock check via the shared low-stock rule — the item
+      // leaves the to-buy list once its new quantity is no longer low-stock.
+      // A NULL threshold (cleared by a unit change) never qualifies as
+      // low-stock, so such an item restocks immediately.
+      const restocked = !isLowStock({
+        quantity: currentItem.quantity + delta,
+        low_stock_threshold: currentItem.low_stock_threshold,
+      });
+      if (restocked) {
         markChecked(id);
       } else {
         setThresholdNoticeId(id);

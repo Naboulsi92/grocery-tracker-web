@@ -58,6 +58,19 @@ export function normalizeInvitationToken(value: string): string {
   return value.trim();
 }
 
+/**
+ * `consume_household_invitation` return status for a known-but-invalid token
+ * (ticket #239, Option B): the RPC counts the attempt and commits the
+ * increment, then RETURNS this status instead of raising (raising would roll
+ * the counter back). The client maps it to the same message as unknown tokens
+ * (indistinguishability preserved).
+ *
+ * The SQL keeps its own literal (it cannot import TS) — this constant is the
+ * client-side source of truth: compare against it, never a bare 'invalid'.
+ * See supabase/migrations/20261015000000_lockout_return_status.sql.
+ */
+export const INVITATION_INVALID_STATUS = 'invalid' as const;
+
 export function mergeHouseholdMembers(
   memberships: Membership[],
   profiles: Profile[],

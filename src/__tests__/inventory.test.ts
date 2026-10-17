@@ -16,7 +16,7 @@ const category = (id: string): Category => ({
   created_at: null,
 });
 
-const item = (id: string, categoryId: string | null, quantity = 1, threshold = 1, unit = 'unite'): Item => ({
+const item = (id: string, categoryId: string | null, quantity = 1, threshold: number | null = 1, unit = 'unite'): Item => ({
   id,
   name: id,
   category_id: categoryId,
@@ -53,6 +53,15 @@ describe('inventory helpers', () => {
     );
 
     expect(getLowStockItems(inventory).map(({ id }) => id)).toEqual(['empty', 'limit']);
+  });
+
+  it('excludes items whose threshold was cleared by a unit change (#222)', () => {
+    const inventory = joinInventory(
+      [item('cleared', null, 0, null), item('empty', null, 0, 1)],
+      [],
+    );
+
+    expect(getLowStockItems(inventory).map(({ id }) => id)).toEqual(['empty']);
   });
 
   it('calculates next position from numeric values', () => {

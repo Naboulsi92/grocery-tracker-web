@@ -1,5 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
-import { requireWrites, createAccount, createHousehold } from './fixtures';
+import { test, expect } from './fixtures';
+import type { Page } from '@playwright/test';
+import { requireWrites, createAccount } from './fixtures';
 import { didBecomeVisible } from './helpers';
 
 /**
@@ -13,8 +14,10 @@ async function simulateTabReturn(page: Page) {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
     window.dispatchEvent(new Event('visibilitychange'));
   });
-  // Intentional inter-event gap (stimulus, not settle): let hidden-state
-  // handlers (supabase-js token refresh) run before the visible event.
+  // #237 intentional delay (inter-event gap between visibilitychange
+  // hidden→visible — let hidden-state handlers (supabase-js token refresh)
+  // run before the visible event; no observable state to wait on) — not a
+  // settle-sleep.
   await page.waitForTimeout(300);
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
@@ -51,12 +54,8 @@ async function expireSessionCookie(page: Page) {
 }
 
 test.describe('Tab return behavior', () => {
-  test('returning to tab shows no spinner and preserves form state', async ({ page }) => {
-    requireWrites();
-
-    const account = createAccount('tab-return');
-    await createHousehold(page, account);
-
+  test('returning to tab shows no spinner and preserves form state', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (unique category name, submitted at the end).
     // Navigate to categories page and fill a form
     await page.getByTestId('dashboard-card-categories').click();
     await expect(page).toHaveURL('/categories');
@@ -94,12 +93,8 @@ test.describe('Tab return behavior', () => {
     await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
   });
 
-  test('returning to tab does not trigger household members refetch', async ({ page }) => {
-    requireWrites();
-
-    const account = createAccount('tab-return-refetch');
-    await createHousehold(page, account);
-
+  test('returning to tab does not trigger household members refetch', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (request counting only, no test data).
     // Go to home page
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
@@ -121,17 +116,25 @@ test.describe('Tab return behavior', () => {
     });
     let quietRounds = 0;
     let lastCount = -1;
-    const deadline = Date.now() + 10000;
-    while (Date.now() < deadline) {
-      await page.waitForTimeout(250);
-      if (requestsBefore.length === lastCount) {
-        quietRounds += 1;
-        if (quietRounds >= 3) break;
-      } else {
-        quietRounds = 0;
-        lastCount = requestsBefore.length;
-      }
-    }
+    // #237: quiescence gate as a state poll — intervals [250] is the former
+    // 250ms round cadence, 10s cap, 3 consecutive quiet rounds. Assumed
+    // behavior change vs the old while-loop: a pathological never-quiet page
+    // now fails outright on the poll timeout instead of proceeding with a
+    // non-quiet baseline — matching the intent documented above.
+    await expect
+      .poll(
+        () => {
+          if (requestsBefore.length === lastCount) {
+            quietRounds += 1;
+          } else {
+            quietRounds = 0;
+            lastCount = requestsBefore.length;
+          }
+          return quietRounds;
+        },
+        { timeout: 10000, intervals: [250] },
+      )
+      .toBeGreaterThanOrEqual(3);
 
     // Simulate tab blur and focus (window-level, as real browsers do).
     // The requestsBefore listener above stays armed across the window.
@@ -179,12 +182,9 @@ test.describe('Tab return behavior', () => {
     await expect(page.getByTestId('header-household-name')).toHaveText(householdName);
   });
 
-  test('signing out still clears the screen', async ({ page }) => {
-    requireWrites();
-
-    const account = createAccount('signout');
-    await createHousehold(page, account);
-
+  test('signing out still clears the screen', async ({ authenticatedPage: page }) => {
+    // #237 : seeded session (sign-out only closes this test's context, the
+    // saved storageState is untouched).
     // Sign out via the header's Déconnexion button
     await page.getByRole('button', { name: 'Déconnexion' }).click();
 

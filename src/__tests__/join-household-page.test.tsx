@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import JoinHouseholdPage from '@/app/(auth)/join-household/page';
 import { createClient } from '@/utils/supabase/client';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { INVITATION_INVALID_STATUS } from '@/lib/household';
 
 const replace = jest.fn();
 const retryHousehold = jest.fn();
@@ -78,6 +79,19 @@ describe('JoinHouseholdPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Code invalide ou expiré');
     expect(rpc).toHaveBeenCalledWith('consume_household_invitation', { p_token: 'bad-token' });
     expect(profileUpdate).toHaveBeenCalledWith({ first_name: 'Alex', last_name: 'Dupont' });
+    expect(screen.getByRole('button', { name: 'Rejoindre le foyer' })).toBeEnabled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('maps the #239 invalid status to the same recoverable message (no raise)', async () => {
+    rpc.mockResolvedValue({ data: INVITATION_INVALID_STATUS, error: null });
+    render(<LanguageProvider><JoinHouseholdPage /></LanguageProvider>);
+    fillNames('Alex', 'Dupont');
+    fireEvent.change(screen.getByLabelText(/Code d.invitation complet/), { target: { value: 'used-token' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Rejoindre le foyer' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Code invalide ou expiré');
+    expect(rpc).toHaveBeenCalledWith('consume_household_invitation', { p_token: 'used-token' });
     expect(screen.getByRole('button', { name: 'Rejoindre le foyer' })).toBeEnabled();
     expect(replace).not.toHaveBeenCalled();
   });

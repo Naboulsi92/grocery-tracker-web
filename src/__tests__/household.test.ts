@@ -37,6 +37,12 @@ describe('household contracts', () => {
     expect(translate('fr', 'errors.join.invalid_or_expired')).toContain('Code invalide ou expiré');
   });
 
+  it('maps the server-side invitation lockout (P1-12, #226) to the lockout message', () => {
+    expect(householdActionError('join', { message: 'invitation is temporarily locked', code: 'P0001' }))
+      .toBe('errors.join.lockout_code');
+    expect(translate('fr', 'errors.join.lockout_code')).toContain('temporairement bloqué');
+  });
+
   it('never exposes a raw database message and logs only structured non-sensitive context', () => {
     expect(householdActionError('load', { message: 'relation secret_table does not exist', code: '42P01' }))
       .toBe('errors.household.load_failed');

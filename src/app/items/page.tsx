@@ -10,7 +10,7 @@ import { createClient } from '@/utils/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SyncingIndicator } from '@/components/SyncingIndicator';
-import { getErrorMessage, groupItems, joinInventory, CATEGORY_COLUMNS, ITEM_COLUMNS, type Category, type InventoryItem } from '@/lib/inventory';
+import { getErrorMessage, groupItems, isLowStock, joinInventory, CATEGORY_COLUMNS, ITEM_COLUMNS, type Category, type InventoryItem } from '@/lib/inventory';
 import { applyCategoryPatch, applyItemPatch, clearEmbeddedCategory, refreshEmbeddedCategories } from '@/lib/realtimePatch';
 import { useHouseholdRealtime } from '@/hooks/useHouseholdRealtime';
 import { createItem, updateItem, updateItemQuantity, deleteItem } from '@/lib/itemOperations';
@@ -18,7 +18,7 @@ import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { AccessibleDialog } from '@/components/AccessibleDialog';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useResyncOnReconnect } from '@/hooks/useResyncOnReconnect';
-import { validateName, validateQuantity, validateThreshold, validateUnit } from '@/lib/validation';
+import { validateName, validateQuantity, validateThreshold, validateUnit, ThresholdErrors } from '@/lib/validation';
 import { translateMessage } from '@/lib/i18n';
 import { UNITS, getUnitStep, isUnit, type Unit } from '@/types/units';
 
@@ -28,6 +28,9 @@ export default function ItemsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Ticket #222 : unit the edited item had when the form opened — an emptied
+  // quantity after a unit change means 0 (cleared), otherwise "untouched".
+  const [editingOriginalUnit, setEditingOriginalUnit] = useState<Unit | null>(null);
   const [formName, setFormName] = useState('');
   const [formQuantity, setFormQuantity] = useState('1');
   const [formUnit, setFormUnit] = useState<Unit>('unite');
@@ -150,7 +153,17 @@ async function handleSubmit(e: React.FormEvent) {
   const qtyErr = validateQuantity(formQuantity);
   if (qtyErr) { setFieldQuantityError(qtyErr); return; }
 
-  const thresholdVal = parseInt(formThreshold, 10);
+  const thresholdEmpty = formThreshold.trim() === '';
+  const thresholdVal = thresholdEmpty ? null : parseInt(formThreshold, 10);
+  // Ticket #222 : the threshold is mandatory in BOTH create and edit. An
+  // emptied threshold (e.g. after a unit change, PRD §4.4) must be re-entered,
+  // never persisted as NULL — a NULL threshold is the "black hole": it is never
+  // low-stock and never reminded. After this check thresholdVal is a number in
+  // every path (empty or non-numeric both fail here / below).
+  if (thresholdVal === null) {
+    setFieldThresholdError(ThresholdErrors.REQUIRED);
+    return;
+  }
   const thresholdErr = validateThreshold(thresholdVal);
   if (thresholdErr) { setFieldThresholdError(thresholdErr); return; }
 
@@ -162,21 +175,25 @@ async function handleSubmit(e: React.FormEvent) {
   const editingCurrentQuantity = editingId
     ? items.find((item) => item.id === editingId)?.quantity ?? 1
     : 1;
+  // Ticket #222 : after a unit change an emptied quantity means 0 (cleared,
+  // PRD §4.4) — the #175 "empty keeps current" rule applies only otherwise.
+  const unitChangedInForm = editingId !== null && editingOriginalUnit !== null && formUnit !== editingOriginalUnit;
   const editableItemData = {
     name: formName.trim(),
     unit: formUnit,
     category_id: formCategoryId || null,
-    low_stock_threshold: thresholdVal,
-    quantity: formQuantity.trim() === '' ? editingCurrentQuantity : parseInt(formQuantity, 10),
+    quantity: formQuantity.trim() === '' ? (unitChangedInForm ? 0 : editingCurrentQuantity) : parseInt(formQuantity, 10),
   };
 
     try {
       if (editingId) {
-        const { error } = await updateItem(editingId, householdId!, editableItemData);
+        const { error } = await updateItem(editingId, householdId!, { ...editableItemData, low_stock_threshold: thresholdVal });
         if (error) throw error;
         await fetchData();
       } else {
-        const { error } = await createItem(householdId, editableItemData);
+        // An empty threshold is rejected above (create AND edit), so
+        // thresholdVal is a number here — no `?? 1` fallback (ticket #222).
+        const { error } = await createItem(householdId, { ...editableItemData, low_stock_threshold: thresholdVal });
         if (error) throw error;
         await fetchData();
       }
@@ -227,6 +244,7 @@ async function handleSubmit(e: React.FormEvent) {
     setFormUnit('unite');
     setFormCategoryId('');
     setFormThreshold('1');
+    setEditingOriginalUnit(null);
     setShowForm(false);
     setEditingId(null);
     setError('');
@@ -241,7 +259,9 @@ async function handleSubmit(e: React.FormEvent) {
     setFormQuantity(item.quantity.toString());
     setFormUnit(isUnit(item.unit) ? item.unit : 'unite');
     setFormCategoryId(item.category_id || '');
-    setFormThreshold(item.low_stock_threshold.toString());
+    // Ticket #222 : a NULL threshold (cleared by a unit change) edits as empty.
+    setFormThreshold(item.low_stock_threshold?.toString() ?? '');
+    setEditingOriginalUnit(isUnit(item.unit) ? item.unit : 'unite');
     setEditingId(item.id);
     setShowForm(true);
   }
@@ -414,15 +434,17 @@ return (
 }
 
 function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, t }: { item: InventoryItem; index: number; disabled: boolean; onUpdate: (id: string, delta: number) => void; onEdit: (item: InventoryItem) => void; onDelete: (id: string) => void; t: (key: string, vars?: Record<string, string | number>) => string }) {
-  const isLowStock = item.quantity <= item.low_stock_threshold;
+  // Ticket #222 : shared rule — a NULL threshold (cleared by a unit change)
+  // never evaluates as low-stock (see isLowStock in lib/inventory).
+  const lowStock = isLowStock(item);
   const step = getUnitStep(item.unit);
 
   return (
-    <div className={`item-row animate-fade-in-soft ${isLowStock ? 'low-stock' : ''}`} data-testid={`item-row-${item.name.toLowerCase()}`} style={{ animationDelay: `${Math.min(index, 4) * 20}ms` }}>
+    <div className={`item-row animate-fade-in-soft ${lowStock ? 'low-stock' : ''}`} data-testid={`item-row-${item.name.toLowerCase()}`} style={{ animationDelay: `${Math.min(index, 4) * 20}ms` }}>
       <div className="item-info">
         <span className="item-name">{item.name}</span>
-        <span className="item-sub">{t('items.stock_line', { qty: item.quantity, unit: item.unit, threshold: item.low_stock_threshold })}</span>
-        {isLowStock && <span className="badge badge-danger">{t('items.low_stock')}</span>}
+        <span className="item-sub">{t('items.stock_line', { qty: item.quantity, unit: item.unit, threshold: item.low_stock_threshold ?? '—' })}</span>
+        {lowStock && <span className="badge badge-danger">{t('items.low_stock')}</span>}
       </div>
       <div className="item-controls">
         <div className="quantity-control">

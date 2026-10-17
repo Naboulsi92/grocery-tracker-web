@@ -1,5 +1,6 @@
 import * as fs from 'fs';
-import { requireWrites, createHousehold, expect, test } from './fixtures';
+import { expect, test } from './fixtures';
+import { PRD_FOYER_1_NAME } from '../../quality/prd-accounts';
 
 /**
  * Export RGPD — #136 (PRD §4.11).
@@ -10,11 +11,10 @@ import { requireWrites, createHousehold, expect, test } from './fixtures';
  */
 test.describe('Account export RGPD (#136)', () => {
   test('downloads a JSON export with profile + household data', async ({
-    page,
-    account,
+    authenticatedPage: page,
   }) => {
-    requireWrites();
-    const householdName = await createHousehold(page, account);
+    // #237 : seeded session (export shape + seeded household name).
+    const householdName = PRD_FOYER_1_NAME;
 
     await page.goto('/account');
     await expect(page.getByTestId('account-export-button')).toBeVisible();

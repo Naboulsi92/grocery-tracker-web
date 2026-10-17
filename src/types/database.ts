@@ -37,7 +37,7 @@ export type Database = {
           id: string;
           last_modified_at: string | null;
           last_modified_by: string | null;
-          low_stock_threshold: number;
+          low_stock_threshold: number | null;
           name: string;
           quantity: number;
           unit: string;
@@ -58,7 +58,7 @@ export type Database = {
           unit: string;
           updated_at?: string | null;
         };
-        Update: { name?: string; category_id?: string | null; unit?: string; low_stock_threshold?: number };
+        Update: { name?: string; category_id?: string | null; unit?: string; low_stock_threshold?: number | null };
         Relationships: [];
       };
       profiles: {

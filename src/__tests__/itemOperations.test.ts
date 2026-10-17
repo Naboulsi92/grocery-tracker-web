@@ -21,6 +21,7 @@ type FakeResponses = {
   select?: { data?: unknown; error?: FakeError };
   insert?: { error?: FakeError };
   update?: { error?: FakeError };
+  updateCapture?: unknown[];
   delete?: { error?: FakeError };
   rpc?: { error?: FakeError };
   rpcImpl?: (fn: string, args: Record<string, unknown>) => Promise<{ error?: FakeError }>;
@@ -47,9 +48,10 @@ function makeSupabase(responses: FakeResponses = {}): SupabaseClient {
           }),
         }),
         insert: async () => responses.insert ?? ok,
-        update: () => ({
-          eq: () => ({ eq: async () => responses.update ?? ok }),
-        }),
+        update: (data: unknown) => {
+          responses.updateCapture?.push(data);
+          return { eq: () => ({ eq: async () => responses.update ?? ok }) };
+        },
         delete: () => ({
           eq: () => ({ eq: async () => responses.delete ?? ok }),
         }),
@@ -211,6 +213,73 @@ describe('offline queue trigger — PRD §4.12 / §9', () => {
     expect(result.error).not.toBeNull();
     expect(result.queued).toBeUndefined();
     expect(mockEnqueueAction).toHaveBeenCalledTimes(1);
+  });
+
+  // Ticket #222 : a unit change really empties quantity and threshold —
+  // the re-entered threshold persists (no sentinel 1), a cleared threshold
+  // persists as null, and the quantity is zeroed.
+  describe('updateItem unit change (#222)', () => {
+    const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
+    const updateCapture: unknown[] = [];
+    const clientWith = (row: typeof currentRow) => {
+      rpcCalls.length = 0;
+      updateCapture.length = 0;
+      return makeSupabase({
+        select: { data: row, error: null },
+        updateCapture,
+        rpcImpl: async (fn: string, args: Record<string, unknown>) => {
+          rpcCalls.push({ fn, args });
+          return { error: null };
+        },
+      });
+    };
+
+    it('persists the re-entered threshold instead of the sentinel 1', async () => {
+      const result = await updateItem(
+        'item-1',
+        'home-1',
+        { unit: 'kg', quantity: 7, low_stock_threshold: 3 },
+        clientWith({ ...currentRow, unit: 'unite', quantity: 2, low_stock_threshold: 1 }),
+      );
+
+      expect(result.error).toBeNull();
+      expect(updateCapture).toHaveLength(1);
+      expect(updateCapture[0]).toMatchObject({ unit: 'kg', low_stock_threshold: 3 });
+      expect(rpcCalls).toEqual([
+        { fn: 'adjust_item_quantity', args: { p_item_id: 'item-1', p_delta: -2 } },
+        { fn: 'adjust_item_quantity', args: { p_item_id: 'item-1', p_delta: 7 } },
+      ]);
+    });
+
+    it('writes null (not the sentinel 1) when the threshold was cleared', async () => {
+      const result = await updateItem(
+        'item-1',
+        'home-1',
+        { unit: 'kg', quantity: 0 },
+        clientWith({ ...currentRow, unit: 'unite', quantity: 2, low_stock_threshold: 3 }),
+      );
+
+      expect(result.error).toBeNull();
+      expect(updateCapture).toHaveLength(1);
+      expect(updateCapture[0]).toMatchObject({ unit: 'kg', low_stock_threshold: null });
+      expect(rpcCalls).toEqual([
+        { fn: 'adjust_item_quantity', args: { p_item_id: 'item-1', p_delta: -2 } },
+      ]);
+    });
+
+    it('leaves the threshold alone when the unit did not change', async () => {
+      const result = await updateItem(
+        'item-1',
+        'home-1',
+        { name: 'Pain complet', low_stock_threshold: 4 },
+        clientWith({ ...currentRow, unit: 'unite', quantity: 2, low_stock_threshold: 1 }),
+      );
+
+      expect(result.error).toBeNull();
+      expect(updateCapture).toHaveLength(1);
+      expect(updateCapture[0]).toMatchObject({ low_stock_threshold: 4 });
+      expect(rpcCalls).toEqual([]);
+    });
   });
 
   // Ticket #175 : editing an item's quantity persists it through the adjust

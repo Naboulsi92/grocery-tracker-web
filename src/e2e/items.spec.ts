@@ -4,10 +4,8 @@ import { confirmDeleteDialog, deleteAllItems, deleteItemRow, fetchInviteToken } 
 
 test.describe('Items CRUD', () => {
   test.describe('Create Item', () => {
-    test('shows error message on create failure', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('shows error message on create failure', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (route interception, no write).
       const itemName = `Article E ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -34,10 +32,8 @@ test.describe('Items CRUD', () => {
       await expect(page.locator('.auth-error')).toBeVisible();
     });
 
-    test('validates unit selection and display', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('validates unit selection and display', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article unité ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -59,10 +55,8 @@ test.describe('Items CRUD', () => {
   });
 
   test.describe('Edit Item', () => {
-    test('can edit item name (US 45)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('can edit item name (US 45)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID names, deleted at the end).
       const originalName = `Article ${randomUUID()}`;
       const newName = `Renommé ${randomUUID()}`;
       
@@ -85,10 +79,8 @@ test.describe('Items CRUD', () => {
       await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: newName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
-    test('can adjust item quantity via atomic buttons (US 46)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('can adjust item quantity via atomic buttons (US 46)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article qty ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -108,10 +100,8 @@ test.describe('Items CRUD', () => {
       await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
-    test('can edit item category assignment (US 47)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('can edit item category assignment (US 47)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID names, item + category deleted at the end).
       const categoryName = `Catégorie ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
@@ -141,10 +131,8 @@ test.describe('Items CRUD', () => {
       await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
     });
 
-    test('can edit low stock threshold (US 48)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('can edit low stock threshold (US 48)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article seuil ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -169,10 +157,8 @@ test.describe('Items CRUD', () => {
   });
 
   test.describe('Atomic Operations', () => {
-    test('can increment quantity atomically (US 49)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('can increment quantity atomically (US 49)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article inc ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -192,10 +178,8 @@ test.describe('Items CRUD', () => {
       await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
-    test('can decrement quantity atomically (US 50)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('can decrement quantity atomically (US 50)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article dec ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -215,10 +199,8 @@ test.describe('Items CRUD', () => {
       await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
     });
 
-    test('cannot decrement below zero', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('cannot decrement below zero', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article zero ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -261,10 +243,8 @@ test.describe('Items CRUD', () => {
   });
 
   test.describe('Error Handling', () => {
-    test('shows error message on delete failure (US 53)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('shows error message on delete failure (US 53)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (route interception, UUID residue).
       const itemName = `Article E ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -340,10 +320,8 @@ test.describe('Items CRUD', () => {
   });
 
   test.describe('Low Stock Badge', () => {
-    test('displays low-stock badge correctly', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('displays low-stock badge correctly', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article badge ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -402,10 +380,8 @@ test.describe('Items CRUD', () => {
   });
 
   test.describe('Field Validation (P1-7, #107)', () => {
-    test('rejects a name without any letter', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('rejects a name without any letter', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (validation-only, no write).
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill('12345');
@@ -414,10 +390,8 @@ test.describe('Items CRUD', () => {
       await expect(page.getByTestId('error-name-required-letter')).toBeVisible();
     });
 
-    test('rejects a name longer than 50 characters', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('rejects a name longer than 50 characters', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (validation-only, no write).
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(`A${'a'.repeat(50)}`);
@@ -426,10 +400,8 @@ test.describe('Items CRUD', () => {
       await expect(page.getByTestId('error-name-too-long')).toBeVisible();
     });
 
-    test('rejects a case-insensitive duplicate name', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('rejects a case-insensitive duplicate name', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const baseName = `Doublon ${randomUUID().slice(0, 8)}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -446,10 +418,8 @@ test.describe('Items CRUD', () => {
       await deleteItemRow(page, page.locator('.item-row').filter({ hasText: baseName }));
     });
 
-    test('rejects a negative quantity', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('rejects a negative quantity', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (validation-only, no write).
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(`Article neg ${randomUUID().slice(0, 8)}`);
@@ -459,10 +429,8 @@ test.describe('Items CRUD', () => {
       await expect(page.getByTestId('error-quantity-negative')).toBeVisible();
     });
 
-    test('rejects a decimal quantity', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('rejects a decimal quantity', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (validation-only, no write).
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(`Article dec ${randomUUID().slice(0, 8)}`);
@@ -472,10 +440,8 @@ test.describe('Items CRUD', () => {
       await expect(page.getByTestId('error-quantity-negative')).toBeVisible();
     });
 
-    test('rejects a zero threshold', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('rejects a zero threshold', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (validation-only, no write).
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(`Article seuil ${randomUUID().slice(0, 8)}`);
@@ -485,10 +451,8 @@ test.describe('Items CRUD', () => {
       await expect(page.getByTestId('error-threshold-required')).toBeVisible();
     });
 
-    test('shows an error on empty submit instead of silently returning (#129)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('shows an error on empty submit instead of silently returning (#129)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (validation-only, no write).
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByLabel('Quantité', { exact: true }).fill('1');
@@ -528,10 +492,8 @@ test.describe('Items CRUD', () => {
   });
 
   test.describe('Unit Change (P1-8, #107)', () => {
-    test('changing unit clears quantity and threshold', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('changing unit clears quantity and threshold', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (form opened, never submitted).
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByLabel('Quantité', { exact: true }).fill('5');
@@ -546,10 +508,70 @@ test.describe('Items CRUD', () => {
       await expect(page.getByLabel('Seuil stock bas')).toHaveValue('');
     });
 
-    test('unit select offers exactly the 5 closed PRD values', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
+    test('changing unit on edit persists the re-entered values, not the sentinel (#222)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
+      const itemName = `Article unité edit ${randomUUID().slice(0, 8)}`;
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(itemName);
+      await page.getByLabel('Quantité', { exact: true }).fill('5');
+      await page.getByLabel('Seuil stock bas').fill('3');
+      await page.getByTestId('btn-create-item').click();
+      await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
+      const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+      await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
+      await page.locator('[data-testid="input-item-unit"], #item-unit').selectOption('kg');
+      await expect(page.getByLabel('Quantité', { exact: true })).toHaveValue('');
+      await expect(page.getByLabel('Seuil stock bas')).toHaveValue('');
+
+      await page.getByLabel('Quantité', { exact: true }).fill('7');
+      await page.getByLabel('Seuil stock bas').fill('2');
+      await page.getByTestId('btn-create-item').click();
+      await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+
+      // Reopen: the re-entered values persisted (threshold 2, not sentinel 1).
+      await page.locator('.item-row').filter({ hasText: itemName }).getByRole('button', { name: /Modifier l'article/ }).click();
+      await expect(page.getByLabel('Quantité', { exact: true })).toHaveValue('7');
+      await expect(page.getByLabel('Seuil stock bas')).toHaveValue('2');
+      await page.getByTestId('btn-cancel-item').click();
+
+      await deleteItemRow(page, page.locator('.item-row').filter({ hasText: itemName }));
+    });
+
+    test('changing unit on edit requires re-entering the threshold (no NULL persistence, #222)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
+      const itemName = `Article unité vide ${randomUUID().slice(0, 8)}`;
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(itemName);
+      await page.getByLabel('Quantité', { exact: true }).fill('5');
+      await page.getByLabel('Seuil stock bas').fill('3');
+      await page.getByTestId('btn-create-item').click();
+      await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+
+      const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+      await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
+      await page.locator('[data-testid="input-item-unit"], #item-unit').selectOption('kg');
+      // Unit change clears quantity AND threshold (PRD §4.4). Saving with the
+      // threshold still empty must be rejected — a NULL threshold is the
+      // "black hole" (never low-stock, never reminded), so re-entry is now
+      // mandatory on edit, not just on create.
+      await page.getByTestId('btn-create-item').click();
+      await expect(page.getByTestId('error-threshold-required')).toBeVisible();
+
+      // No write happened: the form still holds the cleared values and the row
+      // is unchanged (original unit/quantity/threshold, not kg/0/NULL).
+      await expect(page.getByLabel('Quantité', { exact: true })).toHaveValue('');
+      await expect(page.getByLabel('Seuil stock bas')).toHaveValue('');
+      await page.getByTestId('btn-cancel-item').click();
+      await expect(itemRow.locator('.item-sub')).toContainText('5 unite · seuil 3');
+
+      await deleteItemRow(page, itemRow);
+    });
+
+    test('unit select offers exactly the 5 closed PRD values', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (form opened, never submitted).
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
 

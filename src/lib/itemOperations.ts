@@ -125,7 +125,11 @@ export async function updateItem(
     name?: string;
     unit?: Unit;
     category_id?: string | null;
-    low_stock_threshold?: number;
+    // `null` stays legal at this low-level seam (contract-level callers such as
+    // resync / offline replay can still pass it). The UI no longer sends `null`
+    // since #222 (threshold mandatory on edit); legacy NULL rows in the DB are
+    // handled by the display guards. Column nullable since 20261014000000.
+    low_stock_threshold?: number | null;
     quantity?: number;
   },
   supabase?: SupabaseClient
@@ -171,10 +175,12 @@ export async function updateItem(
     low_stock_threshold: data.low_stock_threshold,
   };
 
-  // Unit change clears the low-stock threshold (user must re-enter). The DB column is
-  // non-nullable, so 1 is the "cleared" sentinel.
+  // Ticket #222 : a unit change really empties the low-stock threshold.
+  // The cleared value persists as NULL (column nullable since
+  // 20261014000000) and a re-entered value persists as-is — never the
+  // sentinel 1.
   if (unitChanged) {
-    updateData.low_stock_threshold = 1;
+    updateData.low_stock_threshold = data.low_stock_threshold ?? null;
   }
 
   const { error } = await client

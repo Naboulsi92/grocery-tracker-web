@@ -129,6 +129,26 @@ describe('ItemsPage edit quantity (ticket #175)', () => {
     expect(client.rpc).not.toHaveBeenCalled();
   });
 
+  it('requires re-entering the threshold after a unit change on edit (no NULL write, #222)', async () => {
+    await openEdit();
+    const client = jest.mocked(createClient).mock.results[0].value as unknown as {
+      rpc: jest.Mock;
+    };
+
+    // Unit change clears quantity AND threshold (PRD §4.4).
+    fireEvent.change(screen.getByTestId('input-item-unit'), { target: { value: 'kg' } });
+    expect((screen.getByTestId('input-item-threshold') as HTMLInputElement).value).toBe('');
+
+    // Saving with the threshold still empty must be rejected — a NULL threshold
+    // is the "black hole" (never low-stock, never reminded), so re-entry is
+    // mandatory on edit, not just on create. No write may happen.
+    fireEvent.click(screen.getByTestId('btn-create-item'));
+
+    await screen.findByTestId('error-threshold-required');
+    expect(updatePayloads).toHaveLength(0);
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
   it('renders the prototype-Actuel row (stock sub-line, detached circular stepper)', async () => {
     render(
       <LanguageProvider>

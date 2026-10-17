@@ -624,12 +624,14 @@ select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000006
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 do $$
+declare v_result text;
 begin
-  begin
-    perform public.consume_household_invitation(current_setting('test.capfull_token'));
-    raise exception 'invalidated invitation unexpectedly reusable after departure';
-  exception when sqlstate '22023' then null;
-  end;
+  -- Ticket #239 : une invitation invalidée (consumed) retourne 'invalid',
+  -- elle ne lève plus 22023 (le RAISE annulerait le compteur côté lockout).
+  select public.consume_household_invitation(current_setting('test.capfull_token')) into v_result;
+  if v_result is distinct from 'invalid' then
+    raise exception 'invalidated invitation returned %, expected invalid', v_result;
+  end if;
 end;
 $$;
 
@@ -824,18 +826,14 @@ begin
 end;
 $$;
 
--- Ticket #106 iteration 9, C2 (PRD §5: 5 essais / 1 minute): lockout prouvé
--- sur foyer NON-PLEIN (1/2). Chemin connu-invalide (invitation révoquée) 5x
--- -> 22023 à chaque fois. Note transactionnelle (même anti-pattern que le
--- cap itération 8) : UPDATE failed_attempts + RAISE 22023 dans la même
--- fonction, catché par le EXCEPTION du contrat (mono-transaction begin:2
--- rollback:907) => savepoint rollback défait l'incrément. Le harness
--- mono-transaction ne peut donc pas armer blocked_until par boucle catchée ;
--- on seed l'état bloqué directement pour prouver l'enforcement P0001
--- 'temporarily locked' -> une invitation live fraîche reste consommable
--- (lockout par invitation, pas par foyer) et son succès reset
--- failed_attempts à 0 / blocked_until à NULL. Migration inchangée (contrat
--- seul), cap non cassé.
+-- Ticket #106 iteration 9, C2 (PRD §5: 5 essais / 1 minute), fix #239 :
+-- lockout prouvé sur foyer NON-PLEIN (1/2). Chemin connu-invalide
+-- (invitation révoquée) 5x -> RETURN 'invalid' à chaque fois (le RAISE
+-- annulerait l'incrément par savepoint rollback — bug #239) ; la 6e
+-- tentative lève P0001 'temporarily locked'. Le lockout est par invitation
+-- (pas par foyer) : une invitation live fraîche reste consommable et son
+-- succès reset failed_attempts à 0 / blocked_until à NULL. Migration
+-- 20261015000000 (return status), contrat seul au-delà.
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
 values
   ('00000000-0000-4000-8000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lockowner@example.test', '', now(), now()),
@@ -864,24 +862,20 @@ select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000008
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 do $$
-declare i int;
+declare i int; v_result text;
 begin
+  -- Ticket #239 : le chemin connu-invalide ne RAISE plus (sinon savepoint
+  -- rollback) — il RETURN 'invalid', donc la boucle arme blocked_until
+  -- pour de vrai, sans seed direct.
   for i in 1..5 loop
-    begin
-      perform public.consume_household_invitation(current_setting('test.lock_token'));
-      raise exception 'revoked invitation unexpectedly consumed on attempt %', i;
-    exception when sqlstate '22023' then null;
-    end;
+    select public.consume_household_invitation(current_setting('test.lock_token')) into v_result;
+    if v_result is distinct from 'invalid' then
+      raise exception 'revoked invitation attempt % returned %, expected invalid', i, v_result;
+    end if;
   end loop;
 end;
 $$;
 reset role;
--- Seed the armed lockout state (see note above): 5 failed attempts, blocked 1 minute.
--- Direct UPDATE as superuser (bypasses function-only RLS), car la boucle
--- catchée ne persiste pas l'incrément en mono-transaction.
-update public.household_invitations
-set failed_attempts = 5, blocked_until = now() + interval '1 minute'
-where id = current_setting('test.lock_id')::uuid;
 do $$
 begin
   if not exists (
@@ -890,7 +884,7 @@ begin
       and failed_attempts >= 5
       and blocked_until is not null
       and blocked_until > now()
-  ) then raise exception 'lockout seed did not arm (failed_attempts/blocked_until)'; end if;
+  ) then raise exception 'lockout loop did not genuinely arm (failed_attempts/blocked_until)'; end if;
 end;
 $$;
 
@@ -943,6 +937,88 @@ begin
       and user_id = '00000000-0000-4000-8000-000000000008'
       and role = 'member'
   ) then raise exception 'lockout success did not create member'; end if;
+end;
+$$;
+
+reset role;
+
+-- Ticket #106 iteration 9 / #226 (PRD §5: 5 essais / 1 minute) — lockout
+-- EXPIRATION. Le cas ci-dessus prouve que le lockout S'ARME (5 tentatives
+-- invalides -> blocked_until) et qu'un lockout « frère » ne bloque pas une
+-- invitation valide. Ce cas prouve l'autre moitié : une fois blocked_until
+-- dépassé, la MÊME invitation est de nouveau consommable (code valide ->
+-- jointure effective). Une invitation live ne peut pas être armée via la
+-- boucle de consume (elle joint à la 1re tentative), donc le lockout est
+-- seedé directement ici pour isoler la logique d'expiration ; le mécanisme
+-- d'armement reste couvert par le cas 5-tentatives ci-dessus.
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+values
+  ('00000000-0000-4000-8000-00000000000a', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lockexpowner@example.test', '', now(), now()),
+  ('00000000-0000-4000-8000-00000000000b', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lockexpjoiner@example.test', '', now(), now());
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-00000000000a', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.create_household('Lockout expiry household') as lockexp_household_id \gset
+select * from public.create_household_invitation(:'lockexp_household_id'::uuid, interval '1 day') \gset lockexp_
+reset role;
+select set_config('test.lockexp_household_id', :'lockexp_household_id', true);
+select set_config('test.lockexp_id', :'lockexp_invitation_id', true);
+select set_config('test.lockexp_token', :'lockexp_token', true);
+
+-- Armer le lockout sur l'invitation LIVE (seedé, cf. en-tête).
+update public.household_invitations
+set blocked_until = now() + interval '1 minute'
+where id = current_setting('test.lockexp_id')::uuid;
+
+-- Tant que verrouillé : le code valide est rejeté en P0001 (verrou réel).
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-00000000000b', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+do $$
+begin
+  begin
+    perform public.consume_household_invitation(current_setting('test.lockexp_token'));
+    raise exception 'locked invitation unexpectedly consumed before expiry';
+  exception when sqlstate 'P0001' then
+    if position('temporarily locked' in sqlerrm) = 0 then
+      raise exception 'wrong P0001 message for lockout expiry: %', sqlerrm;
+    end if;
+  end;
+end;
+$$;
+reset role;
+
+-- Expirer le lockout artificiellement (blocked_until dans le passé).
+update public.household_invitations
+set blocked_until = now() - interval '1 minute'
+where id = current_setting('test.lockexp_id')::uuid;
+
+-- Après expiration : la MÊME code valide joint (jointure effective).
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-00000000000b', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+select public.consume_household_invitation(current_setting('test.lockexp_token')) as lockexp_joined_id \gset
+reset role;
+select set_config('test.lockexp_joined_id', :'lockexp_joined_id', true);
+do $$
+begin
+  if current_setting('test.lockexp_joined_id')::uuid <> current_setting('test.lockexp_household_id')::uuid then
+    raise exception 'valid invitation did not join after lockout expiry';
+  end if;
+  if not exists (
+    select 1 from public.household_members
+    where household_id = current_setting('test.lockexp_household_id')::uuid
+      and user_id = '00000000-0000-4000-8000-00000000000b'
+      and role = 'member'
+  ) then raise exception 'lockout expiry did not create member'; end if;
+  if not exists (
+    select 1 from public.household_invitations
+    where id = current_setting('test.lockexp_id')::uuid
+      and consumed_at is not null
+      and failed_attempts = 0
+      and blocked_until is null
+  ) then raise exception 'successful consume after expiry did not reset failed_attempts/blocked_until'; end if;
 end;
 $$;
 
@@ -1940,6 +2016,30 @@ begin
   end if;
 end;
 $$;
+
+-- Ticket #224 — badge/none éligibles au rappel (PRD §4.6) : même heure due
+-- et même file non vide → enfilé comme push/both.
+update public.profiles set notification_type = 'badge', reminder_time = '08:07' where id = '00000000-0000-4000-8000-000000000015';
+select public.enqueue_daily_reminders('08:15'::time);
+do $$
+begin
+  if (select count(*) from public.pending_notifications where target_user_id = '00000000-0000-4000-8000-000000000015' and processed_at is null) <> 1 then
+    raise exception 'badge reminder 08:07 was not enqueued at 08:15';
+  end if;
+end;
+$$;
+delete from public.pending_notifications where target_user_id = '00000000-0000-4000-8000-000000000015';
+update public.profiles set notification_type = 'none', reminder_time = '08:07' where id = '00000000-0000-4000-8000-000000000015';
+select public.enqueue_daily_reminders('08:15'::time);
+do $$
+begin
+  if (select count(*) from public.pending_notifications where target_user_id = '00000000-0000-4000-8000-000000000015' and processed_at is null) <> 1 then
+    raise exception 'none reminder 08:07 was not enqueued at 08:15';
+  end if;
+end;
+$$;
+delete from public.pending_notifications where target_user_id = '00000000-0000-4000-8000-000000000015';
+update public.profiles set notification_type = 'push', reminder_time = '09:00' where id = '00000000-0000-4000-8000-000000000015';
 
 -- Sweep >7j : purge 013, retient 014, idempotent (2e passage → 0).
 select public.sweep_fully_deleted_members() as lc_sweep1 \gset

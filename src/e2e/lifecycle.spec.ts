@@ -16,12 +16,9 @@ const LEAVE_HINT =
  */
 test.describe('Household lifecycle P1-9 (#110)', () => {
   test('quit dialog shows the exact PRD wording with Confirmer/Annuler', async ({
-    page,
-    account,
+    authenticatedPage: page,
   }) => {
-    requireWrites();
-    await createHousehold(page, account);
-
+    // #237 : seeded session (dialog cancelled, no departure).
     await page.goto('/household');
     // The leave section states the same exact warning as the dialog (shared key).
     await expect(page.getByText(LEAVE_HINT, { exact: true }).first()).toBeVisible();
@@ -103,12 +100,9 @@ test.describe('Household lifecycle P1-9 (#110)', () => {
   });
 
   test('account deletion dialog states the 7-day restore window', async ({
-    page,
-    account,
+    authenticatedPage: page,
   }) => {
-    requireWrites();
-    await createHousehold(page, account);
-
+    // #237 : seeded session (dialog cancelled, no deletion).
     await page.goto('/account');
     await expect(page.getByText(/pendant 7 jours, après quoi vos données seront définitivement effacées/)).toBeVisible();
 

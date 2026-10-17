@@ -58,8 +58,9 @@ export function createAccount(prefix = 'e2e'): Account {
 /**
  * Fail-fast guard for specs that require the seeded PRD accounts: throws
  * instead of skipping so a missing backend can never masquerade as green.
- * (Pre-existing `test.skip` call sites migrate to this helper in follow-ups;
- * new specs must use it from the start.)
+ * (#237 : all backend/auth `test.skip` sites migrated here or to
+ * `requireWrites` — the only remaining skips are the documented
+ * viewport/browser gates. New specs must use a guard from the start.)
  */
 export async function requireSeedPassword(): Promise<string> {
   const password = await readPrdSeedPassword();

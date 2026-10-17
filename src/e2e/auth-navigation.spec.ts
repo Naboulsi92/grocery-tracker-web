@@ -1,4 +1,5 @@
-import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { requireWrites, createAccount, expect, requireSeedPassword, signUp, test } from './fixtures';
+import { PRD_ACCOUNTS } from '../../quality/prd-accounts';
 
 test.describe('Auth navigation (ticket #48)', () => {
   test('login offers a way back to the landing page', async ({ page }) => {
@@ -37,12 +38,12 @@ test.describe('Auth navigation (ticket #48)', () => {
   });
 
   test('server redirect preserves a bookmarked deep link across sign-in (ticket #71)', async ({
-    page,
-    account,
     browser,
   }) => {
     requireWrites();
-    await createHousehold(page, account);
+    // #237 : seeded credentials (no per-test signup for a navigation flow).
+    const seedPassword = await requireSeedPassword();
+    const seedEmail = PRD_ACCOUNTS.find((account) => account.role === 'household1.userA')!.email;
 
     const anonContext = await browser.newContext();
     const anonPage = await anonContext.newPage();
@@ -52,8 +53,8 @@ test.describe('Auth navigation (ticket #48)', () => {
       await anonPage.waitForURL(/\/login\?next=%2Fitems/, { timeout: 15000 });
 
       // Sign in: straight to the bookmark, not the default landing.
-      await anonPage.getByLabel('Email').fill(account.email);
-      await anonPage.getByLabel('Mot de passe', { exact: true }).fill(account.password);
+      await anonPage.getByLabel('Email').fill(seedEmail);
+      await anonPage.getByLabel('Mot de passe', { exact: true }).fill(seedPassword);
       await anonPage.getByRole('button', { name: 'Se connecter' }).click();
       await anonPage.waitForURL('/items', { timeout: 20000 });
       await expect(anonPage.getByRole('heading', { name: 'Articles' })).toBeVisible();

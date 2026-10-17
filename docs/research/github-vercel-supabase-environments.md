@@ -141,3 +141,47 @@ Findings below are based on reading `.github/workflows/web-quality.yml`, `.env.l
 - **Vercel** — [Environments](https://vercel.com/docs/deployments/environments), [Environment variables](https://vercel.com/docs/environment-variables), [Managing env vars](https://vercel.com/docs/environment-variables/managing-environment-variables), [Manage across environments](https://vercel.com/docs/environment-variables/manage-across-environments), [System env vars](https://vercel.com/docs/environment-variables/system-environment-variables), [Git / production branch](https://vercel.com/docs/git), [Vercel for GitHub](https://vercel.com/docs/git/vercel-for-github), [Generated URLs](https://vercel.com/docs/deployments/generated-urls), [Deployment protection](https://vercel.com/docs/deployment-protection), [Bypass methods](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection), [Vercel Authentication](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/vercel-authentication), [Shareable links](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/sharable-links), [CLI `env` reference](https://vercel.com/docs/cli/env), [CLI global options](https://vercel.com/docs/cli/global-options), [REST API create deployment](https://vercel.com/docs/rest-api/deployments/create-a-new-deployment), [KB: GitHub Actions with Vercel](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel), [Official GHA examples](https://github.com/vercel/examples/tree/main/ci-cd/github-actions), [wait-for-deployment-action](https://github.com/vercel/wait-for-deployment-action), [CLI precedence commit](https://github.com/vercel/vercel/commit/ffb948317f0c959ac57afe3d7892b11dc9b60408)
 - **GitHub** — [Deployment environments](https://docs.github.com/en/actions/concepts/workflows-and-actions/deployment-environments), [Deployments and environments reference](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments), [Manage environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments), [Deploy to an environment](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/deploy-to-environment), [Workflow syntax `jobs.<job_id>.environment`](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idenvironment), [Control deployments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments), [Secrets](https://docs.github.com/en/actions/reference/security/secrets), [Events that trigger workflows](https://docs.github.com/en/actions/reference/events-that-trigger-workflows), [Use secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets), [Least privilege for secrets (GitHub blog)](https://github.blog/security/application-security/implementing-least-privilege-for-secrets-in-github-actions/)
 - **Supabase** — [Branching](https://supabase.com/docs/guides/deployment/branching), [Branching GitHub integration](https://supabase.com/docs/guides/deployment/branching/github-integration), [Branching + Vercel integration](https://supabase.com/docs/guides/deployment/branching/integrations), [Branching configuration](https://supabase.com/docs/guides/deployment/branching/configuration), [Working with branches in CI](https://supabase.com/docs/guides/deployment/branching/working-with-branches), [Deployment guide / Pro requirement](https://supabase.com/docs/guides/deployment), [Pricing](https://supabase.com/pricing), [API](https://supabase.com/docs/guides/api), [API keys / creating routes](https://supabase.com/docs/guides/api/creating-routes), [Billing FAQ](https://supabase.com/docs/guides/platform/billing-faq), [Platform overview](https://supabase.com/docs/guides/platform), [Access control](https://supabase.com/docs/guides/platform/access-control)
+
+## 6. État du setup du repo (17 oct 2026, ticket #230)
+
+Photographie datée de l'état réel du repo (pas une source primaire) — le détail
+opératoire vit dans `docs/agents/runbooks/staging-discipline.md` :
+
+- **Staging Supabase `mxiduaezelcseymnvdfv`** — l'ex-`grocery-web-e2e-throwaway`
+  réaffecté comme staging dédié, région `eu-west-3` (Paris) ; migrations
+  **rattrapées le 17 oct 2026** (4 fichiers appliqués + 3 versions
+  re-tamponnées orphelines auditées équivalentes, historique = 29 records) ;
+  pré-validation pendant la PR #238 ; **prod** = `oizfmmnuoqkdqkguynfv`.
+- Décision v1.5 : le fondateur ne teste plus sur prod/main — le staging sert au
+  **test manuel avant merge** (pas de Git Flow complet, `main` reste la branche
+  de production).
+- La **règle d'or s'étend au staging** : il ne suit jamais `main` tout seul —
+  migrations par fichiers versionnés + application explicite (MCP
+  `apply_migration` / `supabase db push`), jamais de SQL direct (cf.
+  `docs/agents/runbooks/supabase-migration-sync.md`).
+- **Câblage Preview → staging PAR BRANCHE** (pas global) : `vercel env add
+  NEXT_PUBLIC_SUPABASE_URL preview <branch> --type config` + `…ANON_KEY…`
+  (valeur par stdin) — overrides des variables Preview globales qui pointent
+  prod.
+- **Précédence branch-scope > preview** : cf. §1.3 ci-dessus (les variables
+  branch-specific overrident les autres variables preview du même nom).
+- **Leçons oct 2026** : la branche doit exister sur GitHub avant `vercel env
+  add` branch-scoped (`branch_not_found`) ; `--type config` explicite pour un
+  nom `NEXT_PUBLIC_*` (CLI 59.11.2 traite une valeur ressemblant à un
+  credential comme un secret sans le flag) ; clé anon lue depuis
+  `.scratch/e2e-throwaway-keys.json` sans jamais l'imprimer ; `service_role`
+  **jamais** câblé côté Vercel ; MCP `apply_migration` tamponne à aujourd'hui
+  (stamps orphelines assumés, cf. runbook).
+- **Limite connue** : sur backend hébergé, l'Auth rejette/throttle les emails
+  `.test` — les specs E2E fresh-signup restent sur la CI locale ; le staging
+  sert au test manuel du fondateur (parcours réels).
+- **Checklist PR** : au moins un tour de test manuel sur l'URL Preview de la
+  branche ; vars branch-scoped ajoutées si absentes ; overrides **détruits
+  après merge** (`vercel env rm … preview <branch>`) pour ne pas laisser une
+  branche morte pointer sur staging.
+- **Protection de branche `main` active** depuis le 17 oct 2026 (#230) : checks
+  requis quality, database, e2e (1-4), merge-reports, Vercel Preview Comments
+  (choix fondateur : preview cassée = merge bloqué) + résolution des
+  conversations ; E2E requis malgré la loterie apparente (choix assumé,
+  traces CI comme vecteur de diagnostic).
+- Détail complet : `docs/agents/runbooks/staging-discipline.md`.

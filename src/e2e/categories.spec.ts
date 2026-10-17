@@ -322,13 +322,15 @@ test.describe('Categories CRUD', () => {
       await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
       // #237 : second seeded member of the same foyer (foyer 1 is already
-      // full at 2/2, so no invite choreography).
+      // full at 2/2, so no invite choreography). Le nom de la catégorie
+      // membre est hoisté AVANT le try : le finally tolérant doit pouvoir
+      // la référencer même si la création est mort en route.
+      const newCategoryName = `Catégorie rt2 ${randomUUID()}`;
       const secondPage = await ensureAuthenticatedPage(browser, 'household1.userB');
       try {
         await secondPage.getByTestId('dashboard-card-categories').click();
         await expect(secondPage.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
-        const newCategoryName = `Catégorie rt2 ${randomUUID()}`;
         await secondPage.getByTestId('btn-new-category').click();
         await secondPage.getByTestId('input-category-name').fill(newCategoryName);
         await secondPage.getByTestId('btn-create-category').click();
@@ -338,16 +340,24 @@ test.describe('Categories CRUD', () => {
         await expect(secondPage.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
 
         await expect(page.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
-
-        // Cleanup membre : supprimer la catégorie créée par le second membre
-        // (inexistant si un assert a échoué avant) avant de fermer son
-        // contexte. L'owner supprime la sienne dans le finally.
-        // .first() : sous realtime le create peut re-rendre la carte owner
-        // en double (bug application intermittent, ticket de suivi) — le
-        // doublon partage le même aria-label, on supprime la première.
-        await confirmDeleteDialog(secondPage, secondPage.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${newCategoryName}`) }).first(), 'category-delete-confirm');
       } finally {
-        await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) }).first(), 'category-delete-confirm');
+        // Best-effort cleanups dans le finally (règle 2 du runbook
+        // e2e-authenticated-page.md) : si un assert en amont a échoué avant
+        // la création, le locator ne résout pas et le try/catch couvre le
+        // false-aware plutôt que de masquer l'erreur d'origine. Le résidu
+        // éventuel est supprimé par le reseed global du prochain run.
+        // `.first()` : le create realtime peut re-rendre la carte en double
+        // (classe du ticket #243) — le doublon partage le même aria-label.
+        try {
+          await confirmDeleteDialog(secondPage, secondPage.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${newCategoryName}`) }).first(), 'category-delete-confirm');
+        } catch {
+          // Résidu couvert par le reseed global du prochain run (runbook).
+        }
+        try {
+          await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) }).first(), 'category-delete-confirm');
+        } catch {
+          // Résidu couvert par le reseed global du prochain run (runbook).
+        }
         await secondPage.context().close();
       }
     });

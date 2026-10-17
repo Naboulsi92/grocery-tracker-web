@@ -53,7 +53,7 @@ Règle émergente (codifiée) : migrer un test = (1) substrat requis par ses éc
 1. Besoin d'un foyer (n'importe lequel), lecture seule ou création\/suppression de sa propre entité → `authenticatedPage` (rôle par défaut `household1.userA`) ; `test.use({ accountRole: 'household2.userA' })` si foyer isolé 1\/2 utile ; `accountRole: 'household1.userB'` si point de vue membre (non-owner).
 2. Second membre dans un même test → `ensureAuthenticatedPage(browser, 'household1.userB')` (contexte Business séparé, close dans `finally`) — mirorer `real-time.spec.ts`.
 3. Besoin d'un foyer vierge\/vide, d'un count foyer-local global, d'un join 1→2 réel ou de slot d'invitation → substrat frais `page` + `account` + `createHousehold`\/`signUp` + `requireWrites()` (fail-fast sans backend).
-4. Nettoyage dans `finally` (création dans le `try` + cleanup qui en dépend), jamais hors du `finally`.
+4. Nettoyage dans `finally`, **best-effort try/catch** : une entité créée avant le `try` → suppression unconditional dans le `finally` ; une entité qui n'existe qu'après des asserts intermédiaires → suppression dans le `finally` mais tolérante (locator non résolu si l'échec est en amont). Le try/catch du cleanup ne doit jamais masquer l'erreur d'origine ; le résidu possible est de toute façon supprimé par le reseed global du run suivant. `.first()` sur les locators de suppression : le bug intermittent de carte dupliquée (#243) partage le même aria-label.
 5. Jamais de `test.skip` conditionnel en absence de backend — les gardes fail-fast remplissent le rôle.
 6. Session seedée : `storageState` + tampon (`password`, `backend`) dans `test-results/prd-seed-<role>*.json` ; tampon périmé → une seule reconnexion fraîche, vérifiée par le nom de foyer affiché (`header-household-name`) ; pas de boucle.
 
@@ -61,7 +61,7 @@ Règle émergente (codifiée) : migrer un test = (1) substrat requis par ses éc
 
 - CI : `workers=1`, `fullyParallel=true` — les substrats frais restent exclusifs de leur test, le foyer seedé n'est lu que séquentiellement.
 - Local : workers multi-cœurs — tout test MIGRATE qui **écrit** sur foyer 1\/2 le fait avec nom unique + cleanup `finally` ; les utilisateurs de garde en lecture ne mutent rien. Le seeding global (globalSetup) re-crée les 3 comptes + 2 foyers à chaque exécution : l'état résiduel d'une exécution précédente meurt à la suivante.
-- Sans backend local, la suite échoue franc sur les specs d'écriture (attendu, lisible dans le messager de garde) et passe sur les specs lecture-seule\/publiques.
+- Sans backend local, la suite échoue franc sur les specs d'écriture (attendu, lisible dans le messager de garde). Une fois la migration terminée, TOUTE spec consommant `authenticatedPage` (lecture seule comprise) exige le harnais seedé et échoue franc sans backend ; ne restent vertes sans backend que les specs publiques sans session (redirects non authentifié, marketing).
 
 ## Références
 
@@ -70,3 +70,4 @@ Règle émergente (codifiée) : migrer un test = (1) substrat requis par ses éc
 - `src/e2e/global-setup.ts` + `quality/prd-accounts.ts` + `quality/__tests__/prd-accounts.test.ts` (seeding, topologie, gardes unitaires).
 - Playwright config : `playwright.config.ts` (gates CI/local, blocage sans backend).
 - Discipline migrations et staging : `supabase-migration-sync.md`, `staging-discipline.md`.
+- Tickets de suivi (bugs harnais\/produit intermittent découverts à la validation runtime staging de cette migration) : #242 (EPERM à la sauvegarde du tampon de session en workers locaux parallèles — race Windows sur `saveAtomically`, CI non affectée), #243 (carte dupliquée transitoire après création realtime côté owner — contournement `.first()` en cleanup).

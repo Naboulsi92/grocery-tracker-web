@@ -148,24 +148,33 @@ test.describe('Empty States', () => {
     test('to-buy shows items when low stock items exist', async ({ authenticatedPage: page }) => {
       // #237 : seeded session (foyer 1, item unique + nettoyage en fin de test).
       const itemName = `Article fbl ${randomUUID()}`;
-      await page.getByTestId('dashboard-card-items').click();
-      await page.getByTestId('btn-new-item').click();
-      await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité', { exact: true }).fill('2');
-      await page.getByLabel('Seuil stock bas').fill('5');
-      await page.getByTestId('btn-create-item').click();
-      await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      try {
+        await page.getByTestId('dashboard-card-items').click();
+        await page.getByTestId('btn-new-item').click();
+        await page.getByTestId('input-item-name').fill(itemName);
+        await page.getByLabel('Quantité', { exact: true }).fill('2');
+        await page.getByLabel('Seuil stock bas').fill('5');
+        await page.getByTestId('btn-create-item').click();
+        await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      await page.goto('/to-buy');
+        await page.goto('/to-buy');
 
-      await expect(page.getByText(itemName)).toBeVisible();
-      await expect(page.getByText('À acheter')).toBeVisible();
-
-      // Nettoyage : supprimer l'item unique créé (ne pas drainer les items seedés).
-      await page.goto('/items');
-      const itemRow = page.locator('.item-row').filter({ hasText: itemName });
-      await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
-      await expect(page.getByText(itemName)).toHaveCount(0);
+        await expect(page.getByText(itemName)).toBeVisible();
+        await expect(page.getByText('À acheter')).toBeVisible();
+      } finally {
+        // Nettoyage (best-effort dans le finally — voir la règle 2 du runbook
+        // e2e-authenticated-page.md) : supprimer l'item unique créé, sans
+        // drainer les items seedés. `.first()` : un mise en double arrive
+        // sous realtime (classe du ticket #243).
+        try {
+          await page.goto('/items');
+          const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+          await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/).first(), 'item-delete-confirm');
+          await expect(page.getByText(itemName)).toHaveCount(0);
+        } catch {
+          // Le solde éventuel disparaît au prochain reseed global (runbook).
+        }
+      }
     });
   });
 

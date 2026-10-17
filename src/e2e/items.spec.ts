@@ -299,8 +299,16 @@ test.describe('Items CRUD', () => {
 
         await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('2', { timeout: 10000 });
       } finally {
-        await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
+        // member close first (teardown order — review items.spec), then the
+        // owner deletes the created item best-effort in the finally: if an
+        // earlier assert failed the row may be absent, and a cleanup throw
+        // must not mask the original failure. Reseed covers any residue.
         await secondPage.context().close();
+        try {
+          await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).first(), 'item-delete-confirm');
+        } catch {
+          // Best-effort residue is wiped by the next global reseed (runbook).
+        }
       }
     });
   });

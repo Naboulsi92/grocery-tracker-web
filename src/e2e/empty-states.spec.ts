@@ -4,10 +4,8 @@ import { confirmDeleteDialog, deleteAllItems } from './helpers';
 
 test.describe('Empty States', () => {
   test.describe('Categories Empty State', () => {
-    test('shows the default categories catalog for a new household (US 80, 84-85)', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('shows the default categories catalog for a new household (US 80, 84-85)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (foyer 1, catalogue default identique, lecture seule).
       await page.getByTestId('dashboard-card-categories').click();
 
       const defaultSection = page.locator('[data-testid="category-section-default"]');
@@ -42,10 +40,8 @@ test.describe('Empty States', () => {
       await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }), 'category-delete-confirm');
     });
 
-    test('default categories cannot be deleted or renamed', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('default categories cannot be deleted or renamed', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (foyer 1, catalogue default identique, lecture seule).
       await page.getByTestId('dashboard-card-categories').click();
 
       const defaultCards = page.locator('[data-testid="category-section-default"] .category-card');
@@ -149,43 +145,59 @@ test.describe('Empty States', () => {
       await expect(icon).toBeVisible();
     });
 
-    test('to-buy shows items when low stock items exist', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('to-buy shows items when low stock items exist', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (foyer 1, item unique + nettoyage en fin de test).
       const itemName = `Article fbl ${randomUUID()}`;
-      await page.getByTestId('dashboard-card-items').click();
-      await page.getByTestId('btn-new-item').click();
-      await page.getByTestId('input-item-name').fill(itemName);
-      await page.getByLabel('Quantité', { exact: true }).fill('2');
-      await page.getByLabel('Seuil stock bas').fill('5');
-      await page.getByTestId('btn-create-item').click();
-      await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
+      try {
+        await page.getByTestId('dashboard-card-items').click();
+        await page.getByTestId('btn-new-item').click();
+        await page.getByTestId('input-item-name').fill(itemName);
+        await page.getByLabel('Quantité', { exact: true }).fill('2');
+        await page.getByLabel('Seuil stock bas').fill('5');
+        await page.getByTestId('btn-create-item').click();
+        await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      await page.goto('/to-buy');
+        await page.goto('/to-buy');
 
-      await expect(page.getByText(itemName)).toBeVisible();
-      await expect(page.getByText('À acheter')).toBeVisible();
+        await expect(page.getByText(itemName)).toBeVisible();
+        await expect(page.getByText('À acheter')).toBeVisible();
+      } finally {
+        // Nettoyage (best-effort dans le finally — voir la règle 2 du runbook
+        // e2e-authenticated-page.md) : supprimer l'item unique créé, sans
+        // drainer les items seedés. `.first()` : un mise en double arrive
+        // sous realtime (classe du ticket #243).
+        try {
+          await page.goto('/items');
+          const itemRow = page.locator('.item-row').filter({ hasText: itemName });
+          await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/).first(), 'item-delete-confirm');
+          await expect(page.getByText(itemName)).toHaveCount(0);
+        } catch {
+          // Le solde éventuel disparaît au prochain reseed global (runbook).
+        }
+      }
     });
   });
 
   test.describe('Members Empty State Edge Case', () => {
-    test('shows appropriate state when household has only one member (US 83)', async ({ page, account }) => {
-      requireWrites();
-      const householdName = await createHousehold(page, account);
+    test.describe('Single member (foyer 2, 1/2)', () => {
+      // Foyer 2 est seedé 1/2 (household2.userA seul) : l'état "1 membre" et
+      // le bouton d'invitation (non full) sont lisibles sans créer de foyer.
+      test.use({ accountRole: 'household2.userA' });
+      test('shows appropriate state when household has only one member (US 83)', async ({ authenticatedPage: page }) => {
+        // #237 : seeded session (foyer 2 seedé 1/2, lecture seule).
+        await page.getByTestId('dashboard-card-household').click();
+        await expect(page).toHaveURL('/household');
 
-      await page.getByTestId('dashboard-card-household').click();
-      await expect(page).toHaveURL('/household');
+        await expect(page.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
 
-      await expect(page.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
+        const memberItems = page.locator('.member-item, .members-list .member');
+        await expect(memberItems).toHaveCount(1);
 
-      const memberItems = page.locator('.member-item, .members-list .member');
-      await expect(memberItems).toHaveCount(1);
+        await expect(page.getByText('Propriétaire')).toBeVisible();
 
-      await expect(page.getByText('Propriétaire')).toBeVisible();
-
-      const createInvitationButton = page.getByRole('button', { name: 'Générer un code' });
-      await expect(createInvitationButton).toBeVisible();
+        const createInvitationButton = page.getByRole('button', { name: 'Générer un code' });
+        await expect(createInvitationButton).toBeVisible();
+      });
     });
 
     test('members list updates when new member joins', async ({ page, account, browser }) => {
@@ -220,10 +232,8 @@ test.describe('Empty States', () => {
   });
 
   test.describe('Empty State Localization', () => {
-    test('categories page shows the localized default catalog', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('categories page shows the localized default catalog', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (foyer 1, catalogue default identique, lecture seule).
       await page.getByTestId('dashboard-card-categories').click();
 
       const defaultSection = page.locator('[data-testid="category-section-default"]');

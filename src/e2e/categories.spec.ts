@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
-import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import { confirmDeleteDialog, fetchInviteToken } from './helpers';
+import { requireWrites, createHousehold, ensureAuthenticatedPage, expect, test } from './fixtures';
+import { confirmDeleteDialog } from './helpers';
 
 // Pointer drag straight down: .categories-grid is multi-column and the
 // DnD context restricts movement to the vertical axis, so only a vertical
@@ -312,10 +312,8 @@ test.describe('Categories CRUD', () => {
   });
 
   test.describe('Real-time Updates', () => {
-    test('updates in real-time when categories change', async ({ page, account, browser }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('updates in real-time when categories change', async ({ authenticatedPage: page, browser }) => {
+      // #237 : seeded session (UUID names, les deux catégories supprimées en fin de test).
       const categoryName = `Catégorie rt ${randomUUID()}`;
       await page.getByTestId('dashboard-card-categories').click();
       await page.getByTestId('btn-new-category').click();
@@ -323,26 +321,12 @@ test.describe('Categories CRUD', () => {
       await page.getByTestId('btn-create-category').click();
       await expect(page.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
-      const secondContext = await browser.newContext();
-      const secondPage = await secondContext.newPage();
-      const secondAccount = createAccount('e2e-realtime-cat');
-      await signUp(secondPage, secondAccount);
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill('');
-
-      // Invite tokens render on /household (never on /categories): fetch one in
-      // a scratch tab, so the observed /categories page (and its realtime
-      // channel) is never disturbed by navigation.
-      const tokenPage = await page.context().newPage();
-      const token = await fetchInviteToken(tokenPage);
-      await tokenPage.close();
-
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
-      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-      await secondPage.waitForURL('/home', { timeout: 20000 });
-
-      await secondPage.getByTestId('dashboard-card-categories').click();
-      await expect(secondPage.getByText(categoryName)).toBeVisible({ timeout: 10000 });
+      // #237 : second seeded member of the same foyer (foyer 1 is already
+      // full at 2/2, so no invite choreography).
+      const secondPage = await ensureAuthenticatedPage(browser, 'household1.userB');
+      try {
+        await secondPage.getByTestId('dashboard-card-categories').click();
+        await expect(secondPage.getByText(categoryName)).toBeVisible({ timeout: 10000 });
 
         const newCategoryName = `Catégorie rt2 ${randomUUID()}`;
         await secondPage.getByTestId('btn-new-category').click();
@@ -353,11 +337,16 @@ test.describe('Categories CRUD', () => {
         await expect(secondPage.getByTestId('input-category-name')).toBeHidden({ timeout: 10000 });
         await expect(secondPage.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
 
-      await expect(page.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText(newCategoryName)).toBeVisible({ timeout: 10000 });
 
-      await secondContext.close();
-
-      await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) }), 'category-delete-confirm');
+        // Nettoyage membre : supprimer la catégorie créée par le second
+        // membre (inexistant si un assert a échoué avant) avant de fermer
+        // son contexte. L'owner supprime la sienne dans le finally.
+        await confirmDeleteDialog(secondPage, secondPage.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${newCategoryName}`) }), 'category-delete-confirm');
+      } finally {
+        await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) }), 'category-delete-confirm');
+        await secondPage.context().close();
+      }
     });
   });
 
@@ -514,10 +503,8 @@ test.describe('Categories CRUD', () => {
     const names = (locator: Locator): Promise<string[]> =>
       locator.locator('.category-name').allInnerTexts();
 
-    test('keyboard lifts and cancels a drag without changing order', async ({ page, account }) => {
-      requireWrites();
-      await createHousehold(page, account);
-
+    test('keyboard lifts and cancels a drag without changing order', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (drag clavier sur cat. default, annulé, pas de mutation).
       await page.getByTestId('dashboard-card-categories').click();
       const cards = page.locator('[data-testid="category-section-default"] .category-card');
       await expect(cards).toHaveCount(10);

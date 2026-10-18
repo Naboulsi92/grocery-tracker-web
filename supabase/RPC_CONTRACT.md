@@ -42,8 +42,9 @@ PostgREST argument names are exact. Supabase JS calls therefore use objects such
 - `ON DELETE RESTRICT` : `items_category_household_fkey` composite
   `(category_id, household_id)`. Supprimer une catégorie non vide échoue (`23001`/`23503`) ;
   l'UI affiche « Déplacez ou supprimez d'abord les N articles » (N compté côté app).
-- Seuils : `CHECK (low_stock_threshold > 0)` + entier (`trunc`), idem
-  `suggested_threshold > 0` côté templates. Seuil 0/négatif/décimal → `23514`.
+- Seuils : `CHECK (low_stock_threshold >= 0)` + entier (`trunc`), idem
+  `suggested_threshold >= 0` côté templates (seuil 0 = « à acheter » seulement
+  quand l'article atteint 0). Seuil négatif/décimal → `23514`.
 - Noms : `CHECK (char_length(btrim(name)) BETWEEN 1 AND 50 AND name ~ '[A-Za-zÀ-ÿŒœ]')`
   sur `items`, `categories`, `item_templates` (fr/en), `default_categories` (fr/en).
   Vide/espaces/sans-lettre/>50 → `23514`. Quantités : `>=0` (existant) + entières (`trunc`).

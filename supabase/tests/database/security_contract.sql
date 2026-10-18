@@ -1047,8 +1047,8 @@ begin
   if exists (select 1 from public.item_templates where unit not in ('kg', 'g', 'l', 'ml', 'unite')) then
     raise exception 'item_templates units must be closed (kg/g/l/ml/unite)';
   end if;
-  if exists (select 1 from public.item_templates where suggested_threshold <= 0) then
-    raise exception 'item_templates thresholds must be >0';
+  if exists (select 1 from public.item_templates where suggested_threshold < 0) then
+    raise exception 'item_templates thresholds must be >=0';
   end if;
   if exists (select 1 from public.item_templates it left join public.default_categories dc on dc.id = it.category_key where dc.id is null) then
     raise exception 'item_templates category_key must reference default_categories';
@@ -1141,7 +1141,7 @@ begin
 end;
 $$;
 
--- 3. CHECK unit fermees + seuil >0 + entier + nom (P1-7)
+-- 3. CHECK unit fermees + seuil >=0 + entier + nom (P1-7)
 do $$
 declare
   v_hid uuid := current_setting('test.household_id')::uuid;
@@ -1153,12 +1153,11 @@ begin
     raise exception 'invalid unit pack unexpectedly accepted';
   exception when check_violation then null;
   end;
-  begin
-    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
-    values (v_hid, v_cid, 'Check seuil zero', 1, 'unite', 0);
-    raise exception 'threshold 0 unexpectedly accepted';
-  exception when check_violation then null;
-  end;
+  -- Seuil 0 est maintenant valide (évolution : « à acheter » seulement à 0).
+  -- Insertion acceptée, puis nettoyage immédiat pour ne pas perturber la suite.
+  insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+  values (v_hid, v_cid, 'Check seuil zero', 1, 'unite', 0);
+  delete from public.items where household_id = v_hid and name = 'Check seuil zero';
   begin
     insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
     values (v_hid, v_cid, 'Check seuil negatif', 1, 'unite', -2);
@@ -1536,6 +1535,54 @@ begin
   end if;
   if current_setting('test.probe_pn3')::bigint <> 2 then
     raise exception 'second threshold crossing must notify exactly once';
+  end if;
+end;
+$$;
+
+-- Seuil 0 (v1.6) : « à acheter » seulement et seulement à quantité 0.
+-- Sonde membro 002 : seuil 0, qté 1 -> -1 (notif exactement à 0) -> +1 (reset) -> -1 (re-notif).
+insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+values (current_setting('test.household_id')::uuid, current_setting('test.item_category_id')::uuid, 'Probe seuil zero', 1, 'unite', 0)
+returning id as probe_zero_id \gset
+select set_config('test.probe_zero_id', :'probe_zero_id', true);
+do $$
+begin
+  if (select already_notified from public.items where id = current_setting('test.probe_zero_id')::uuid) then
+    raise exception 'seuil-0 probe must start un-notified above its threshold';
+  end if;
+end;
+$$;
+select quantity, already_notified from public.adjust_item_quantity(:'probe_zero_id'::uuid, -1) \gset probe_zero_down_
+select set_config('test.probe_zero_down_quantity', :'probe_zero_down_quantity', true);
+select set_config('test.probe_zero_down_notified', :'probe_zero_down_already_notified', true);
+select count(*) as pn from public.pending_notifications where item_id = :'probe_zero_id'::uuid \gset probe_zero_pn1_
+select set_config('test.probe_zero_pn1', :'probe_zero_pn1_pn', true);
+select quantity, already_notified from public.adjust_item_quantity(:'probe_zero_id'::uuid, 1) \gset probe_zero_up_
+select count(*) as pn from public.pending_notifications where item_id = :'probe_zero_id'::uuid \gset probe_zero_pn2_
+select set_config('test.probe_zero_pn2', :'probe_zero_pn2_pn', true);
+select quantity, already_notified from public.adjust_item_quantity(:'probe_zero_id'::uuid, -1) \gset probe_zero_down2_
+select count(*) as pn from public.pending_notifications where item_id = :'probe_zero_id'::uuid \gset probe_zero_pn3_
+select set_config('test.probe_zero_pn3', :'probe_zero_pn3_pn', true);
+do $$
+begin
+  -- Passage à quantité 0 (== seuil) : 1 notif — le « seulement à 0 ».
+  if current_setting('test.probe_zero_down_quantity')::numeric <> 0
+     or not current_setting('test.probe_zero_down_notified')::boolean
+     or current_setting('test.probe_zero_pn1')::bigint <> 1 then
+    raise exception 'seuil-0 crossing must notify once when quantity reaches 0';
+  end if;
+  -- Restock à 1 (> 0) : reset already_notified, aucune notif.
+  if (select quantity from public.items where id = current_setting('test.probe_zero_id')::uuid) <> 1
+     or (select already_notified from public.items where id = current_setting('test.probe_zero_id')::uuid) then
+    raise exception 'restock above seuil 0 must reset already_notified';
+  end if;
+  -- Restock : aucune notif de plus, le pn reste à 1.
+  if current_setting('test.probe_zero_pn2')::bigint <> 1 then
+    raise exception 'restock above seuil 0 must not queue a notification';
+  end if;
+  -- Re-passage à 0 : re-notifie exactement une fois de plus.
+  if current_setting('test.probe_zero_pn3')::bigint <> 2 then
+    raise exception 'second seuil-0 crossing must notify exactly once more';
   end if;
 end;
 $$;

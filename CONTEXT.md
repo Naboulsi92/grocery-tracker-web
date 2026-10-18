@@ -11,7 +11,7 @@ A product tracked in the household's inventory. Items have:
 - Quantity (current stock level)
 - Unit of measurement
 - Category
-- Low-stock threshold
+- Low-stock threshold: a mandatory whole number of 0 or more. 0 means the item is flagged for buying only when fully out of stock; the item leaves the to-buy state with the first restocked quantity above the threshold (v1.6).
 
 ### Category
 A grouping for inventory items. Categories help organize items and are ordered for display. Each household has its own set of categories.

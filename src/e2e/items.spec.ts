@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
-import { confirmDeleteDialog, deleteAllItems, deleteItemRow, fetchInviteToken } from './helpers';
+import { requireWrites, createAccount, createHousehold, ensureAuthenticatedPage, expect, test } from './fixtures';
+import { confirmDeleteDialog, deleteAllItems, deleteItemRow } from './helpers';
 
 test.describe('Items CRUD', () => {
   test.describe('Create Item', () => {
@@ -277,10 +277,8 @@ test.describe('Items CRUD', () => {
   });
 
   test.describe('Real-time Updates', () => {
-    test('updates in real-time when items change', async ({ page, account, browser }) => {
-      requireWrites();
-      const householdName = await createHousehold(page, account);
-
+    test('updates in real-time when items change', async ({ authenticatedPage: page, browser }) => {
+      // #237 : seeded session (UUID name, deleted at the end).
       const itemName = `Article rt ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
@@ -288,34 +286,30 @@ test.describe('Items CRUD', () => {
       await page.getByTestId('btn-create-item').click();
       await expect(page.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      const secondContext = await browser.newContext();
-      const secondPage = await secondContext.newPage();
-      const secondAccount = createAccount('e2e-realtime');
-      await signUp(secondPage, secondAccount);
-      
-      await secondPage.getByLabel(/Code d.invitation complet/).fill('');
+      // #237 : second seeded member of the same foyer (foyer 1 is already
+      // full at 2/2, so no invite choreography).
+      const secondPage = await ensureAuthenticatedPage(browser, 'household1.userB');
+      try {
+        await secondPage.getByTestId('dashboard-card-items').click();
+        await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
 
-      // Invite tokens render on /household (never on /items): fetch one via the
-      // proven onboarding pattern so the two-context flow below always runs.
-      const token = await fetchInviteToken(page);
-      await page.goto('/items');
+        const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
+        await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
+        await expect(secondItemRow.locator('.qty-value')).toContainText('2');
 
-      await secondPage.getByLabel(/Code d.invitation complet/).fill(token);
-      await secondPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-      await secondPage.waitForURL('/home', { timeout: 20000 });
-      
-      await secondPage.getByTestId('dashboard-card-items').click();
-      await expect(secondPage.getByText(itemName)).toBeVisible({ timeout: 10000 });
-      
-      const secondItemRow = secondPage.locator('.item-row').filter({ hasText: itemName });
-      await secondItemRow.getByRole('button', { name: /Augmenter la quantité/ }).click();
-      await expect(secondItemRow.locator('.qty-value')).toContainText('2');
-      
-      await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('2', { timeout: 10000 });
-      
-      await secondContext.close();
-      
-      await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
+        await expect(page.locator('.item-row').filter({ hasText: itemName }).locator('.qty-value')).toContainText('2', { timeout: 10000 });
+      } finally {
+        // member close first (teardown order — review items.spec), then the
+        // owner deletes the created item best-effort in the finally: if an
+        // earlier assert failed the row may be absent, and a cleanup throw
+        // must not mask the original failure. Reseed covers any residue.
+        await secondPage.context().close();
+        try {
+          await confirmDeleteDialog(page, page.locator('.item-row').filter({ hasText: itemName }).getByTestId(/^btn-delete-item-/).first(), 'item-delete-confirm');
+        } catch {
+          // Best-effort residue is wiped by the next global reseed (runbook).
+        }
+      }
     });
   });
 

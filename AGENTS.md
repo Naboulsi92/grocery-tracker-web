@@ -84,7 +84,7 @@ npx playwright test  # E2E (Chromium engine; Edge locally, bundled Chromium on C
 - Tests run on every PR; merges are blocked on failure.
 - SQL changes are verified by the CI database job (`psql -v ON_ERROR_STOP=1 -f supabase/tests/database/security_contract.sql`) — a green database job means the security contract passes. Docker is NOT available locally.
 - History & baselines live in `docs/agents/runbooks/ci-history.md` (closed items, dated numbers). Recompute counts live; never quote archived numbers as current and never attribute old numbers to new branches. Only NEW failures introduced by a branch block it.
-- #75 (E2E auth harness) is an ACTIVE WORK SITE, not an accepted failure: no reusable session (`storageState`), each spec signs up via UI against local Supabase, and without a backend the suite skips instead of testing. Target state per `audit-testing.md`: `authenticatedPage` fixture + `storageState` reuse, fail (not skip) when a write-spec lacks a backend, replace `waitForTimeout` with web-first assertions.
+- The E2E auth harness (#237, delivered via #141/#142/#144/#238 + the #237 branch) is the standing contract: `authenticatedPage` fixture + `storageState` reuse (session stamp binds password+backend, one fresh re-login verified by the foyer heading), fail (not skip) when a write-spec lacks a backend, and the only remaining skips are the documented Chromium gates. Doctrine, counters and the per-file exception ledger live in `docs/agents/runbooks/e2e-authenticated-page.md` — new specs must follow its "Convention pour les nouvelles specs E2E" section.
 
 ### Checking CI runs
 ```bash

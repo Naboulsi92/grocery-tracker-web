@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { requireWrites, createAccount, createHousehold, expect, signUp, test } from './fixtures';
+import { requireWrites, createAccount, createHousehold, ensureAuthenticatedPage, expect, signUp, test } from './fixtures';
 
 // Fusion Membres → Foyer : l'écran /household couvre le nom du foyer, les
 // membres, l'invitation (générer / régénérer via dialogue de confirmation /
@@ -11,13 +11,16 @@ async function gotoHousehold(page: Page) {
 }
 
 test.describe('Household Page', () => {
-  test('displays member count in heading', async ({ page, account }) => {
-    requireWrites();
-    const householdName = await createHousehold(page, account);
-
-    await gotoHousehold(page);
-    await expect(page.getByRole('heading', { name: /Membres du foyer/ })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
+  test.describe('Member count (foyer 2, 1/2)', () => {
+    // Foyer 2 est seedé 1/2 (household2.userA seul) : le compteur "(1)" est
+    // lisible sans créer de foyer.
+    test.use({ accountRole: 'household2.userA' });
+    test('displays member count in heading', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (foyer 2 seedé 1/2, lecture seule du compteur).
+      await gotoHousehold(page);
+      await expect(page.getByRole('heading', { name: /Membres du foyer/ })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
+    });
   });
 
   test('owner can create invitation', async ({ page, account }) => {
@@ -126,60 +129,33 @@ test.describe('Household Page', () => {
     expect(expirationDate).toMatch(/Expire le \d{1,2}\/\d{1,2}\/\d{4}/);
   });
 
-  test('member can reach the invite section (equal rights, no owner-only gate)', async ({ page, account, browser }) => {
-    requireWrites();
-    const householdName = await createHousehold(page, account);
+  test.describe('Invite section (foyer 1, 2/2)', () => {
+    // Foyer 1 est seedé 2/2 (owner + membre) : le second membre (userB) voit
+    // la section invitation dans son état "plein" sans générer de code.
+    test.use({ accountRole: 'household1.userB' });
+    test('member can reach the invite section (equal rights, no owner-only gate)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (foyer 1 seedé 2/2, userB = second membre).
+      await gotoHousehold(page);
 
-    await gotoHousehold(page);
-    await page.getByRole('button', { name: 'Générer un code' }).click();
-    const token = page.locator('.invite-code-text');
-    await expect(token).not.toBeEmpty();
-    const invitationToken = await token.textContent();
-
-    const memberContext = await browser.newContext();
-    const memberPage = await memberContext.newPage();
-    const memberAccount = createAccount('e2e-member');
-    try {
-      await signUp(memberPage, memberAccount);
-      await memberPage.getByLabel(/Code d.invitation complet/).fill(invitationToken!);
-      await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-      await memberPage.waitForURL('/home', { timeout: 20000 });
-
-      await memberPage.getByTestId('dashboard-card-household').click();
-      await expect(memberPage).toHaveURL('/household');
-
-      await expect(memberPage.getByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Membres du foyer (2)' })).toBeVisible();
 
       // Equal rights: every member reaches the invite section — the owner-only gate is gone.
-      const ownerOnlyMessage = memberPage.getByText('Seul le propriétaire du foyer peut inviter de nouveaux membres.');
+      const ownerOnlyMessage = page.getByText('Seul le propriétaire du foyer peut inviter de nouveaux membres.');
       await expect(ownerOnlyMessage).not.toBeVisible();
 
       // At 2/2 the invite section renders in its full state (no create button for anyone).
-      await expect(memberPage.getByRole('heading', { name: 'Invitation' })).toBeVisible();
-      await expect(memberPage.getByTestId('household-full-message')).toBeVisible();
-    } finally {
-      await memberContext.close();
-    }
+      await expect(page.getByRole('heading', { name: 'Invitation' })).toBeVisible();
+      await expect(page.getByTestId('household-full-message')).toBeVisible();
+    });
   });
 
-  test('displays member role (owner vs member)', async ({ page, account, browser }) => {
-    requireWrites();
-    const householdName = await createHousehold(page, account);
-
+  test('displays member role (owner vs member)', async ({ authenticatedPage: page, browser }) => {
+    // #237 : seeded session (foyer 1 seedé 2/2, owner + membre).
     await gotoHousehold(page);
-    await page.getByRole('button', { name: 'Générer un code' }).click();
-    const token = page.locator('.invite-code-text');
-    const invitationToken = await token.textContent();
 
-    const memberContext = await browser.newContext();
-    const memberPage = await memberContext.newPage();
-    const memberAccount = createAccount('e2e-member');
+    // Second membre seedé du même foyer (foyer 1 déjà 2/2, pas de join).
+    const memberPage = await ensureAuthenticatedPage(browser, 'household1.userB');
     try {
-      await signUp(memberPage, memberAccount);
-      await memberPage.getByLabel(/Code d.invitation complet/).fill(invitationToken!);
-      await memberPage.getByRole('button', { name: 'Rejoindre le foyer' }).click();
-      await memberPage.waitForURL('/home', { timeout: 20000 });
-
       await page.reload();
       const ownerLabel = page.locator('.member-joined').filter({ hasText: 'Propriétaire' });
       await expect(ownerLabel).toBeVisible();
@@ -191,7 +167,7 @@ test.describe('Household Page', () => {
       await expect(memberPage.locator('.member-joined').filter({ hasText: 'Propriétaire' })).toBeVisible();
       await expect(memberPage.locator('.member-joined').filter({ hasText: 'Membre' })).toBeVisible();
     } finally {
-      await memberContext.close();
+      await memberPage.context().close();
     }
   });
 
@@ -316,12 +292,15 @@ test.describe('Household Page', () => {
     await expect(page.locator('.invite-code-text')).toHaveCount(0);
   });
 
-  test('/members redirects to /household (fusion Membres → Foyer)', async ({ page, account }) => {
-    requireWrites();
-    await createHousehold(page, account);
-
-    await page.goto('/members');
-    await expect(page).toHaveURL('/household');
-    await expect(page.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
+  test.describe('Members redirect (foyer 2, 1/2)', () => {
+    // Foyer 2 est seedé 1/2 : la redirection /members → /household et le
+    // compteur "(1)" sont lisibles sans créer de foyer.
+    test.use({ accountRole: 'household2.userA' });
+    test('/members redirects to /household (fusion Membres → Foyer)', async ({ authenticatedPage: page }) => {
+      // #237 : seeded session (foyer 2 seedé 1/2, navigation + lecture seule).
+      await page.goto('/members');
+      await expect(page).toHaveURL('/household');
+      await expect(page.getByRole('heading', { name: 'Membres du foyer (1)' })).toBeVisible();
+    });
   });
 });

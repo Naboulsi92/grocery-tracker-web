@@ -13,6 +13,7 @@ import { SyncingIndicator } from '@/components/SyncingIndicator';
 import { getErrorMessage, getLowStockItems, isLowStock, joinInventory, CATEGORY_COLUMNS, ITEM_COLUMNS, type Category, type InventoryItem } from '@/lib/inventory';
 import { applyCategoryPatch, applyToBuyPatch } from '@/lib/realtimePatch';
 import { useHouseholdRealtime } from '@/hooks/useHouseholdRealtime';
+import { useAppBadgeSync } from '@/hooks/useAppBadgeSync';
 import { updateItemQuantity } from '@/lib/itemOperations';
 import { validateQuantity } from '@/lib/validation';
 import { getUnitStep } from '@/types/units';
@@ -32,6 +33,7 @@ export default function ToBuyPage() {
   const [thresholdNoticeId, setThresholdNoticeId] = useState<string | null>(null);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({});
+  const [lowStockCount, setLowStockCount] = useState<number | null>(null);
   const { householdId } = useAuth();
   const { isOnline } = useOnlineStatus();
   const { t, language } = useI18n();
@@ -67,6 +69,10 @@ export default function ToBuyPage() {
       const nextCategories = categoriesRes.data ?? [];
       setCategories(nextCategories);
       const lowStockItems = getLowStockItems(joinInventory(itemsRes.data ?? [], nextCategories));
+      // Ticket #247: exact foreground badge count — these raw rows are the
+      // DB truth at fetch time; realtime patches between cycles may leave
+      // the badge momentarily stale but never write a wrong count.
+      setLowStockCount(lowStockItems.length);
       setItems((current) => {
         const keptChecked = current.filter((item) => checkedIdsRef.current.has(item.id));
         if (keptChecked.length === 0) return lowStockItems;
@@ -110,6 +116,19 @@ export default function ToBuyPage() {
       void fetchItems();
     },
   });
+
+  // Ticket #247: badge resync cycles are mount, reconnect resync,
+  // patch-error fallback and hidden→visible returns (this silent refetch
+  // shares the requestId guard, deduped against the reconnect resync).
+  useAppBadgeSync(lowStockCount);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void fetchItems();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [fetchItems]);
 
   useEffect(() => {
     if (!householdId) return;

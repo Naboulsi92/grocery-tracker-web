@@ -1,0 +1,31 @@
+feat(badge): resync foreground du count a cycles exacts (#247)
+
+Suivi #223 : la route `badge: 0` n'a AUCUN trigger serveur (pas de
+rappel sur foyer vide, crossings jamais vers 0) et rien côté page ne
+touchait au badge — la liste vidée en plein premier plan laissait le
+badge OS collé à N. Le resync existe désormais via un hook page-side,
+au contrat #223 verbatim et en cycles EXACTS :
+
+- src/hooks/useAppBadgeSync.ts : `useAppBadgeSync(count: number | null)`
+  — null → no-op ; > 0 → setAppBadge (rejection swallowée) ; 0 →
+  clearAppBadge ; API absente → no-op silencieux ; guards SW
+  (!Number.isInteger || < 0 → no-op) ; jamais de reset au unmount.
+- src/app/to-buy/page.tsx : `lowStockCount` (init null) alimenté à
+  chaque `fetchItems` depuis les raw rows DB (la ligne du
+  `getLowStockItems(joinInventory(...))` calcule déjà exactement ça —
+  zéro compute ajouté) ; cycles de resync = mount + reconnect
+  (useResyncOnReconnect existant) + fallback patch-error
+  (onResyncNeeded existant) + visibilitychange hidden→visible (refetch
+  silencieux, requestId guard en place).
+
+Du coup le badge n'est JAMAIS écrit avec un count approximatif (un
+count faux écraserait un badge correct livré par push) — entre cycles,
+les patches corrigent la liste mais pas forcément le badge, corrigé au
+prochain cycle. Pas de touch serveur (enqueue_daily_reminders /
+notify-thresholds intacts), routage toast régi par #224 hors scope.
+
+Tests : 8 cas renderHook (set à 3 exact, clear à 0, null no-op, guards
+invalides -1/2.5, transition 3→0 → clear, rejection swallowée, API
+absente no-op silencieux, aucun reset au unmount). Suite complète
+549/549, node --test 18/18, typecheck 0, lint 0 erreur (11 warnings
+baseline exacte), collection Playwright 292 tests / 28 fichiers.

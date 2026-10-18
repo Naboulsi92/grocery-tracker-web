@@ -97,21 +97,25 @@ function isSupabaseHost(url) {
   return (url.hostname && url.hostname.toLowerCase().includes('supabase')) || url.port === '54321';
 }
 
-// Ticket #223 : OS-native count badge (PRD §4.6). The push payload carries
+// Ticket #223: OS-native count badge (PRD §4.6). The push payload carries
 // the household's low-stock count as `badge` (computed server-side by
 // notify-thresholds). Only some engines implement the badge API (Chromium,
 // Safari) — guard and skip silently elsewhere. A payload without a valid
 // badge (or malformed) leaves the OS badge untouched: clearing happens only
-// when the count itself says the list is empty.
+// when the count itself says the list is empty. Returns a swallowed promise
+// so the badge call shares the push event lifetime without breaking it.
 function updateAppBadge(count) {
-  if (typeof count !== 'number' || !Number.isInteger(count) || count < 0) return;
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 0) {
+    return Promise.resolve();
+  }
   if (count > 0) {
     if (typeof self.navigator.setAppBadge === 'function') {
-      self.navigator.setAppBadge(count).catch(() => {});
+      return Promise.resolve(self.navigator.setAppBadge(count)).catch(() => {});
     }
   } else if (typeof self.navigator.clearAppBadge === 'function') {
-    self.navigator.clearAppBadge().catch(() => {});
+    return Promise.resolve(self.navigator.clearAppBadge()).catch(() => {});
   }
+  return Promise.resolve();
 }
 
 self.addEventListener('push', (event) => {
@@ -132,7 +136,7 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(Promise.all([
     self.registration.showNotification(title, options),
-    Promise.resolve(updateAppBadge(payload.badge)),
+    updateAppBadge(payload.badge),
   ]));
 });
 

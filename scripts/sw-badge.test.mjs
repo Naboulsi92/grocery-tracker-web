@@ -13,9 +13,10 @@ const swSource = await readFile(
   'utf8',
 );
 
-// The navigator stub records on a module-level store: recorder closures cross
-// the Function-constructed SW scope, and a per-test object passed into that
-// scope proved unreliable under node:test (losses on the second subtest).
+// The navigator stub records on a single module-level store
+// (`navigatorCalls`, reset per test): the SW is evaluated through
+// Function-constructed scope, so recorder closures must stay outside of it
+// for every test to observe the same calls.
 const navigatorCalls = { setArgument: null, setCount: 0, clearCount: 0 };
 
 function resetNavigatorCalls() {
@@ -96,7 +97,7 @@ describe('sw.js OS badge routing (ticket #223)', () => {
 
   test('clears the OS badge when the count says the list is empty', async () => {
     resetNavigatorCalls();
-    const { handlers, calls, self } = loadServiceWorker();
+    const { handlers, self } = loadServiceWorker();
     self.navigator = makeBadgeNavigator();
     const { event, waited } = makePushEvent({ badge: 0 });
 
@@ -187,13 +188,27 @@ describe('sw.js OS badge routing (ticket #223)', () => {
   test('notification and badge update share the push event lifetime', async () => {
     resetNavigatorCalls();
     const { handlers, calls, self } = loadServiceWorker();
-    self.navigator = makeBadgeNavigator();
+    let releaseBadge;
+    const deferredBadge = new Promise((resolve) => { releaseBadge = resolve; });
+    self.navigator = {
+      setAppBadge: (count) => {
+        navigatorCalls.setCount += 1;
+        navigatorCalls.setArgument = count;
+        return deferredBadge;
+      },
+    };
     const { event, waited } = makePushEvent({ badge: 4 });
 
     handlers.push(event);
 
     assert.equal(waited.length, 1, 'a single waitUntil covers notification + badge');
+    let settled = false;
+    waited[0].then(() => { settled = true; });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(settled, false, 'waitUntil stays pending until the badge promise settles');
+    releaseBadge();
     await waited[0];
+    assert.equal(settled, true);
     assert.equal(navigatorCalls.setCount, 1);
     assert.equal(calls.showNotification.length, 1);
   });

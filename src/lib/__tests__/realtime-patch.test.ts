@@ -124,6 +124,18 @@ describe('applyCategoryPatch', () => {
     );
     expect(removed).toEqual([]);
   });
+
+  it('keeps exactly one row when the Create echo lands before the optimistic append (ticket #243)', () => {
+    const echoPatch = patch({
+      table: 'categories',
+      event: 'INSERT',
+      newRecord: fruits as unknown as Record<string, unknown>,
+    });
+    const afterEcho = applyCategoryPatch([], echoPatch);
+    const afterOptimisticAppend = applyCategoryPatch(afterEcho, echoPatch);
+    expect(afterEcho).toHaveLength(1);
+    expect(afterOptimisticAppend).toHaveLength(1);
+  });
 });
 
 describe('refreshEmbeddedCategories', () => {

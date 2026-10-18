@@ -346,15 +346,16 @@ test.describe('Categories CRUD', () => {
         // la création, le locator ne résout pas et le try/catch couvre le
         // false-aware plutôt que de masquer l'erreur d'origine. Le résidu
         // éventuel est supprimé par le reseed global du prochain run.
-        // `.first()` : le create realtime peut re-rendre la carte en double
-        // (classe du ticket #243) — le doublon partage le même aria-label.
+        // Locator strict (pas de .first()) : l'app est durcie par #243
+        // (dédup id dans upsertCategoryById) — toute carte dupliquée
+        // rejette le test au lieu d'être tolérée.
         try {
-          await confirmDeleteDialog(secondPage, secondPage.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${newCategoryName}`) }).first(), 'category-delete-confirm');
+          await confirmDeleteDialog(secondPage, secondPage.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${newCategoryName}`) }), 'category-delete-confirm');
         } catch {
           // Résidu couvert par le reseed global du prochain run (runbook).
         }
         try {
-          await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) }).first(), 'category-delete-confirm');
+          await confirmDeleteDialog(page, page.getByRole('button', { name: new RegExp(`Supprimer la catégorie ${categoryName}`) }), 'category-delete-confirm');
         } catch {
           // Résidu couvert par le reseed global du prochain run (runbook).
         }

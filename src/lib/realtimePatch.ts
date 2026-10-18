@@ -1,4 +1,5 @@
 import type { RealtimePatch } from '@/hooks/useHouseholdRealtime';
+import { upsertCategoryById } from './categories';
 import {
   getLowStockItems,
   joinInventory,
@@ -83,9 +84,7 @@ export function applyCategoryPatch(current: Category[], patch: RealtimePatch): C
 
   const row = asCategory(patch.newRecord);
   if (!row) return current;
-  return current.some((category) => category.id === row.id)
-    ? current.map((category) => (category.id === row.id ? row : category))
-    : [...current, row];
+  return upsertCategoryById(current, row);
 }
 
 /**

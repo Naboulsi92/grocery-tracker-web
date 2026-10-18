@@ -10,7 +10,7 @@ import { createClient } from '@/utils/supabase/client';
 import { getErrorMessage, getNextCategoryOrder, CATEGORY_COLUMNS, type Category } from '@/lib/inventory';
 import { applyCategoryPatch } from '@/lib/realtimePatch';
 import { useHouseholdRealtime } from '@/hooks/useHouseholdRealtime';
-import { hasDuplicateCustomName } from '@/lib/categories';
+import { hasDuplicateCustomName, upsertCategoryById } from '@/lib/categories';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { AccessibleDialog } from '@/components/AccessibleDialog';
 import { validateName } from '@/lib/validation';
@@ -305,7 +305,9 @@ export default function CategoriesPage() {
           throw positionError;
         }
 
-        setCategories((current) => [...current, data]);
+        // Ticket #243: the realtime echo can append the row before this
+        // optimistic continuation runs — upsert-by-id instead of a blind push.
+        setCategories((current) => upsertCategoryById(current, data));
         setPositions((prev) => ({ ...prev, [data.id]: nextPosition }));
       }
       // Local mutation applied above: invalidate in-flight fetches so a stale

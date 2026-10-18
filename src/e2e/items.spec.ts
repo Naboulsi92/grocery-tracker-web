@@ -439,7 +439,8 @@ test.describe('Items CRUD', () => {
       // et sortie de la liste dès la première nouvelle quantité > 0.
       // Upgrade voulu vs l'ancien « validation-only » : la validation seule ne peut
       // pas prouver un 0 accepté — il faut écrire puis vérifier le badge.
-      const itemName = `Article seuil zero ${randomUUID()}`;
+      // Nom court (<= 50) : le préfixe + UUID complet doit rester sous la limite.
+      const itemName = `Seuil zero ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
       await page.getByTestId('input-item-name').fill(itemName);

@@ -1558,6 +1558,8 @@ select set_config('test.probe_zero_down_notified', :'probe_zero_down_already_not
 select count(*) as pn from public.pending_notifications where item_id = :'probe_zero_id'::uuid \gset probe_zero_pn1_
 select set_config('test.probe_zero_pn1', :'probe_zero_pn1_pn', true);
 select quantity, already_notified from public.adjust_item_quantity(:'probe_zero_id'::uuid, 1) \gset probe_zero_up_
+select set_config('test.probe_zero_up_quantity', :'probe_zero_up_quantity', true);
+select set_config('test.probe_zero_up_notified', :'probe_zero_up_already_notified', true);
 select count(*) as pn from public.pending_notifications where item_id = :'probe_zero_id'::uuid \gset probe_zero_pn2_
 select set_config('test.probe_zero_pn2', :'probe_zero_pn2_pn', true);
 select quantity, already_notified from public.adjust_item_quantity(:'probe_zero_id'::uuid, -1) \gset probe_zero_down2_
@@ -1571,14 +1573,15 @@ begin
      or current_setting('test.probe_zero_pn1')::bigint <> 1 then
     raise exception 'seuil-0 crossing must notify once when quantity reaches 0';
   end if;
-  -- Restock à 1 (> 0) : reset already_notified, aucune notif.
-  if (select quantity from public.items where id = current_setting('test.probe_zero_id')::uuid) <> 1
-     or (select already_notified from public.items where id = current_setting('test.probe_zero_id')::uuid) then
-    raise exception 'restock above seuil 0 must reset already_notified';
-  end if;
   -- Restock : aucune notif de plus, le pn reste à 1.
   if current_setting('test.probe_zero_pn2')::bigint <> 1 then
     raise exception 'restock above seuil 0 must not queue a notification';
+  end if;
+  -- Restock à 1 (> 0) : already_notified reset — état capturé AU restock
+  -- (la ligne est relue après le 2e passage, où elle vaut 0/true).
+  if current_setting('test.probe_zero_up_quantity')::numeric <> 1
+     or current_setting('test.probe_zero_up_notified')::boolean then
+    raise exception 'restock above seuil 0 must reset already_notified';
   end if;
   -- Re-passage à 0 : re-notifie exactement une fois de plus.
   if current_setting('test.probe_zero_pn3')::bigint <> 2 then

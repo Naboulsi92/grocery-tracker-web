@@ -44,7 +44,8 @@ export function validateQuantity(v: string | number): string | null {
 
 export function validateThreshold(v: string | number): string | null {
   const num = typeof v === 'number' ? v : Number(v);
-  if (!Number.isFinite(num) || num <= 0 || !Number.isInteger(num)) {
+  // Threshold 0 is valid ("buy only when fully out of stock"); negatives are not.
+  if (!Number.isFinite(num) || num < 0 || !Number.isInteger(num)) {
     return ThresholdErrors.REQUIRED;
   }
   return null;

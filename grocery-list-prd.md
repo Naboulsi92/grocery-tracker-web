@@ -8,6 +8,10 @@
 
 ## Changelog
 
+### v1.6
+- Le seuil minimum accepte désormais **0** : un article est « à acheter » seulement et seulement quand sa quantité atteint 0, et sort de la liste dès la première nouvelle quantité strictement supérieure au seuil. La règle générale `quantité ≤ seuil` reste inchangée pour les autres seuils, de même que les notifications (une seule par franchissement).
+- Alignement complet : validation et message client (`min=0`), CHECK `>= 0` sur `items` et `item_templates` (négatifs et décimaux toujours refusés), contrat SQL, tests (unitaires, E2E, sondes de contrat), et mise à jour de cette source de vérité.
+
 ### v1.5
 - Audit d'écart code vs PRD (8 oct. 2026) : inventaire complet documenté en section 13 (état d'avancement par exigence : fait / partiel / manquant / contredit).
 - Résolution des écarts de la section 11 : rôle owner (RLS/RPC), cap 2 membres, `ITEM_TEMPLATES`, unités fermées, expiration 24h — tous résorbés sauf résidus listés en 13.3.
@@ -126,7 +130,7 @@
   - kg / litre / unité : nombres entiers uniquement (pas de décimales), incrément de 1, jamais négatif.
   - gramme / millilitre : incrément de 100 via les boutons, mais saisie manuelle libre possible (ex. 150 g), toujours en entiers, jamais négatif.
 - **L'unité est modifiable après création** (pour corriger une erreur de saisie). Changer l'unité **vide les champs quantité et seuil**, qui doivent être ressaisis manuellement — pas de conversion automatique ni de conservation de valeurs devenues incohérentes.
-- **Quantité et seuil** sont saisis manuellement à la création, et modifiables ensuite. Le **seuil est obligatoire** et doit être un nombre strictement positif (supérieur à 0).
+- **Quantité et seuil** sont saisis manuellement à la création, et modifiables ensuite. Le **seuil est obligatoire** et doit être un nombre entier positif ou nul (supérieur ou égal à 0). (v1.6 : le seuil 0 est désormais valide, entériné — « à acheter » seulement quand l'article atteint 0, sortie de la liste dès la première nouvelle quantité > 0.)
 - **Ajustement du stock** : boutons plus/moins pour les petits ajustements, et **saisie manuelle via le formulaire d'édition** pour les grands écarts. (v1.5 : le tap direct sur la valeur est abandonné — le formulaire suffit.)
 - **Achat (réapprovisionnement)** : l'utilisateur renseigne uniquement la quantité achetée (la différence) ; l'application additionne automatiquement au stock existant.
 - **Consommation** : toujours saisie manuellement — l'application ne peut pas détecter automatiquement ce qui est consommé.
@@ -283,8 +287,8 @@ Supabase Realtime peut manquer des événements pendant une coupure réseau ou u
 - Tout champ de nom est limité à **50 caractères**.
 - Le **nom d'un article doit être unique** dans tout le foyer, tous catégories confondues (insensible à la casse), y compris face aux articles par défaut non encore renommés.
 - Le **nom d'une catégorie personnalisée doit être unique** au sein du foyer (insensible à la casse).
-- Les champs de quantité et de seuil n'acceptent que des **entiers positifs**, jamais de décimales ni de valeurs négatives, quelle que soit l'unité.
-- Le seuil est **obligatoire** et doit être strictement supérieur à 0.
+- Les champs de quantité et de seuil n'acceptent que des **entiers positifs ou nuls**, jamais de décimales ni de valeurs négatives, quelle que soit l'unité.
+- Le seuil est **obligatoire** et doit être supérieur ou égal à 0. (v1.6 : seuil 0 valide, entériné.)
 - Toute suppression (article, compte) demande une **confirmation explicite** rappelant la conséquence exacte de l'action.
 
 ---
@@ -336,7 +340,7 @@ Les deux premières couvrent les scénarios de synchronisation temps réel et d'
 
 ### Scénarios importants (priorité P1)
 
-7. **Validation des champs** : rejet des noms sans lettre, rejet des valeurs négatives/décimales, seuil obligatoire strictement positif, unicité du nom d'article.
+7. **Validation des champs** : rejet des noms sans lettre, rejet des valeurs négatives/décimales, seuil obligatoire (entier positif ou nul — le seuil 0 signifie « à acheter » seulement quand l'article atteint 0 ; v1.6 : seuil 0 valide, entériné), unicité du nom d'article.
 8. **Changement d'unité** : vérifier que quantité et seuil sont bien vidés et doivent être ressaisis.
 9. **Cycle de vie du foyer** : quitter le foyer retire l'accès à l'inventaire ; l'autre membre le conserve intact.
 10. **Historique** : rotation correcte après 20 entrées (la 21ᵉ action supprime bien la plus ancienne).
@@ -462,7 +466,7 @@ Audit code vs PRD par inventaire systématique (auth/foyer, catalogue/alertes, t
 | Unicité article insensible casse (4.4/7) | ✅ | Index `(household_id, lower(name))` + contrôle front |
 | Unités fermées + règles entiers (4.4) | ✅ | `kg/g/l/ml/unite`, dropdown, pas +1 / g/ml +100 + saisie entière libre |
 | Changement d'unité vide qté+seuil (4.4) | 🔶 | UI vide les champs ; DB met sentinelle seuil=1 (colonne non-nullable) + qté 0 |
-| Seuil obligatoire > 0 (4.4/7) | ✅ | Validation + CHECK + `min=1` |
+| Seuil obligatoire ≥ 0, entier (4.4/7) | ✅ | Validation + CHECK + `min=0` ; seuil 0 ⇒ « à acheter » seulement à quantité 0 (v1.6) |
 | Ajustement +/− et saisie manuelle (4.4) | 🔶 | +/− et formulaire ✅ ; tap direct sur la valeur ❌ |
 | Achat = différence additionnée (4.4) | ✅ | `handleConfirmQuantity` + RPC `greatest(0, qté+delta)` |
 | Conso manuelle, stock 0 visible (4.4) | ✅ | Décrément clampé à 0, aucun filtre |

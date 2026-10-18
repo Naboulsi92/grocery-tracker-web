@@ -98,8 +98,9 @@ describe('validateQuantity', () => {
 });
 
 describe('validateThreshold', () => {
-  it('returns error for zero', () => {
-    expect(validateThreshold('0')).toBe(ThresholdErrors.REQUIRED);
+  it('accepts zero (buy only when fully out of stock)', () => {
+    expect(validateThreshold('0')).toBeNull();
+    expect(validateThreshold(0)).toBeNull();
   });
 
   it('returns error for negative', () => {

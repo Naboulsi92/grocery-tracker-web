@@ -434,15 +434,65 @@ test.describe('Items CRUD', () => {
       await expect(page.getByTestId('error-quantity-negative')).toBeVisible();
     });
 
-    test('rejects a zero threshold', async ({ authenticatedPage: page }) => {
-      // #237 : seeded session (validation-only, no write).
+    test('accepts a zero threshold — flagged only when stock reaches 0', async ({ authenticatedPage: page }) => {
+      // Seuil 0 : « à acheter » seulement et seulement si la quantité atteint 0,
+      // et sortie de la liste dès la première nouvelle quantité > 0.
+      // Upgrade voulu vs l'ancien « validation-only » : la validation seule ne peut
+      // pas prouver un 0 accepté — il faut écrire puis vérifier le badge.
+      // Nom court (<= 50) : le préfixe + UUID complet doit rester sous la limite.
+      const itemName = `Seuil zero ${randomUUID()}`;
       await page.getByTestId('dashboard-card-items').click();
       await page.getByTestId('btn-new-item').click();
-      await page.getByTestId('input-item-name').fill(`Article seuil ${randomUUID().slice(0, 8)}`);
+      await page.getByTestId('input-item-name').fill(itemName);
+      await page.getByLabel('Quantité', { exact: true }).fill('1');
       await page.getByLabel('Seuil stock bas').fill('0');
       await page.getByTestId('btn-create-item').click();
 
+      // Quantité 1 > seuil 0 : pas « à acheter », aucune erreur de validation.
+      // .first() : bug intermittent de carte dupliquée (#243).
+      const itemRow = page.locator('.item-row').filter({ hasText: itemName }).first();
+      await expect(page.getByTestId('error-threshold-required')).toHaveCount(0);
+      await expect(itemRow).toBeVisible({ timeout: 10000 });
+      await expect(itemRow).not.toHaveClass(/low-stock/);
+      await expect(itemRow.locator('.badge')).toHaveCount(0);
+
+      try {
+        // La quantité tombe à 0 : l'article devient « à acheter ».
+        await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
+        await page.getByLabel('Quantité', { exact: true }).fill('0');
+        await page.getByTestId('btn-create-item').click();
+        await expect(itemRow).toHaveClass(/low-stock/);
+        await expect(itemRow.locator('.badge')).toContainText('À acheter');
+
+        // Nouvelle quantité 1 strictement supérieure au seuil 0 : sortie de la liste.
+        await itemRow.getByRole('button', { name: /Modifier l'article/ }).click();
+        await page.getByLabel('Quantité', { exact: true }).fill('1');
+        await page.getByTestId('btn-create-item').click();
+        await expect(itemRow).not.toHaveClass(/low-stock/);
+        await expect(itemRow.locator('.badge')).toHaveCount(0);
+      } finally {
+        // Convention runbook E2E : cleanup best-effort, jamais masquant l'erreur
+        // d'origine ; le résidu éventuel meurt au reseed du run suivant.
+        try {
+          await confirmDeleteDialog(page, itemRow.getByTestId(/^btn-delete-item-/), 'item-delete-confirm');
+        } catch {
+          // best-effort
+        }
+      }
+    });
+
+    test('rejects a decimal threshold like 0.5', async ({ authenticatedPage: page }) => {
+      // PRD §7 : les décimaux restent refusés — « 0,5 » ne doit pas être avalé
+      // en seuil 0 silencieux (carte de régression sur le parse Number, v1.6).
+      await page.getByTestId('dashboard-card-items').click();
+      await page.getByTestId('btn-new-item').click();
+      await page.getByTestId('input-item-name').fill(`Article seuil dec ${randomUUID().slice(0, 8)}`);
+      await page.getByLabel('Seuil stock bas').fill('0.5');
+      await page.getByTestId('btn-create-item').click();
+
       await expect(page.getByTestId('error-threshold-required')).toBeVisible();
+      // Validation-only : aucune écriture — le formulaire reste ouvert.
+      await expect(page.getByTestId('input-item-name')).toBeVisible();
     });
 
     test('shows an error on empty submit instead of silently returning (#129)', async ({ authenticatedPage: page }) => {

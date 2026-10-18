@@ -154,12 +154,14 @@ async function handleSubmit(e: React.FormEvent) {
   if (qtyErr) { setFieldQuantityError(qtyErr); return; }
 
   const thresholdEmpty = formThreshold.trim() === '';
-  const thresholdVal = thresholdEmpty ? null : parseInt(formThreshold, 10);
+  // Number (et pas parseInt) : la valeur validée doit être exactement celle
+  // stockée — « 0.5 » est rejeté comme décimal, jamais tronqué en 0 silencieux.
+  const thresholdVal = thresholdEmpty ? null : Number(formThreshold);
   // Ticket #222 : the threshold is mandatory in BOTH create and edit. An
   // emptied threshold (e.g. after a unit change, PRD §4.4) must be re-entered,
   // never persisted as NULL — a NULL threshold is the "black hole": it is never
   // low-stock and never reminded. After this check thresholdVal is a number in
-  // every path (empty or non-numeric both fail here / below).
+  // every path (empty, non-numeric and decimals all fail here / below).
   if (thresholdVal === null) {
     setFieldThresholdError(ThresholdErrors.REQUIRED);
     return;
@@ -366,7 +368,7 @@ return (
               </div>
               <div className="form-group">
                 <label htmlFor="item-threshold">{t('items.threshold')}</label>
-                <input id="item-threshold" type="number" data-testid="input-item-threshold" value={formThreshold} onChange={(e) => { setFormThreshold(e.target.value); setFieldThresholdError(''); }} min="1" step={getUnitStep(formUnit)} aria-invalid={!!fieldThresholdError} aria-describedby={fieldThresholdError ? 'item-threshold-error' : undefined} />
+                <input id="item-threshold" type="number" data-testid="input-item-threshold" value={formThreshold} onChange={(e) => { setFormThreshold(e.target.value); setFieldThresholdError(''); }} min="0" step={getUnitStep(formUnit)} aria-invalid={!!fieldThresholdError} aria-describedby={fieldThresholdError ? 'item-threshold-error' : undefined} />
                 {fieldThresholdError && <p className="field-error" role="alert" id="item-threshold-error" data-testid="error-threshold-required">{translateMessage(language, fieldThresholdError)}</p>}
               </div>
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>

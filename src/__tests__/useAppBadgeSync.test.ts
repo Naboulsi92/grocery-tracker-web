@@ -15,15 +15,18 @@ function installBadgeStubs() {
   return { set, clear };
 }
 
-function installRejectingBadgeStubs(): void {
+function installRejectingBadgeStubs() {
+  const set = jest.fn(() => Promise.reject(new Error('badge rejected')));
+  const clear = jest.fn(() => Promise.reject(new Error('badge rejected')));
   Reflect.defineProperty(window.navigator, 'setAppBadge', {
-    value: jest.fn(() => Promise.reject(new Error('badge rejected'))),
+    value: set,
     configurable: true,
   });
   Reflect.defineProperty(window.navigator, 'clearAppBadge', {
-    value: jest.fn(() => Promise.reject(new Error('badge rejected'))),
+    value: clear,
     configurable: true,
   });
+  return { set, clear };
 }
 
 afterEach(() => {
@@ -73,11 +76,13 @@ describe('useAppBadgeSync', () => {
     expect(clear).toHaveBeenCalledTimes(1);
   });
 
-  it('swallows a rejected badge call without breaking the effect', () => {
-    installRejectingBadgeStubs();
+  it('swallows a rejected badge call without breaking the effect', async () => {
+    const { set } = installRejectingBadgeStubs();
     expect(() => {
       renderHook(() => useAppBadgeSync(1));
     }).not.toThrow();
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenCalledWith(1);
   });
 
   it('is a silent no-op without the badge API (Firefox desktop)', () => {
@@ -93,6 +98,19 @@ describe('useAppBadgeSync', () => {
     const { unmount } = renderHook(() => useAppBadgeSync(3));
     unmount();
     expect(set).toHaveBeenCalledTimes(1);
+    expect(clear).not.toHaveBeenCalled();
+  });
+
+  it('follows null → first count → updated count across the production mount cycle', () => {
+    const { set, clear } = installBadgeStubs();
+    const { rerender } = renderHook(({ count }) => useAppBadgeSync(count), {
+      initialProps: { count: null as number | null },
+    });
+    rerender({ count: 3 });
+    rerender({ count: 5 });
+    expect(set).toHaveBeenCalledTimes(2);
+    expect(set).toHaveBeenNthCalledWith(1, 3);
+    expect(set).toHaveBeenNthCalledWith(2, 5);
     expect(clear).not.toHaveBeenCalled();
   });
 });

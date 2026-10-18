@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { expect, test as base, type Browser, type Page } from '@playwright/test';
 import { e2eEnvironment } from './environment';
+import { renameWithRetry } from '../../quality/fs-atomic';
 import {
   PRD_ACCOUNTS,
   PRD_SEED_STATE_FILENAME,
@@ -95,12 +96,14 @@ function expectedStamp(password: string): PrdSessionStamp {
 
 /**
  * Atomic save (temp file + rename) so a parallel worker never reads a
- * half-written session or stamp left by a concurrent fresh login.
+ * half-written session or stamp left by a concurrent fresh login. The
+ * rename itself is retried: on Windows another worker's short storageState
+ * read handle on the target rejects it (EPERM — ticket #242).
  */
 async function saveAtomically(target: string, write: (tmp: string) => Promise<unknown>): Promise<void> {
   const tmp = `${target}.tmp-${randomUUID()}`;
   await write(tmp);
-  await rename(tmp, target);
+  await renameWithRetry(tmp, target);
 }
 
 async function freshSeedLogin(
@@ -133,8 +136,9 @@ async function freshSeedLogin(
  * A stale session (e.g. previous run with the same `E2E_PRD_PASSWORD`
  * override but expired tokens) triggers exactly one fresh login, verified
  * by the seeded foyer heading — web-first, no `waitForTimeout`.
- * Parallel workers racing on the same session files are benign: same
- * credentials, last write wins, every saved state is valid.
+ * Parallel workers racing on the same session files stay benign: same
+ * credentials, last write wins, every saved state is valid; on Windows the
+ * atomic rename rides out EPERM via the bounded retry (ticket #242).
  */
 export async function ensureAuthenticatedPage(
   browser: Browser,

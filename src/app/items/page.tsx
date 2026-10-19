@@ -312,7 +312,11 @@ async function handleSubmit(e: React.FormEvent) {
   // suppression est ouvert en plus de la carte, il gère Escape pour lui-même
   // (AccessibleDialog) et la carte reste ouverte.
   const closeEditCardOnEscape = useEffectEvent(() => {
-    if (deleteTarget !== null) return;
+    // Parité avec les boutons Enregistrer/Annuler (disabled pendant la
+    // sauvegarde) : un Escape sur une sauvegarde en cours ne ferme ni
+    // n'efface le formulaire — l'utilisateur ne doit pas croire l'écriture
+    // annulée. Le dialog de suppression a déjà la main sur Escape.
+    if (deleteTarget !== null || mutating === 'form') return;
     resetForm();
   });
   const editCardOpen = showForm && editingId !== null;

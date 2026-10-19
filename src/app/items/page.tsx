@@ -21,6 +21,7 @@ import { useResyncOnReconnect } from '@/hooks/useResyncOnReconnect';
 import { validateName, validateQuantity, validateThreshold, validateUnit, ThresholdErrors } from '@/lib/validation';
 import { translateMessage } from '@/lib/i18n';
 import { UNITS, getUnitStep, isUnit, type Unit } from '@/types/units';
+import type { Language } from '@/i18n/settings';
 
 export default function ItemsPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -318,65 +319,71 @@ return (
           </div>
         )}
 
-        {showForm && (
-          <div className="card" style={{ marginBottom: '1.5rem' }}>
-            <h2 style={{ marginBottom: '1.25rem', fontSize: '1.125rem' }}>
-              {editingId ? t('items.edit_title') : t('items.new')}
-            </h2>
-            <form onSubmit={handleSubmit} noValidate style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-              <div className="form-group">
-                <label htmlFor="item-name">{t('items.name')}</label>
-                 <input id="item-name" type="text" data-testid="input-item-name" value={formName} onChange={(e) => { setFormName(e.target.value); setFieldNameError(''); }} required placeholder={t('items.name_placeholder')} aria-invalid={!!fieldNameError} aria-describedby={fieldNameError ? 'item-name-error' : undefined} />
-                {fieldNameError && <p className="field-error" role="alert" id="item-name-error" data-testid={fieldNameError === 'items.duplicate' ? 'error-name-duplicate' : fieldNameError === 'validation.name.too_long' ? 'error-name-too-long' : 'error-name-required-letter'}>{translateMessage(language, fieldNameError)}</p>}
-              </div>
-              <div className="form-group">
-                <label htmlFor="item-category">{t('items.category')}</label>
-                <select id="item-category" data-testid="input-item-category" value={formCategoryId} onChange={(e) => setFormCategoryId(e.target.value)}>
-                  <option value="">{t('items.category_none')}</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label htmlFor="item-quantity">{t('items.quantity')}</label>
-                <input id="item-quantity" type="number" data-testid="input-item-quantity" value={formQuantity} onChange={(e) => { setFormQuantity(e.target.value); setFieldQuantityError(''); }} min="0" step={getUnitStep(formUnit)} aria-invalid={!!fieldQuantityError} aria-describedby={fieldQuantityError ? 'item-quantity-error' : undefined} />
-                {fieldQuantityError && <p className="field-error" role="alert" id="item-quantity-error" data-testid="error-quantity-negative">{translateMessage(language, fieldQuantityError)}</p>}
-              </div>
-              <div className="form-group">
-                <label htmlFor="item-unit">{t('items.unit')}</label>
-                <select id="item-unit" data-testid="input-item-unit" value={formUnit} onChange={(e) => {
-                  const nextUnit = e.target.value;
-                  if (!isUnit(nextUnit)) {
-                    setFieldUnitError('validation.unit.invalid');
-                    return;
-                  }
-                  if (nextUnit !== formUnit) {
-                    setFormQuantity('');
-                    setFormThreshold('');
-                    setFieldQuantityError('');
-                    setFieldThresholdError('');
-                    setFieldUnitError('');
-                  }
-                  setFormUnit(nextUnit);
-                }} required aria-invalid={!!fieldUnitError} aria-describedby={fieldUnitError ? 'item-unit-error' : undefined}>
-                  {UNITS.map((unit) => (
-                    <option key={unit} value={unit}>{t(`items.unit_${unit}`)}</option>
-                  ))}
-                </select>
-                {fieldUnitError && <p className="field-error" role="alert" id="item-unit-error" data-testid="error-unit-invalid">{translateMessage(language, fieldUnitError)}</p>}
-              </div>
-              <div className="form-group">
-                <label htmlFor="item-threshold">{t('items.threshold')}</label>
-                <input id="item-threshold" type="number" data-testid="input-item-threshold" value={formThreshold} onChange={(e) => { setFormThreshold(e.target.value); setFieldThresholdError(''); }} min="0" step={getUnitStep(formUnit)} aria-invalid={!!fieldThresholdError} aria-describedby={fieldThresholdError ? 'item-threshold-error' : undefined} />
-                {fieldThresholdError && <p className="field-error" role="alert" id="item-threshold-error" data-testid="error-threshold-required">{translateMessage(language, fieldThresholdError)}</p>}
-              </div>
-              <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-                <button type="submit" className="btn btn-primary" disabled={mutating === 'form' || !isOnline || !householdId} data-testid="btn-create-item">{editingId ? t('common.save') : t('common.create')}</button>
-                <button type="button" onClick={resetForm} className="btn btn-secondary" disabled={mutating === 'form'} data-testid="btn-cancel-item">{t('common.cancel')}</button>
-              </div>
-            </form>
-          </div>
+        {/* Ticket #251 MS1 : deux usages du même composant (création puis
+            édition), tous deux rendus en haut de page — le placement inline
+            de l'édition est le step MS2. */}
+        {showForm && editingId === null && (
+          <ItemFormCard
+            editingId={null}
+            categories={categories}
+            formName={formName}
+            formQuantity={formQuantity}
+            formUnit={formUnit}
+            formCategoryId={formCategoryId}
+            formThreshold={formThreshold}
+            setFormName={setFormName}
+            setFormQuantity={setFormQuantity}
+            setFormUnit={setFormUnit}
+            setFormCategoryId={setFormCategoryId}
+            setFormThreshold={setFormThreshold}
+            fieldNameError={fieldNameError}
+            fieldQuantityError={fieldQuantityError}
+            fieldThresholdError={fieldThresholdError}
+            fieldUnitError={fieldUnitError}
+            setFieldNameError={setFieldNameError}
+            setFieldQuantityError={setFieldQuantityError}
+            setFieldThresholdError={setFieldThresholdError}
+            setFieldUnitError={setFieldUnitError}
+            mutating={mutating}
+            isOnline={isOnline}
+            householdId={householdId}
+            onSubmit={handleSubmit}
+            onCancel={resetForm}
+            t={t}
+            language={language}
+          />
+        )}
+
+        {showForm && editingId !== null && (
+          <ItemFormCard
+            editingId={editingId}
+            categories={categories}
+            formName={formName}
+            formQuantity={formQuantity}
+            formUnit={formUnit}
+            formCategoryId={formCategoryId}
+            formThreshold={formThreshold}
+            setFormName={setFormName}
+            setFormQuantity={setFormQuantity}
+            setFormUnit={setFormUnit}
+            setFormCategoryId={setFormCategoryId}
+            setFormThreshold={setFormThreshold}
+            fieldNameError={fieldNameError}
+            fieldQuantityError={fieldQuantityError}
+            fieldThresholdError={fieldThresholdError}
+            fieldUnitError={fieldUnitError}
+            setFieldNameError={setFieldNameError}
+            setFieldQuantityError={setFieldQuantityError}
+            setFieldThresholdError={setFieldThresholdError}
+            setFieldUnitError={setFieldUnitError}
+            mutating={mutating}
+            isOnline={isOnline}
+            householdId={householdId}
+            onSubmit={handleSubmit}
+            onCancel={resetForm}
+            t={t}
+            language={language}
+          />
         )}
 
         {deleteTarget && (
@@ -467,6 +474,103 @@ function ItemRow({ item, index, disabled, onUpdate, onEdit, onDelete, t }: { ite
           </svg>
         </button>
       </div>
+    </div>
+  );
+}
+
+interface ItemFormCardProps {
+  // Ticket #251 MS1 : panneau création/édition extrait tel quel de la page.
+  // L'état des champs reste possédé par la page (les deux modes partagent le
+  // panneau) ; le composant ne fait que rendre le JSX reçu et câbler les
+  // handlers passés en props.
+  editingId: string | null;
+  categories: Category[];
+  formName: string;
+  formQuantity: string;
+  formUnit: Unit;
+  formCategoryId: string;
+  formThreshold: string;
+  setFormName: (value: string) => void;
+  setFormQuantity: (value: string) => void;
+  setFormUnit: (unit: Unit) => void;
+  setFormCategoryId: (value: string) => void;
+  setFormThreshold: (value: string) => void;
+  fieldNameError: string;
+  fieldQuantityError: string;
+  fieldThresholdError: string;
+  fieldUnitError: string;
+  setFieldNameError: (value: string) => void;
+  setFieldQuantityError: (value: string) => void;
+  setFieldThresholdError: (value: string) => void;
+  setFieldUnitError: (value: string) => void;
+  mutating: string | null;
+  isOnline: boolean;
+  householdId: string | null;
+  onSubmit: (e: React.FormEvent) => void;
+  onCancel: () => void;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+  language: Language;
+}
+
+function ItemFormCard({ editingId, categories, formName, formQuantity, formUnit, formCategoryId, formThreshold, setFormName, setFormQuantity, setFormUnit, setFormCategoryId, setFormThreshold, fieldNameError, fieldQuantityError, fieldThresholdError, fieldUnitError, setFieldNameError, setFieldQuantityError, setFieldThresholdError, setFieldUnitError, mutating, isOnline, householdId, onSubmit, onCancel, t, language }: ItemFormCardProps) {
+  return (
+    <div className="card" style={{ marginBottom: '1.5rem' }}>
+      <h2 style={{ marginBottom: '1.25rem', fontSize: '1.125rem' }}>
+        {editingId ? t('items.edit_title') : t('items.new')}
+      </h2>
+      <form onSubmit={onSubmit} noValidate style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+        <div className="form-group">
+          <label htmlFor="item-name">{t('items.name')}</label>
+          <input id="item-name" type="text" data-testid="input-item-name" value={formName} onChange={(e) => { setFormName(e.target.value); setFieldNameError(''); }} required placeholder={t('items.name_placeholder')} aria-invalid={!!fieldNameError} aria-describedby={fieldNameError ? 'item-name-error' : undefined} />
+          {fieldNameError && <p className="field-error" role="alert" id="item-name-error" data-testid={fieldNameError === 'items.duplicate' ? 'error-name-duplicate' : fieldNameError === 'validation.name.too_long' ? 'error-name-too-long' : 'error-name-required-letter'}>{translateMessage(language, fieldNameError)}</p>}
+        </div>
+        <div className="form-group">
+          <label htmlFor="item-category">{t('items.category')}</label>
+          <select id="item-category" data-testid="input-item-category" value={formCategoryId} onChange={(e) => setFormCategoryId(e.target.value)}>
+            <option value="">{t('items.category_none')}</option>
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="form-group">
+          <label htmlFor="item-quantity">{t('items.quantity')}</label>
+          <input id="item-quantity" type="number" data-testid="input-item-quantity" value={formQuantity} onChange={(e) => { setFormQuantity(e.target.value); setFieldQuantityError(''); }} min="0" step={getUnitStep(formUnit)} aria-invalid={!!fieldQuantityError} aria-describedby={fieldQuantityError ? 'item-quantity-error' : undefined} />
+          {fieldQuantityError && <p className="field-error" role="alert" id="item-quantity-error" data-testid="error-quantity-negative">{translateMessage(language, fieldQuantityError)}</p>}
+        </div>
+        <div className="form-group">
+          <label htmlFor="item-unit">{t('items.unit')}</label>
+          <select id="item-unit" data-testid="input-item-unit" value={formUnit} onChange={(e) => {
+            const nextUnit = e.target.value;
+            if (!isUnit(nextUnit)) {
+              setFieldUnitError('validation.unit.invalid');
+              return;
+            }
+            if (nextUnit !== formUnit) {
+              setFormQuantity('');
+              setFormThreshold('');
+              setFieldQuantityError('');
+              setFieldThresholdError('');
+              setFieldUnitError('');
+            }
+            setFormUnit(nextUnit);
+          }} required aria-invalid={!!fieldUnitError} aria-describedby={fieldUnitError ? 'item-unit-error' : undefined}>
+            {UNITS.map((unit) => (
+              <option key={unit} value={unit}>{t(`items.unit_${unit}`)}</option>
+            ))}
+          </select>
+          {fieldUnitError && <p className="field-error" role="alert" id="item-unit-error" data-testid="error-unit-invalid">{translateMessage(language, fieldUnitError)}</p>}
+        </div>
+        <div className="form-group">
+          <label htmlFor="item-threshold">{t('items.threshold')}</label>
+          <input id="item-threshold" type="number" data-testid="input-item-threshold" value={formThreshold} onChange={(e) => { setFormThreshold(e.target.value); setFieldThresholdError(''); }} min="0" step={getUnitStep(formUnit)} aria-invalid={!!fieldThresholdError} aria-describedby={fieldThresholdError ? 'item-threshold-error' : undefined} />
+          {fieldThresholdError && <p className="field-error" role="alert" id="item-threshold-error" data-testid="error-threshold-required">{translateMessage(language, fieldThresholdError)}</p>}
+        </div>
+        <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+          <button type="submit" className="btn btn-primary" disabled={mutating === 'form' || !isOnline || !householdId} data-testid="btn-create-item">{editingId ? t('common.save') : t('common.create')}</button>
+          <button type="button" onClick={onCancel} className="btn btn-secondary" disabled={mutating === 'form'} data-testid="btn-cancel-item">{t('common.cancel')}</button>
+        </div>
+      </form>
     </div>
   );
 }

@@ -62,3 +62,6 @@ playwright.local-edge.config.ts
 
 # CI failure logs (local diagnosis only)
 *.log
+
+# scratch (local secrets, logs, screenshots — never commit; versioned .md trackers stay tracked)
+.scratch/

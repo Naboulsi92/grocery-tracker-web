@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback, useEffectEvent, useRef } from 'react';
+import { Fragment, useState, useEffect, useCallback, useEffectEvent, useRef, type RefObject } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useHousehold } from '@/hooks/useHousehold';
@@ -52,6 +52,14 @@ export default function ItemsPage() {
   const combinedError = householdError || error;
   const [supabase] = useState(createClient);
   const requestId = useRef(0);
+  // Ticket #251 MS2 : refs de la carte d'édition inline, câblées par la page
+  // sur l'unique ItemFormCard d'édition (focus du champ Nom + scrollIntoView
+  // de la carte). La création en haut de page ne les utilise pas.
+  const editCardRef = useRef<HTMLDivElement | null>(null);
+  const editNameInputRef = useRef<HTMLInputElement | null>(null);
+  // Dernière rangée dont la carte était ouverte : sert à la restitution du
+  // focus sur son bouton ✎ quand la carte se ferme (MS2, point 5).
+  const lastOpenEditingIdRef = useRef<string | null>(null);
 
   const fetchData = useCallback(async (showLoading = false) => {
     if (!householdId) return;
@@ -258,6 +266,13 @@ async function handleSubmit(e: React.FormEvent) {
   }
 
   function startEdit(item: InventoryItem) {
+    // Ticket #251 MS2 : la carte d'édition est rendue inline sous la rangée ;
+    // un re-clic sur le ✎ de l'article déjà en édition referme la carte par la
+    // même voie que « Annuler » (comportement toggle, contrat #251 point 5).
+    if (showForm && editingId === item.id) {
+      resetForm();
+      return;
+    }
     setFormName(item.name);
     setFormQuantity(item.quantity.toString());
     setFormUnit(isUnit(item.unit) ? item.unit : 'unite');
@@ -268,6 +283,63 @@ async function handleSubmit(e: React.FormEvent) {
     setEditingId(item.id);
     setShowForm(true);
   }
+
+  // Ticket #251 MS2 : focus du champ Nom + scrollIntoView de la carte quand
+  // l'édition s'ouvre (null → id) OU se déplace d'une rangée à l'autre
+  // (id → autre id). Les deps sont [showForm, editingId] uniquement : la
+  // frappe dans le formulaire ne re-déclenche jamais l'effet (pas de focus
+  // volé pendant la saisie). À la fermeture (Annuler, toggle, Escape,
+  // sauvegarde réussie → resetForm), le focus revient sur le ✎ de la rangée
+  // dont la carte vient de se fermer ; best-effort, la rangée peut avoir
+  // disparu (suppression, changement de catégorie après fetchData).
+  useEffect(() => {
+    const isOpen = showForm && editingId !== null;
+    const previousId = lastOpenEditingIdRef.current;
+    lastOpenEditingIdRef.current = isOpen ? editingId : null;
+    if (isOpen) {
+      // `?.` sur la méthode : jsdom ne fournit pas scrollIntoView (jest).
+      editCardRef.current?.scrollIntoView?.({ block: 'nearest' });
+      editNameInputRef.current?.focus();
+    } else if (previousId !== null) {
+      const trigger = document.querySelector<HTMLElement>(`[data-testid="btn-edit-item-${previousId}"]`);
+      trigger?.focus();
+    }
+  }, [showForm, editingId]);
+
+  // Ticket #251 MS2 : Escape ferme la carte d'édition par la même voie que
+  // « Annuler ». Le listener n'est monté que pendant que la carte est ouverte
+  // (retiré à la fermeture, nettoyage d'effet propre). Si le dialog de
+  // suppression est ouvert en plus de la carte, il gère Escape pour lui-même
+  // (AccessibleDialog) et la carte reste ouverte.
+  const closeEditCardOnEscape = useEffectEvent(() => {
+    if (deleteTarget !== null) return;
+    resetForm();
+  });
+  const editCardOpen = showForm && editingId !== null;
+  useEffect(() => {
+    if (!editCardOpen) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeEditCardOnEscape();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [editCardOpen]);
+
+  // Ticket #251 MS2 : la carte inline vit dans la rangée de l'article édité.
+  // Si celui-ci disparaît de la liste pendant l'édition (suppression locale,
+  // patch realtime DELETE), la carte n'a plus d'hôte : on referme le panneau
+  // (même voie qu'« Annuler ») pour ne pas laisser la page en état « showForm
+  // ouvert sans carte ni voie d'annulation ». Sans inline, l'ancien comportement
+  // laissait simplement la carte en haut de page ; le garde-fou préserve ici
+  // l'invariant « formulaire ouvert ⇒ annulable ».
+  const closeEditIfItemGone = useEffectEvent(() => {
+    if (showForm && editingId !== null && !items.some((item) => item.id === editingId)) {
+      resetForm();
+    }
+  });
+  useEffect(() => {
+    closeEditIfItemGone();
+  }, [showForm, editingId, items]);
 
   if (isLoading) {
     return (
@@ -319,44 +391,12 @@ return (
           </div>
         )}
 
-        {/* Ticket #251 MS1 : deux usages du même composant (création puis
-            édition), tous deux rendus en haut de page — le placement inline
-            de l'édition est le step MS2. */}
+        {/* Ticket #251 MS2 : seul le mode création reste en haut de page ; la
+            carte d'édition est rendue inline dans le groupe, en frère direct
+            immédiat du <ItemRow> de l'article édité (voir itemGroups.map). */}
         {showForm && editingId === null && (
           <ItemFormCard
             editingId={null}
-            categories={categories}
-            formName={formName}
-            formQuantity={formQuantity}
-            formUnit={formUnit}
-            formCategoryId={formCategoryId}
-            formThreshold={formThreshold}
-            setFormName={setFormName}
-            setFormQuantity={setFormQuantity}
-            setFormUnit={setFormUnit}
-            setFormCategoryId={setFormCategoryId}
-            setFormThreshold={setFormThreshold}
-            fieldNameError={fieldNameError}
-            fieldQuantityError={fieldQuantityError}
-            fieldThresholdError={fieldThresholdError}
-            fieldUnitError={fieldUnitError}
-            setFieldNameError={setFieldNameError}
-            setFieldQuantityError={setFieldQuantityError}
-            setFieldThresholdError={setFieldThresholdError}
-            setFieldUnitError={setFieldUnitError}
-            mutating={mutating}
-            isOnline={isOnline}
-            householdId={householdId}
-            onSubmit={handleSubmit}
-            onCancel={resetForm}
-            t={t}
-            language={language}
-          />
-        )}
-
-        {showForm && editingId !== null && (
-          <ItemFormCard
-            editingId={editingId}
             categories={categories}
             formName={formName}
             formQuantity={formQuantity}
@@ -410,7 +450,45 @@ return (
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {groupedItems.map((item, index) => (
-                  <ItemRow key={item.id} item={item} index={index} disabled={mutating !== null || !isOnline} onUpdate={updateQuantity} onEdit={startEdit} onDelete={(id: string) => setDeleteTarget(id)} t={t} />
+                  // Ticket #251 MS2 : Fragment keyé pour garder la carte
+                  // d'édition comme frère DOM direct immédiat du <ItemRow>
+                  // édité (mêmes enfants du conteneur flex-column du groupe).
+                  <Fragment key={item.id}>
+                    <ItemRow item={item} index={index} disabled={mutating !== null || !isOnline} onUpdate={updateQuantity} onEdit={startEdit} onDelete={(id: string) => setDeleteTarget(id)} t={t} />
+                    {showForm && editingId !== null && item.id === editingId && (
+                      <ItemFormCard
+                        editingId={editingId}
+                        categories={categories}
+                        formName={formName}
+                        formQuantity={formQuantity}
+                        formUnit={formUnit}
+                        formCategoryId={formCategoryId}
+                        formThreshold={formThreshold}
+                        setFormName={setFormName}
+                        setFormQuantity={setFormQuantity}
+                        setFormUnit={setFormUnit}
+                        setFormCategoryId={setFormCategoryId}
+                        setFormThreshold={setFormThreshold}
+                        fieldNameError={fieldNameError}
+                        fieldQuantityError={fieldQuantityError}
+                        fieldThresholdError={fieldThresholdError}
+                        fieldUnitError={fieldUnitError}
+                        setFieldNameError={setFieldNameError}
+                        setFieldQuantityError={setFieldQuantityError}
+                        setFieldThresholdError={setFieldThresholdError}
+                        setFieldUnitError={setFieldUnitError}
+                        mutating={mutating}
+                        isOnline={isOnline}
+                        householdId={householdId}
+                        onSubmit={handleSubmit}
+                        onCancel={resetForm}
+                        t={t}
+                        language={language}
+                        firstInputRef={editNameInputRef}
+                        cardRef={editCardRef}
+                      />
+                    )}
+                  </Fragment>
                 ))}
               </div>
             </div>
@@ -510,18 +588,23 @@ interface ItemFormCardProps {
   onCancel: () => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
   language: Language;
+  // Ticket #251 MS2 : refs optionnelles câblées par la page pour l'usage
+  // inline d'édition (focus du premier champ + scrollIntoView de la carte).
+  // L'usage création en haut de page ne les passe pas.
+  firstInputRef?: RefObject<HTMLInputElement | null>;
+  cardRef?: RefObject<HTMLDivElement | null>;
 }
 
-function ItemFormCard({ editingId, categories, formName, formQuantity, formUnit, formCategoryId, formThreshold, setFormName, setFormQuantity, setFormUnit, setFormCategoryId, setFormThreshold, fieldNameError, fieldQuantityError, fieldThresholdError, fieldUnitError, setFieldNameError, setFieldQuantityError, setFieldThresholdError, setFieldUnitError, mutating, isOnline, householdId, onSubmit, onCancel, t, language }: ItemFormCardProps) {
+function ItemFormCard({ editingId, categories, formName, formQuantity, formUnit, formCategoryId, formThreshold, setFormName, setFormQuantity, setFormUnit, setFormCategoryId, setFormThreshold, fieldNameError, fieldQuantityError, fieldThresholdError, fieldUnitError, setFieldNameError, setFieldQuantityError, setFieldThresholdError, setFieldUnitError, mutating, isOnline, householdId, onSubmit, onCancel, t, language, firstInputRef, cardRef }: ItemFormCardProps) {
   return (
-    <div className="card" style={{ marginBottom: '1.5rem' }}>
+    <div ref={cardRef} className="card" style={{ marginBottom: '1.5rem' }}>
       <h2 style={{ marginBottom: '1.25rem', fontSize: '1.125rem' }}>
         {editingId ? t('items.edit_title') : t('items.new')}
       </h2>
       <form onSubmit={onSubmit} noValidate style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
         <div className="form-group">
           <label htmlFor="item-name">{t('items.name')}</label>
-          <input id="item-name" type="text" data-testid="input-item-name" value={formName} onChange={(e) => { setFormName(e.target.value); setFieldNameError(''); }} required placeholder={t('items.name_placeholder')} aria-invalid={!!fieldNameError} aria-describedby={fieldNameError ? 'item-name-error' : undefined} />
+          <input ref={firstInputRef} id="item-name" type="text" data-testid="input-item-name" value={formName} onChange={(e) => { setFormName(e.target.value); setFieldNameError(''); }} required placeholder={t('items.name_placeholder')} aria-invalid={!!fieldNameError} aria-describedby={fieldNameError ? 'item-name-error' : undefined} />
           {fieldNameError && <p className="field-error" role="alert" id="item-name-error" data-testid={fieldNameError === 'items.duplicate' ? 'error-name-duplicate' : fieldNameError === 'validation.name.too_long' ? 'error-name-too-long' : 'error-name-required-letter'}>{translateMessage(language, fieldNameError)}</p>}
         </div>
         <div className="form-group">

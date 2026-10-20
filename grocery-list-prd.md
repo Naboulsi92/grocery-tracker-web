@@ -8,6 +8,11 @@
 
 ## Changelog
 
+### v1.7
+- Nouvelle donnée article : la **quantité à acheter** (`buy_quantity`) — déclarée **manuellement** dans le formulaire d'édition d'article (page Articles, champ optionnel, entier ≥ 1, vide autorisé = pas d'intention). Les articles seed/template naissent sans valeur.
+- Affichage lecture seule sur la page « À acheter » : badge inline `à acheter : N <unité>` (masqué si vide). Le champ de réapprovisionnement est pré-rempli avec cette valeur (modifiable librement).
+- Au restock validé, la valeur est **effacée atomiquement côté serveur** (même UPDATE que l'incrément de stock) — jamais de course entre deux écritures. Un achat manuel ou une création ne la déclenche pas ; les éditions de quantité sur la page Articles ne l'effacent pas non plus.
+
 ### v1.6
 - Le seuil minimum accepte désormais **0** : un article est « à acheter » seulement et seulement quand sa quantité atteint 0, et sort de la liste dès la première nouvelle quantité strictement supérieure au seuil. La règle générale `quantité ≤ seuil` reste inchangée pour les autres seuils, de même que les notifications (une seule par franchissement).
 - Alignement complet : validation et message client (`min=0`), CHECK `>= 0` sur `items` et `item_templates` (négatifs et décimaux toujours refusés), contrat SQL, tests (unitaires, E2E, sondes de contrat), et mise à jour de cette source de vérité.
@@ -133,6 +138,7 @@
 - **Quantité et seuil** sont saisis manuellement à la création, et modifiables ensuite. Le **seuil est obligatoire** et doit être un nombre entier positif ou nul (supérieur ou égal à 0). (v1.6 : le seuil 0 est désormais valide, entériné — « à acheter » seulement quand l'article atteint 0, sortie de la liste dès la première nouvelle quantité > 0.)
 - **Ajustement du stock** : boutons plus/moins pour les petits ajustements, et **saisie manuelle via le formulaire d'édition** pour les grands écarts. (v1.5 : le tap direct sur la valeur est abandonné — le formulaire suffit.)
 - **Achat (réapprovisionnement)** : l'utilisateur renseigne uniquement la quantité achetée (la différence) ; l'application additionne automatiquement au stock existant.
+- **Quantité à acheter (v1.7)** : champ optionnel du formulaire d'édition (`buy_quantity`, entier ≥ 1, manuel — aucune suggestion automatique). Badge lecture seule sur « À acheter », pré-remplissage du champ d'achat, effacement automatique au restock validé.
 - **Consommation** : toujours saisie manuellement — l'application ne peut pas détecter automatiquement ce qui est consommé.
 - Un article dont le stock atteint **0 reste visible** dans la liste (pour être réapprovisionné) ; il ne disparaît que si l'utilisateur le supprime manuellement.
 - **Modification/suppression d'un article** : accessible depuis l'écran d'inventaire (icône dédiée par article). Le nom doit contenir au moins une lettre. La suppression demande une confirmation explicite et renvoie immédiatement à l'écran d'accueil.

@@ -30,6 +30,7 @@ export type Database = {
       items: {
         Row: {
           already_notified: boolean;
+          buy_quantity: number | null;
           category_id: string | null;
           created_at: string | null;
           template_id: string | null;
@@ -45,6 +46,7 @@ export type Database = {
         };
         Insert: {
           already_notified?: boolean;
+          buy_quantity?: number | null;
           category_id?: string | null;
           created_at?: string | null;
           template_id?: string | null;
@@ -58,7 +60,7 @@ export type Database = {
           unit: string;
           updated_at?: string | null;
         };
-        Update: { name?: string; category_id?: string | null; unit?: string; low_stock_threshold?: number | null };
+        Update: { name?: string; category_id?: string | null; unit?: string; low_stock_threshold?: number | null; buy_quantity?: number | null };
         Relationships: [];
       };
       profiles: {
@@ -111,7 +113,7 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
-      adjust_item_quantity: { Args: { p_delta: number; p_item_id: string }; Returns: Database['public']['Tables']['items']['Row'] };
+      adjust_item_quantity: { Args: { p_delta: number; p_item_id: string; p_clear_buy_quantity?: boolean }; Returns: Database['public']['Tables']['items']['Row'] };
       consume_household_invitation: { Args: { p_token: string }; Returns: string };
       create_household: { Args: { p_name: string; p_language?: string }; Returns: string };
       create_household_invitation: { Args: { p_expires_in?: string; p_household_id: string }; Returns: { expires_at: string; invitation_id: string; token: string }[] };

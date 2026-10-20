@@ -20,6 +20,7 @@ const item = (id: string, categoryId: string | null, quantity = 1, threshold: nu
   id,
   name: id,
   category_id: categoryId,
+  buy_quantity: null,
   quantity,
   low_stock_threshold: threshold,
   unit,

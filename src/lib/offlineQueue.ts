@@ -1,4 +1,4 @@
-import { createItem, updateItem, updateItemQuantity, deleteItem } from './itemOperations';
+import { createItem, updateItem, updateItemQuantity, restockItemQuantity, deleteItem } from './itemOperations';
 import type { Unit } from '@/types/units';
 
 export type OfflineAction = {
@@ -233,10 +233,11 @@ async function replayAction(action: OfflineAction): Promise<void> {
       break;
     }
     case 'updateQuantity': {
-      const result = await updateItemQuantity(
-        p.itemId as string,
-        p.delta as number,
-      );
+      // #252 : seul un restock parti hors-ligne rejoue avec l'effacement de
+      // l'intention ; les anciens payloads (sans la clé) restent des ajustements.
+      const result = await (p.clearBuyQuantity === true
+        ? restockItemQuantity(p.itemId as string, p.delta as number)
+        : updateItemQuantity(p.itemId as string, p.delta as number));
       if (result.error) throw result.error;
       break;
     }

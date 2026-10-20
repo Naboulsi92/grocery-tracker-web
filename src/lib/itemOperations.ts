@@ -245,19 +245,25 @@ export async function updateItem(
   return { error: null };
 }
 
-export async function updateItemQuantity(
+async function adjustItemQuantityById(
   itemId: string,
   quantity: number,
-  supabase?: SupabaseClient
+  options: { clearBuyQuantity?: boolean; supabase?: SupabaseClient },
 ): Promise<ItemOperationError> {
   if (!navigator.onLine) return offlineError('updateQuantity');
 
-  const client = supabase ?? createClient();
+  const client = options.supabase ?? createClient();
 
-  const { error } = await client.rpc('adjust_item_quantity', {
+  // #252 : le flag voiera UNIQUEMENT si l'appelant est un restock validé ;
+  // les appels sans le flag conservent l'ancien payload (2 args), les
+  // anciens payloads queue-complets (masqué) rejouent sans clear.
+  const rpcArgs: { p_item_id: string; p_delta: number; p_clear_buy_quantity?: boolean } = {
     p_item_id: itemId,
     p_delta: quantity,
-  });
+  };
+  if (options.clearBuyQuantity) rpcArgs.p_clear_buy_quantity = true;
+
+  const { error } = await client.rpc('adjust_item_quantity', rpcArgs);
 
   if (error) {
     logItemOperationError('updateQuantity', error);
@@ -265,7 +271,9 @@ export async function updateItemQuantity(
       return enqueueOrFail(
         {
           type: 'updateQuantity',
-          payload: { itemId, delta: quantity },
+          // #252 : l'intention accompagne le restock hors-ligne ; sans flag
+          // (ajustement simple) la clé est ABSENTE (anciennes queues compatibles).
+          payload: { itemId, delta: quantity, ...(options.clearBuyQuantity ? { clearBuyQuantity: true } : {}) },
           createdAt: Date.now(),
           retryCount: 0,
         },
@@ -276,6 +284,24 @@ export async function updateItemQuantity(
   }
 
   return { error: null };
+}
+
+export function updateItemQuantity(
+  itemId: string,
+  quantity: number,
+  supabase?: SupabaseClient,
+): Promise<ItemOperationError> {
+  return adjustItemQuantityById(itemId, quantity, { supabase });
+}
+
+export function restockItemQuantity(
+  itemId: string,
+  quantity: number,
+  supabase?: SupabaseClient,
+): Promise<ItemOperationError> {
+  // #252 : achat validé du /to-buy — le serveur efface buy_quantity dans le
+  // MÊME UPDATE que l'incrément (pas de course entre deux écritures).
+  return adjustItemQuantityById(itemId, quantity, { supabase, clearBuyQuantity: true });
 }
 
 export async function deleteItem(

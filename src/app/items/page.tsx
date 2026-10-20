@@ -18,7 +18,7 @@ import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { AccessibleDialog } from '@/components/AccessibleDialog';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useResyncOnReconnect } from '@/hooks/useResyncOnReconnect';
-import { validateName, validateQuantity, validateThreshold, validateUnit, ThresholdErrors } from '@/lib/validation';
+import { validateBuyQuantity, validateName, validateQuantity, validateThreshold, validateUnit, ThresholdErrors } from '@/lib/validation';
 import { translateMessage } from '@/lib/i18n';
 import { UNITS, getUnitStep, isUnit, type Unit } from '@/types/units';
 import type { Language } from '@/i18n/settings';
@@ -37,10 +37,14 @@ export default function ItemsPage() {
   const [formUnit, setFormUnit] = useState<Unit>('unite');
   const [formCategoryId, setFormCategoryId] = useState('');
   const [formThreshold, setFormThreshold] = useState('1');
+  // Ticket #252 : « Quantité à acheter » — édition uniquement (création sans
+  // intention, champ absent). Chaîne vide = pas d'intention.
+  const [formBuyQuantity, setFormBuyQuantity] = useState('');
   const [error, setError] = useState('');
   const [fieldNameError, setFieldNameError] = useState('');
   const [fieldQuantityError, setFieldQuantityError] = useState('');
   const [fieldThresholdError, setFieldThresholdError] = useState('');
+  const [fieldBuyQuantityError, setFieldBuyQuantityError] = useState('');
   const [fieldUnitError, setFieldUnitError] = useState('');
   const [mutating, setMutating] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -140,6 +144,7 @@ async function handleSubmit(e: React.FormEvent) {
   setFieldNameError('');
   setFieldQuantityError('');
   setFieldThresholdError('');
+  setFieldBuyQuantityError('');
   setFieldUnitError('');
 
   if (!householdId || !formUnit || mutating || !isOnline) return;
@@ -178,6 +183,16 @@ async function handleSubmit(e: React.FormEvent) {
   const thresholdErr = validateThreshold(thresholdVal);
   if (thresholdErr) { setFieldThresholdError(thresholdErr); return; }
 
+  // Ticket #252 : l'intention d'achat est optionnelle (vide → aucune) mais
+  // doit être un entier ≥ 1 quand elle est saisie.
+  const buyErr = validateBuyQuantity(formBuyQuantity);
+  if (buyErr) { setFieldBuyQuantityError(buyErr); return; }
+
+  // #252 : le champ ne vit qu'en édition ; la valeur voyage TOUJOURS
+  // explicitement en édition (nombre ou null) pour permettre d'effacer
+  // l'intention ; la création reste sans clé buy_quantity.
+  const editBuyQuantity = formBuyQuantity.trim() === '' ? null : Number(formBuyQuantity.trim());
+
   setMutating('form');
 
   // Ticket #175 : the edited quantity travels with the update (see above for
@@ -198,7 +213,7 @@ async function handleSubmit(e: React.FormEvent) {
 
     try {
       if (editingId) {
-        const { error } = await updateItem(editingId, householdId!, { ...editableItemData, low_stock_threshold: thresholdVal });
+        const { error } = await updateItem(editingId, householdId!, { ...editableItemData, low_stock_threshold: thresholdVal, buy_quantity: editBuyQuantity });
         if (error) throw error;
         await fetchData();
       } else {
@@ -255,6 +270,7 @@ async function handleSubmit(e: React.FormEvent) {
     setFormUnit('unite');
     setFormCategoryId('');
     setFormThreshold('1');
+    setFormBuyQuantity('');
     setEditingOriginalUnit(null);
     setShowForm(false);
     setEditingId(null);
@@ -262,6 +278,7 @@ async function handleSubmit(e: React.FormEvent) {
     setFieldNameError('');
     setFieldQuantityError('');
     setFieldThresholdError('');
+    setFieldBuyQuantityError('');
     setFieldUnitError('');
   }
 
@@ -279,6 +296,8 @@ async function handleSubmit(e: React.FormEvent) {
     setFormCategoryId(item.category_id || '');
     // Ticket #222 : a NULL threshold (cleared by a unit change) edits as empty.
     setFormThreshold(item.low_stock_threshold?.toString() ?? '');
+    // Ticket #252 : a NULL buy quantity (no intention) edits as empty.
+    setFormBuyQuantity(item.buy_quantity != null ? String(item.buy_quantity) : '');
     setEditingOriginalUnit(isUnit(item.unit) ? item.unit : 'unite');
     setEditingId(item.id);
     setShowForm(true);
@@ -407,18 +426,22 @@ return (
             formUnit={formUnit}
             formCategoryId={formCategoryId}
             formThreshold={formThreshold}
+            formBuyQuantity={formBuyQuantity}
             setFormName={setFormName}
             setFormQuantity={setFormQuantity}
             setFormUnit={setFormUnit}
             setFormCategoryId={setFormCategoryId}
             setFormThreshold={setFormThreshold}
+            setFormBuyQuantity={setFormBuyQuantity}
             fieldNameError={fieldNameError}
             fieldQuantityError={fieldQuantityError}
             fieldThresholdError={fieldThresholdError}
+            fieldBuyQuantityError={fieldBuyQuantityError}
             fieldUnitError={fieldUnitError}
             setFieldNameError={setFieldNameError}
             setFieldQuantityError={setFieldQuantityError}
             setFieldThresholdError={setFieldThresholdError}
+            setFieldBuyQuantityError={setFieldBuyQuantityError}
             setFieldUnitError={setFieldUnitError}
             mutating={mutating}
             isOnline={isOnline}
@@ -468,18 +491,22 @@ return (
                         formUnit={formUnit}
                         formCategoryId={formCategoryId}
                         formThreshold={formThreshold}
+                        formBuyQuantity={formBuyQuantity}
                         setFormName={setFormName}
                         setFormQuantity={setFormQuantity}
                         setFormUnit={setFormUnit}
                         setFormCategoryId={setFormCategoryId}
                         setFormThreshold={setFormThreshold}
+                        setFormBuyQuantity={setFormBuyQuantity}
                         fieldNameError={fieldNameError}
                         fieldQuantityError={fieldQuantityError}
                         fieldThresholdError={fieldThresholdError}
+                        fieldBuyQuantityError={fieldBuyQuantityError}
                         fieldUnitError={fieldUnitError}
                         setFieldNameError={setFieldNameError}
                         setFieldQuantityError={setFieldQuantityError}
                         setFieldThresholdError={setFieldThresholdError}
+                        setFieldBuyQuantityError={setFieldBuyQuantityError}
                         setFieldUnitError={setFieldUnitError}
                         mutating={mutating}
                         isOnline={isOnline}
@@ -572,18 +599,24 @@ interface ItemFormCardProps {
   formUnit: Unit;
   formCategoryId: string;
   formThreshold: string;
+  // Ticket #252 : « Quantité à acheter » — la page possède l'état comme pour
+  // les autres champs ; le composant ne rend le champ qu'en édition.
+  formBuyQuantity: string;
   setFormName: (value: string) => void;
   setFormQuantity: (value: string) => void;
   setFormUnit: (unit: Unit) => void;
   setFormCategoryId: (value: string) => void;
   setFormThreshold: (value: string) => void;
+  setFormBuyQuantity: (value: string) => void;
   fieldNameError: string;
   fieldQuantityError: string;
   fieldThresholdError: string;
+  fieldBuyQuantityError: string;
   fieldUnitError: string;
   setFieldNameError: (value: string) => void;
   setFieldQuantityError: (value: string) => void;
   setFieldThresholdError: (value: string) => void;
+  setFieldBuyQuantityError: (value: string) => void;
   setFieldUnitError: (value: string) => void;
   mutating: string | null;
   isOnline: boolean;
@@ -599,7 +632,7 @@ interface ItemFormCardProps {
   cardRef?: RefObject<HTMLDivElement | null>;
 }
 
-function ItemFormCard({ editingId, categories, formName, formQuantity, formUnit, formCategoryId, formThreshold, setFormName, setFormQuantity, setFormUnit, setFormCategoryId, setFormThreshold, fieldNameError, fieldQuantityError, fieldThresholdError, fieldUnitError, setFieldNameError, setFieldQuantityError, setFieldThresholdError, setFieldUnitError, mutating, isOnline, householdId, onSubmit, onCancel, t, language, firstInputRef, cardRef }: ItemFormCardProps) {
+function ItemFormCard({ editingId, categories, formName, formQuantity, formUnit, formCategoryId, formThreshold, formBuyQuantity, setFormName, setFormQuantity, setFormUnit, setFormCategoryId, setFormThreshold, setFormBuyQuantity, fieldNameError, fieldQuantityError, fieldThresholdError, fieldBuyQuantityError, fieldUnitError, setFieldNameError, setFieldQuantityError, setFieldThresholdError, setFieldBuyQuantityError, setFieldUnitError, mutating, isOnline, householdId, onSubmit, onCancel, t, language, firstInputRef, cardRef }: ItemFormCardProps) {
   return (
     <div ref={cardRef} className="card" style={{ marginBottom: '1.5rem' }}>
       <h2 style={{ marginBottom: '1.25rem', fontSize: '1.125rem' }}>
@@ -653,6 +686,16 @@ function ItemFormCard({ editingId, categories, formName, formQuantity, formUnit,
           <input id="item-threshold" type="number" data-testid="input-item-threshold" value={formThreshold} onChange={(e) => { setFormThreshold(e.target.value); setFieldThresholdError(''); }} min="0" step={getUnitStep(formUnit)} aria-invalid={!!fieldThresholdError} aria-describedby={fieldThresholdError ? 'item-threshold-error' : undefined} />
           {fieldThresholdError && <p className="field-error" role="alert" id="item-threshold-error" data-testid="error-threshold-required">{translateMessage(language, fieldThresholdError)}</p>}
         </div>
+        {/* Ticket #252 : l'intention d'achat n'existe qu'en édition ; la
+            création reste sans champ ni clé buy_quantity (micro-step MS3 du
+            ticket s'occupera du restock /to-buy). */}
+        {editingId !== null && (
+          <div className="form-group">
+            <label htmlFor="item-buy-quantity">{t('items.buy_quantity_label')}</label>
+            <input id="item-buy-quantity" type="number" data-testid="input-item-buy-quantity" value={formBuyQuantity} onChange={(e) => { setFormBuyQuantity(e.target.value); setFieldBuyQuantityError(''); }} min="1" step="1" aria-invalid={!!fieldBuyQuantityError} aria-describedby={fieldBuyQuantityError ? 'item-buy-quantity-error' : undefined} />
+            {fieldBuyQuantityError && <p className="field-error" role="alert" id="item-buy-quantity-error" data-testid="error-buy-quantity-invalid">{translateMessage(language, fieldBuyQuantityError)}</p>}
+          </div>
+        )}
         <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
           <button type="submit" className="btn btn-primary" disabled={mutating === 'form' || !isOnline || !householdId} data-testid="btn-create-item">{editingId ? t('common.save') : t('common.create')}</button>
           <button type="button" onClick={onCancel} className="btn btn-secondary" disabled={mutating === 'form'} data-testid="btn-cancel-item">{t('common.cancel')}</button>

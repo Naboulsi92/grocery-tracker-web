@@ -1,7 +1,9 @@
 import {
+  validateBuyQuantity,
   validateName,
   validateQuantity,
   validateThreshold,
+  BuyQuantityErrors,
   NameErrors,
   QuantityErrors,
   ThresholdErrors,
@@ -121,5 +123,39 @@ describe('validateThreshold', () => {
 
   it('accepts large integer', () => {
     expect(validateThreshold(100)).toBeNull();
+  });
+});
+
+describe('validateBuyQuantity', () => {
+  it('accepts empty (no intention — the field is optional, #252)', () => {
+    expect(validateBuyQuantity('')).toBeNull();
+  });
+
+  it('accepts positive integer', () => {
+    expect(validateBuyQuantity('3')).toBeNull();
+  });
+
+  it('accepts zero-padded integer (003 is 3)', () => {
+    expect(validateBuyQuantity('003')).toBeNull();
+  });
+
+  it('returns error for zero (an intention is at least one)', () => {
+    expect(validateBuyQuantity('0')).toBe(BuyQuantityErrors.INVALID);
+  });
+
+  it('returns error for negative', () => {
+    expect(validateBuyQuantity('-2')).toBe(BuyQuantityErrors.INVALID);
+  });
+
+  it('returns error for decimal', () => {
+    expect(validateBuyQuantity('2.5')).toBe(BuyQuantityErrors.INVALID);
+  });
+
+  it('returns error for non-numeric string', () => {
+    expect(validateBuyQuantity('abc')).toBe(BuyQuantityErrors.INVALID);
+  });
+
+  it('trims before validating', () => {
+    expect(validateBuyQuantity(' 3 ')).toBeNull();
   });
 });

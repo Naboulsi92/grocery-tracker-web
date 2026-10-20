@@ -38,6 +38,7 @@ const itemRow = () => ({
   unit: 'unite',
   quantity: displayedQuantity(),
   low_stock_threshold: 1,
+  buy_quantity: null,
   household_id: 'household-1',
   category_id: null,
   categories: null,
@@ -380,5 +381,93 @@ describe('ItemsPage inline edit card (ticket #251 MS3)', () => {
 
     fireEvent.click(screen.getByTestId('btn-cancel-item'));
     expect(screen.queryByTestId('input-item-name')).not.toBeInTheDocument();
+  });
+});
+
+// Ticket #252 MS2 : contrat du champ « Quantité à acheter » dans la carte
+// d'édition — édition uniquement (création sans champ ni clé), pré-remplissage
+// depuis la ligne, payload update explicite number|null (clear d'intention),
+// et refus sans écriture pour un entier < 1.
+describe('#252 : buy_quantity (édition)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    rpcDeltas.length = 0;
+    updatePayloads = [];
+    setOnLine(true);
+    jest.mocked(createClient).mockReturnValue(mockClient() as never);
+  });
+
+  async function renderPage() {
+    render(
+      <LanguageProvider>
+        <ItemsPage />
+      </LanguageProvider>
+    );
+    return screen.findByTestId('btn-edit-item-item-1');
+  }
+
+  function mockItemWithBuyQuantity(buyQuantity: number) {
+    jest
+      .mocked(createClient)
+      .mockReturnValue(mockClient({ items: () => [{ ...itemRow(), buy_quantity: buyQuantity }] }) as never);
+  }
+
+  it('le champ n\'existe pas en création', async () => {
+    await renderPage();
+    fireEvent.click(screen.getByTestId('btn-new-item'));
+    await screen.findByTestId('input-item-name');
+    // Panneau de création ouvert : aucun champ buy_quantity (ni en édition
+    // implicite — editingId === null est la seule condition du rendu).
+    expect(screen.queryByTestId('input-item-buy-quantity')).not.toBeInTheDocument();
+  });
+
+  it('l\'édition pré-remplit avec la valeur de l\'article', async () => {
+    mockItemWithBuyQuantity(3);
+    await renderPage();
+    fireEvent.click(screen.getByTestId('btn-edit-item-item-1'));
+    const buyInput = await screen.findByTestId('input-item-buy-quantity');
+    expect(buyInput).toHaveValue(3);
+  });
+
+  it('modifier puis enregistrer persiste la valeur', async () => {
+    mockItemWithBuyQuantity(3);
+    await renderPage();
+    fireEvent.click(screen.getByTestId('btn-edit-item-item-1'));
+    const buyInput = await screen.findByTestId('input-item-buy-quantity');
+
+    fireEvent.change(buyInput, { target: { value: '5' } });
+    fireEvent.click(screen.getByTestId('btn-create-item'));
+
+    await waitFor(() => expect(updatePayloads).toHaveLength(1));
+    expect(updatePayloads[updatePayloads.length - 1]).toMatchObject({ buy_quantity: 5 });
+  });
+
+  it('vider le champ efface l\'intention', async () => {
+    mockItemWithBuyQuantity(3);
+    await renderPage();
+    fireEvent.click(screen.getByTestId('btn-edit-item-item-1'));
+    const buyInput = await screen.findByTestId('input-item-buy-quantity');
+
+    fireEvent.change(buyInput, { target: { value: '' } });
+    fireEvent.click(screen.getByTestId('btn-create-item'));
+
+    // Le champ voyage TOUJOURS explicitement en édition : '' → null explicite
+    // (effacement), jamais une clé absente qui laisserait l'intention en place.
+    await waitFor(() => expect(updatePayloads).toHaveLength(1));
+    expect(updatePayloads[updatePayloads.length - 1]).toMatchObject({ buy_quantity: null });
+  });
+
+  it('\'0\' est refusé avec le message et sans écriture', async () => {
+    await renderPage();
+    fireEvent.click(screen.getByTestId('btn-edit-item-item-1'));
+    const buyInput = await screen.findByTestId('input-item-buy-quantity');
+
+    fireEvent.change(buyInput, { target: { value: '0' } });
+    fireEvent.click(screen.getByTestId('btn-create-item'));
+
+    await screen.findByTestId('error-buy-quantity-invalid');
+    expect(updatePayloads).toHaveLength(0);
+    // Le formulaire reste ouvert (la validation bloque avant setMutating).
+    expect(screen.getByTestId('input-item-name')).toBeInTheDocument();
   });
 });

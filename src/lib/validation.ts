@@ -21,6 +21,10 @@ export const UnitErrors = {
   INVALID: 'validation.unit.invalid',
 } as const;
 
+export const BuyQuantityErrors = {
+  INVALID: 'validation.buy_quantity.invalid',
+} as const;
+
 export function validateUnit(value: string): string | null {
   if (!isUnit(value)) return UnitErrors.INVALID;
   return null;
@@ -47,6 +51,19 @@ export function validateThreshold(v: string | number): string | null {
   // Threshold 0 is valid ("buy only when fully out of stock"); negatives are not.
   if (!Number.isFinite(num) || num < 0 || !Number.isInteger(num)) {
     return ThresholdErrors.REQUIRED;
+  }
+  return null;
+}
+
+export function validateBuyQuantity(raw: string): string | null {
+  const value = raw.trim();
+  // Ticket #252 : the buy quantity is an optional intention — an empty field
+  // means "no intent", never an invalid number.
+  if (value === '') return null;
+  // Integer-only check on the raw string: Number('2.5') would silently pass a
+  // finite-but-fractional intent. '003' stays a valid integer (3).
+  if (!/^-?\d+$/.test(value) || Number(value) < 1) {
+    return BuyQuantityErrors.INVALID;
   }
   return null;
 }

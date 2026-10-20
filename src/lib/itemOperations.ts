@@ -131,6 +131,9 @@ export async function updateItem(
     // handled by the display guards. Column nullable since 20261014000000.
     low_stock_threshold?: number | null;
     quantity?: number;
+    // #252 : null = efface l'intention ; absent = pas de changement (le PATCH
+    // sérialisé omet la clé undefined — callers legacy intacts).
+    buy_quantity?: number | null;
   },
   supabase?: SupabaseClient
 ): Promise<ItemOperationError> {
@@ -173,6 +176,9 @@ export async function updateItem(
     unit: data.unit,
     category_id: data.category_id,
     low_stock_threshold: data.low_stock_threshold,
+    // #252 : undefined est omis par la sérialisation JSON du PATCH ; null
+    // passe tel (effacement de l'intention).
+    buy_quantity: data.buy_quantity,
   };
 
   // Ticket #222 : a unit change really empties the low-stock threshold.

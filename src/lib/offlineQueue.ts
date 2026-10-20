@@ -222,6 +222,8 @@ async function replayAction(action: OfflineAction): Promise<void> {
           unit: p.unit as Unit | undefined,
           category_id: (p.category_id as string | null | undefined) as string | null | undefined,
           low_stock_threshold: p.low_stock_threshold as number | null | undefined,
+          // #252 : l'intention d'achat (nombre ou null) voyage avec l'action.
+          buy_quantity: p.buy_quantity as number | null | undefined,
           // Ticket #175 : the edited absolute travels with the action; the
           // delta is recomputed against the live row at replay time.
           quantity: p.quantity as number | undefined,

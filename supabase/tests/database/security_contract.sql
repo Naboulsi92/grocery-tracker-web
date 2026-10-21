@@ -118,7 +118,7 @@ begin
     'public.consume_household_invitation(text)',
     'public.get_household_invitation(uuid)',
     'public.leave_household()',
-    'public.adjust_item_quantity(uuid,numeric)'
+    'public.adjust_item_quantity(uuid,numeric,boolean)'
   ] loop
     if has_function_privilege('anon', function_signature, 'EXECUTE') then
       raise exception 'anon can execute %', function_signature;
@@ -214,10 +214,12 @@ begin
     or has_column_privilege('authenticated', 'public.items', 'last_modified_at', 'INSERT')
     or has_column_privilege('authenticated', 'public.items', 'created_at', 'INSERT')
     or has_column_privilege('authenticated', 'public.items', 'id', 'INSERT')
+    or has_column_privilege('authenticated', 'public.items', 'buy_quantity', 'INSERT')
     or not has_column_privilege('authenticated', 'public.items', 'name', 'UPDATE')
     or not has_column_privilege('authenticated', 'public.items', 'quantity', 'INSERT')
     or not has_column_privilege('authenticated', 'public.items', 'template_id', 'INSERT')
-    or not has_column_privilege('authenticated', 'public.items', 'low_stock_threshold', 'UPDATE') then
+    or not has_column_privilege('authenticated', 'public.items', 'low_stock_threshold', 'UPDATE')
+    or not has_column_privilege('authenticated', 'public.items', 'buy_quantity', 'UPDATE') then
     raise exception 'authenticated item column grants violate the write contract';
   end if;
   if has_column_privilege('authenticated', 'public.categories', 'id', 'INSERT')
@@ -1158,6 +1160,23 @@ begin
   insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
   values (v_hid, v_cid, 'Check seuil zero', 1, 'unite', 0);
   delete from public.items where household_id = v_hid and name = 'Check seuil zero';
+  -- buy_quantity (#252) : intent manuelle — null et entier >= 1 acceptés,
+  -- 0 et négatifs refusés (check items_buy_quantity_check).
+  insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold, buy_quantity)
+  values (v_hid, v_cid, 'Check buyqty trois', 1, 'unite', 1, 3);
+  delete from public.items where household_id = v_hid and name = 'Check buyqty trois';
+  begin
+    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold, buy_quantity)
+    values (v_hid, v_cid, 'Check buyqty zero', 1, 'unite', 1, 0);
+    raise exception 'zero buy_quantity unexpectedly accepted';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold, buy_quantity)
+    values (v_hid, v_cid, 'Check buyqty negatif', 1, 'unite', 1, -1);
+    raise exception 'negative buy_quantity unexpectedly accepted';
+  exception when check_violation then null;
+  end;
   begin
     insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
     values (v_hid, v_cid, 'Check seuil negatif', 1, 'unite', -2);
@@ -1586,6 +1605,62 @@ begin
   -- Re-passage à 0 : re-notifie exactement une fois de plus.
   if current_setting('test.probe_zero_pn3')::bigint <> 2 then
     raise exception 'second seuil-0 crossing must notify exactly once more';
+  end if;
+end;
+$$;
+
+-- §8bis (#252) : buy_quantity — clear atomique au restock validé, conservation
+-- à la consommation, hygiène du clear négatif. Sonde membre 002 (le rôle
+-- authenticated de la section précédente reste actif). Item au-dessus du seuil
+-- (9 > 2) pour ne pas croiser le flux notifications.
+insert into public.items (household_id, category_id, name, quantity, unit, low_stock_threshold)
+values (current_setting('test.household_id')::uuid, current_setting('test.item_category_id')::uuid, 'Probe buyqty', 9, 'unite', 2)
+returning id as probe_buy_id \gset
+select set_config('test.probe_buy_id', :'probe_buy_id', true);
+
+-- L'intention pose côté client : le grant UPDATE (buy_quantity) est vivant.
+update public.items set buy_quantity = 3 where id = current_setting('test.probe_buy_id')::uuid;
+
+-- Consommation (-1, 2 args — défaut false) : la valeur reste.
+select * from public.adjust_item_quantity(current_setting('test.probe_buy_id')::uuid, -1);
+do $$
+begin
+  if (select quantity from public.items where id = current_setting('test.probe_buy_id')::uuid) <> 8
+     or (select buy_quantity from public.items where id = current_setting('test.probe_buy_id')::uuid) <> 3 then
+    raise exception 'consumption adjust must keep buy_quantity';
+  end if;
+end;
+$$;
+
+-- Restock validé (+6, p_clear_buy_quantity) : stock ET intention dans le MÊME UPDATE.
+select * from public.adjust_item_quantity(current_setting('test.probe_buy_id')::uuid, 6, true);
+do $$
+begin
+  if (select quantity from public.items where id = current_setting('test.probe_buy_id')::uuid) <> 14
+     or (select buy_quantity from public.items where id = current_setting('test.probe_buy_id')::uuid) is not null then
+    raise exception 'restock must clear buy_quantity in the same atomic update';
+  end if;
+end;
+$$;
+
+-- Ré-arme l'intention (2e sonde vivante du grant UPDATE colonne).
+update public.items set buy_quantity = 2 where id = current_setting('test.probe_buy_id')::uuid;
+
+-- Hygiène : le clear refuse un delta négatif (22023) — l'intention ne meurt
+-- qu'à l'achat (PRD v1.7). La sous-transaction plpgsql ne laisse rien passer.
+do $$
+begin
+  perform public.adjust_item_quantity(current_setting('test.probe_buy_id')::uuid, -1, true);
+  raise exception 'clear flag with negative delta unexpectedly accepted';
+exception when sqlstate '22023' then null;
+end;
+$$;
+
+do $$
+begin
+  if (select quantity from public.items where id = current_setting('test.probe_buy_id')::uuid) <> 14
+     or (select buy_quantity from public.items where id = current_setting('test.probe_buy_id')::uuid) <> 2 then
+    raise exception 'a rejected clear call must leave the row untouched';
   end if;
 end;
 $$;

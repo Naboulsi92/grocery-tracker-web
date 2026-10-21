@@ -12,6 +12,7 @@ A product tracked in the household's inventory. Items have:
 - Unit of measurement
 - Category
 - Low-stock threshold: a mandatory whole number of 0 or more. 0 means the item is flagged for buying only when fully out of stock; the item leaves the to-buy state with the first restocked quantity above the threshold (v1.6).
+- Buy quantity (`buy_quantity`, v1.7): an optional whole number of 1 or more, or null (no declared intention). Manual only — never auto-suggested, and seeded/template items start without a value. Set only in the item edit form (never at creation); shown as a read-only badge on the to-buy page; cleared server-side by `adjust_item_quantity(p_clear_buy_quantity := true)` on a validated restock (same atomic UPDATE as the stock increment).
 
 ### Category
 A grouping for inventory items. Categories help organize items and are ordered for display. Each household has its own set of categories.

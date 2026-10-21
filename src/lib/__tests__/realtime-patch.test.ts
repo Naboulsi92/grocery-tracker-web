@@ -20,6 +20,7 @@ const lait: Item = {
   id: 'i1',
   household_id: 'h1',
   category_id: 'c1',
+  buy_quantity: null,
   name: 'Lait',
   quantity: 1,
   unit: 'unite',

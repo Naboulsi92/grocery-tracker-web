@@ -162,6 +162,7 @@ const lowStockItem = (id: string, quantity: number, threshold: number): Inventor
   id,
   name: id,
   category_id: null,
+  buy_quantity: null,
   category: undefined,
   quantity,
   low_stock_threshold: threshold,

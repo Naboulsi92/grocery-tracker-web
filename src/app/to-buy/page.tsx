@@ -14,7 +14,7 @@ import { getErrorMessage, getLowStockItems, isLowStock, joinInventory, CATEGORY_
 import { applyCategoryPatch, applyToBuyPatch } from '@/lib/realtimePatch';
 import { useHouseholdRealtime } from '@/hooks/useHouseholdRealtime';
 import { useAppBadgeSync } from '@/hooks/useAppBadgeSync';
-import { updateItemQuantity } from '@/lib/itemOperations';
+import { restockItemQuantity } from '@/lib/itemOperations';
 import { validateQuantity } from '@/lib/validation';
 import { getUnitStep } from '@/types/units';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
@@ -159,8 +159,18 @@ export default function ToBuyPage() {
       return next;
     });
     try {
-      const { error } = await updateItemQuantity(id, delta);
+      // #252 : le restock validé passe le flag de clear — le serveur efface
+      // buy_quantity dans le MÊME UPDATE que l'incrément (atomique).
+      const { error } = await restockItemQuantity(id, delta);
       if (error) throw error;
+      // #252 : miroir local immédiat de l'effacement serveur (l'intention vient
+      // d'être consommée). Le patch realtime reste plus récent (LWW sur
+      // updated_at) et s'applique après — le miroir ne le bloque pas.
+      setItems((current) =>
+        current.map((item) =>
+          item.id === id && item.buy_quantity != null ? { ...item, buy_quantity: null } : item,
+        )
+      );
       // Ticket #222 : restock check via the shared low-stock rule — the item
       // leaves the to-buy list once its new quantity is no longer low-stock.
       // A NULL threshold (cleared by a unit change) never qualifies as
@@ -237,6 +247,14 @@ export default function ToBuyPage() {
                       <span className="to-buy-stock">
                         {item.quantity}/{item.low_stock_threshold} {item.unit}
                       </span>
+                      {item.buy_quantity != null && (
+                        <span
+                          className="badge badge-info"
+                          data-testid={`tobuy-buy-quantity-badge-${item.name.toLowerCase()}`}
+                        >
+                          {t('tobuy.buy_quantity_badge', { count: item.buy_quantity, unit: item.unit })}
+                        </span>
+                      )}
                     </div>
                   </div>
                   {isChecked ? (
@@ -255,7 +273,9 @@ export default function ToBuyPage() {
                         inputMode="numeric"
                         className="to-buy-qty-input"
                         placeholder={t('tobuy.qty_placeholder')}
-                        value={quantityInputs[item.id] ?? ''}
+                        // #252 : pré-remplissage avec l'intention ; une saisie
+                        // locale (clé présente dans quantityInputs) gagne toujours.
+                        value={quantityInputs[item.id] ?? (item.buy_quantity != null ? String(item.buy_quantity) : '')}
                         onChange={(e) => {
                           const val = e.target.value;
                           setThresholdNoticeId(null);

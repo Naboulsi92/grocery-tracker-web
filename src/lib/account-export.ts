@@ -15,7 +15,7 @@ import type { Database } from '@/types/database';
  *     members: [{ user_id, role, joined_at, first_name, last_name }],
  *     categories: [{ id, name, is_default, created_at }],
  *     items: [{ id, category_id, name, quantity, unit,
- *       low_stock_threshold, created_at }],
+ *       low_stock_threshold, buy_quantity, created_at }],
  *     history: [{ id, action_type, item_name, performed_by,
  *       performed_at }] (200 plus récentes)
  *   }
@@ -130,7 +130,7 @@ export async function buildAccountExport(
     supabase.from('categories').select('id, name, is_default, created_at').eq('household_id', householdId).order('name'),
     supabase
       .from('items')
-      .select('id, category_id, name, quantity, unit, low_stock_threshold, created_at')
+      .select('id, category_id, name, quantity, unit, low_stock_threshold, buy_quantity, created_at')
       .eq('household_id', householdId)
       .order('name'),
     supabase

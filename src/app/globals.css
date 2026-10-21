@@ -271,6 +271,11 @@ input::placeholder {
   color: var(--color-danger);
 }
 
+.badge-info {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
 .text-sm {
   font-size: 0.875rem;
 }

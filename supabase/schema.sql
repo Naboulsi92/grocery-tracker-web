@@ -33,3 +33,4 @@
 \ir migrations/20261014000001_reminder_badge_none.sql
 \ir migrations/20261015000000_lockout_return_status.sql
 \ir migrations/20261018000000_threshold_zero_allowed.sql
+\ir migrations/20261020000000_buy_quantity.sql

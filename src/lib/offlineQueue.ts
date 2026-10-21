@@ -1,4 +1,4 @@
-import { createItem, updateItem, updateItemQuantity, deleteItem } from './itemOperations';
+import { createItem, updateItem, updateItemQuantity, restockItemQuantity, deleteItem } from './itemOperations';
 import type { Unit } from '@/types/units';
 
 export type OfflineAction = {
@@ -222,6 +222,8 @@ async function replayAction(action: OfflineAction): Promise<void> {
           unit: p.unit as Unit | undefined,
           category_id: (p.category_id as string | null | undefined) as string | null | undefined,
           low_stock_threshold: p.low_stock_threshold as number | null | undefined,
+          // #252 : l'intention d'achat (nombre ou null) voyage avec l'action.
+          buy_quantity: p.buy_quantity as number | null | undefined,
           // Ticket #175 : the edited absolute travels with the action; the
           // delta is recomputed against the live row at replay time.
           quantity: p.quantity as number | undefined,
@@ -231,10 +233,11 @@ async function replayAction(action: OfflineAction): Promise<void> {
       break;
     }
     case 'updateQuantity': {
-      const result = await updateItemQuantity(
-        p.itemId as string,
-        p.delta as number,
-      );
+      // #252 : seul un restock parti hors-ligne rejoue avec l'effacement de
+      // l'intention ; les anciens payloads (sans la clé) restent des ajustements.
+      const result = await (p.clearBuyQuantity === true
+        ? restockItemQuantity(p.itemId as string, p.delta as number)
+        : updateItemQuantity(p.itemId as string, p.delta as number));
       if (result.error) throw result.error;
       break;
     }

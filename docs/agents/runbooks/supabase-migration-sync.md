@@ -4,6 +4,7 @@ Prod project ref: `oizfmmnuoqkdqkguynfv`. Source conceptuelle :
 `docs/research/github-vercel-supabase-environments.md` (§3 Supabase branching).
 Staging project ref: `mxiduaezelcseymnvdfv` (Supabase staging dédié, ticket #230).
 Dérive staging réparée le 17 oct 2026 (option A #230 : 4 fichiers appliqués + 3 versions orphelines auditées équivalentes) — cf. staging-discipline.md
+Rattrapages suivants : `threshold_zero_allowed` appliqué le 18 oct 2026 (stamp `20261018222226`) ; `buy_quantity` appliqué le 26 oct 2026 (stamp `20261026143306`, contenu verbatim du fichier repo) — stamps orphelins assumés (piège MCP, cf. § Dérive) ; accès MCP 21–26 oct bloqué par un 28P01 (reset dashboard, cf. leçon 7 staging-discipline.md).
 La règle d'or ci-dessous s'applique **aussi au staging** : application explicite
 par fichiers versionnés, jamais de suivi auto de `main`.
 

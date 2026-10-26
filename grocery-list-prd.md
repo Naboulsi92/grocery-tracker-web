@@ -8,6 +8,10 @@
 
 ## Changelog
 
+### v1.8
+- La quantité à acheter s'édite **aussi directement sur la page « À acheter »** : le badge devient tactile (tap → édition en ligne, entier ≥ 1, validation identique à celle du formulaire) ; sans intention, une chip « + intention » propose d'en définir une. Le pré-remplissage du champ de réapprovisionnement reste inchangé.
+- L'intention peut donc être **retirée manuellement** (champ vide enregistré = pas d'intention) — décision fondateur du 26 oct. 2026 (#256). La règle d'effacement **atomique côté serveur** au restock validé reste inchangée ; le champ d'édition de la page Articles (v1.7) reste disponible.
+
 ### v1.7
 - Nouvelle donnée article : la **quantité à acheter** (`buy_quantity`) — déclarée **manuellement** dans le formulaire d'édition d'article (page Articles, champ optionnel, entier ≥ 1, vide autorisé = pas d'intention). Les articles seed/template naissent sans valeur.
 - Affichage lecture seule sur la page « À acheter » : badge inline `à acheter : N <unité>` (masqué si vide). Le champ de réapprovisionnement est pré-rempli avec cette valeur (modifiable librement).
@@ -138,7 +142,7 @@
 - **Quantité et seuil** sont saisis manuellement à la création, et modifiables ensuite. Le **seuil est obligatoire** et doit être un nombre entier positif ou nul (supérieur ou égal à 0). (v1.6 : le seuil 0 est désormais valide, entériné — « à acheter » seulement quand l'article atteint 0, sortie de la liste dès la première nouvelle quantité > 0.)
 - **Ajustement du stock** : boutons plus/moins pour les petits ajustements, et **saisie manuelle via le formulaire d'édition** pour les grands écarts. (v1.5 : le tap direct sur la valeur est abandonné — le formulaire suffit.)
 - **Achat (réapprovisionnement)** : l'utilisateur renseigne uniquement la quantité achetée (la différence) ; l'application additionne automatiquement au stock existant.
-- **Quantité à acheter (v1.7)** : champ optionnel du formulaire d'édition (`buy_quantity`, entier ≥ 1, manuel — aucune suggestion automatique). Badge lecture seule sur « À acheter », pré-remplissage du champ d'achat, effacement automatique au restock validé.
+- **Quantité à acheter (v1.7, édition élargie v1.8)** : champ optionnel du formulaire d'édition (`buy_quantity`, entier ≥ 1, manuel — aucune suggestion automatique). Sur « À acheter » : badge tactile (tap → édition en ligne ; champ vide = retrait manuel de l'intention ; chip « + intention » quand aucune), pré-remplissage du champ d'achat, effacement automatique au restock validé.
 - **Consommation** : toujours saisie manuellement — l'application ne peut pas détecter automatiquement ce qui est consommé.
 - Un article dont le stock atteint **0 reste visible** dans la liste (pour être réapprovisionné) ; il ne disparaît que si l'utilisateur le supprime manuellement.
 - **Modification/suppression d'un article** : accessible depuis l'écran d'inventaire (icône dédiée par article). Le nom doit contenir au moins une lettre. La suppression demande une confirmation explicite et renvoie immédiatement à l'écran d'accueil.

@@ -14,8 +14,8 @@ import { getErrorMessage, getLowStockItems, isLowStock, joinInventory, CATEGORY_
 import { applyCategoryPatch, applyToBuyPatch } from '@/lib/realtimePatch';
 import { useHouseholdRealtime } from '@/hooks/useHouseholdRealtime';
 import { useAppBadgeSync } from '@/hooks/useAppBadgeSync';
-import { restockItemQuantity } from '@/lib/itemOperations';
-import { validateQuantity } from '@/lib/validation';
+import { restockItemQuantity, updateItem } from '@/lib/itemOperations';
+import { validateQuantity, validateBuyQuantity } from '@/lib/validation';
 import { getUnitStep } from '@/types/units';
 import { AuthenticatedHeader } from '@/components/AuthenticatedHeader';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -33,6 +33,11 @@ export default function ToBuyPage() {
   const [thresholdNoticeId, setThresholdNoticeId] = useState<string | null>(null);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({});
+  // #256 : édition en ligne de l'intention (badge tactile / chip fantôme).
+  const [intentEditId, setIntentEditId] = useState<string | null>(null);
+  const [intentDraft, setIntentDraft] = useState('');
+  const [intentError, setIntentError] = useState('');
+  const [intentSaving, setIntentSaving] = useState(false);
   const [lowStockCount, setLowStockCount] = useState<number | null>(null);
   const { householdId } = useAuth();
   const { isOnline } = useOnlineStatus();
@@ -191,6 +196,71 @@ export default function ToBuyPage() {
     }
   }
 
+  // #256 : l'intention s'édite directement sur /to-buy. Écriture directe de la
+  // colonne buy_quantity (grant existant, pas de RPC) ; champ vide = clear
+  // manuel (null). Micro-coupure : updateItem enfile le payload 'update' qui
+  // rejoue avec buy_quantity (#252 MS2) ; coupure totale : contrôles désactivés
+  // (PRD §9), comme le restock.
+  function openIntentEdit(item: InventoryItem) {
+    setIntentEditId(item.id);
+    setIntentDraft(item.buy_quantity != null ? String(item.buy_quantity) : '');
+    setIntentError('');
+  }
+
+  function closeIntentEdit() {
+    setIntentEditId(null);
+    setIntentDraft('');
+    setIntentError('');
+  }
+
+  async function saveIntent(item: InventoryItem) {
+    if (intentSaving || intentEditId !== item.id || !householdId) return;
+    const validationError = validateBuyQuantity(intentDraft);
+    if (validationError !== null) {
+      setIntentError(validationError);
+      return;
+    }
+    const trimmed = intentDraft.trim();
+    const value = trimmed === '' ? null : Number(trimmed);
+    if (value === item.buy_quantity) {
+      closeIntentEdit();
+      return;
+    }
+    setIntentSaving(true);
+    setError('');
+    try {
+      const { error } = await updateItem(item.id, householdId, { buy_quantity: value });
+      if (error) {
+        setError(getErrorMessage(error, 'error.save_item'));
+        closeIntentEdit();
+        return;
+      }
+      // Miroir local immédiat (file d'attente comprise) ; le patch realtime
+      // (LWW sur updated_at) confirmera ensuite.
+      setItems((current) =>
+        current.map((it) => (it.id === item.id ? { ...it, buy_quantity: value } : it)),
+      );
+      closeIntentEdit();
+    } finally {
+      setIntentSaving(false);
+    }
+  }
+
+  // Blur : valide et modifiée = enregistrer ; sinon retour sans écriture
+  // (jamais de rangée laissée en édition ouverte par un clic hors champ).
+  function blurIntent(item: InventoryItem) {
+    if (intentSaving) return;
+    const trimmed = intentDraft.trim();
+    if (validateBuyQuantity(trimmed) === null) {
+      const value = trimmed === '' ? null : Number(trimmed);
+      if (value !== item.buy_quantity) {
+        void saveIntent(item);
+        return;
+      }
+    }
+    closeIntentEdit();
+  }
+
   if (isLoading) {
     return (
       <div className="page-container">
@@ -247,13 +317,88 @@ export default function ToBuyPage() {
                       <span className="to-buy-stock">
                         {item.quantity}/{item.low_stock_threshold} {item.unit}
                       </span>
-                      {item.buy_quantity != null && (
-                        <span
-                          className="badge badge-info"
+                      {intentEditId === item.id ? (
+                        <div className="to-buy-intent-edit">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="to-buy-intent-input"
+                            value={intentDraft}
+                            onChange={(e) => {
+                              setIntentDraft(e.target.value);
+                              setIntentError('');
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') void saveIntent(item);
+                              if (e.key === 'Escape') closeIntentEdit();
+                            }}
+                            onBlur={() => blurIntent(item)}
+                            disabled={intentSaving}
+                            autoFocus
+                            aria-label={t('tobuy.buy_quantity_input_aria', { name: item.name })}
+                            data-testid="tobuy-intent-input"
+                          />
+                          {/* preventDefault sur mousedown : le focus reste dans le
+                              champ, blur ne déclenche pas un second save avant le clic. */}
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => void saveIntent(item)}
+                            disabled={intentSaving}
+                            aria-label={t('tobuy.buy_quantity_save_aria', { name: item.name })}
+                            data-testid="tobuy-intent-save"
+                          >
+                            {intentSaving ? (
+                              <span className="spinner" aria-hidden="true"></span>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <polyline points="20 6 9 17 4 12"/>
+                              </svg>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={closeIntentEdit}
+                            disabled={intentSaving}
+                            aria-label={t('tobuy.buy_quantity_cancel_aria', { name: item.name })}
+                            data-testid="tobuy-intent-cancel"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <line x1="18" y1="6" x2="6" y2="18"/>
+                              <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                          </button>
+                          {intentError && (
+                            <p className="field-error" role="alert" data-testid="tobuy-intent-error">
+                              {translateMessage(language, intentError)}
+                            </p>
+                          )}
+                        </div>
+                      ) : item.buy_quantity != null ? (
+                        <button
+                          type="button"
+                          className="badge badge-info to-buy-intent-badge"
+                          onClick={() => openIntentEdit(item)}
+                          disabled={!isOnline}
+                          aria-label={t('tobuy.buy_quantity_edit_aria', { name: item.name })}
                           data-testid={`tobuy-buy-quantity-badge-${item.name.toLowerCase()}`}
                         >
                           {t('tobuy.buy_quantity_badge', { count: item.buy_quantity, unit: item.unit })}
-                        </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="badge badge-info to-buy-intent-ghost"
+                          onClick={() => openIntentEdit(item)}
+                          disabled={!isOnline}
+                          aria-label={t('tobuy.buy_quantity_add_aria', { name: item.name })}
+                          data-testid={`tobuy-buy-quantity-add-${item.name.toLowerCase()}`}
+                        >
+                          {t('tobuy.buy_quantity_add')}
+                        </button>
                       )}
                     </div>
                   </div>

@@ -58,6 +58,28 @@ ticket #230, revue Spec F1) :
 jamais en SQL direct. Le détail opératoire de rattrapage reste
 dans ce runbook, pas dans le code.
 
+### Rattrapage du 26 octobre 2026
+
+- **Épisode 28P01 (21–26 oct)** : tous les chemins SQL MCP (`execute_sql`,
+  `list_migrations`, `apply_migration`) échouaient avec
+  `FATAL: 28P01: password authentication failed for user "postgres"` alors que
+  `get_project` rapportait `ACTIVE_HEALTHY` — mot de passe DB conservé par la
+  plateforme désynchronisé. Résolution humaine (dashboard, Settings →
+  Database → reset du mot de passe) → accès MCP restauré immédiatement, sans
+  secret local ni transmission du mot de passe (le MCP lit le store plateforme).
+- **`threshold_zero_allowed` déjà présent** (stamp `20261018222226`, appliqué
+  le 18 oct) — rien à faire le 26 oct pour ce fichier.
+- **`buy_quantity` appliqué le 26 oct** via MCP `apply_migration`, contenu
+  **verbatim du fichier repo** `supabase/migrations/20261020000000_buy_quantity.sql`
+  (même contenu que prod, qui porte le stamp fichier `20261020000000`).
+  Stamp MCP `20261026143306` = orphelin assumée (piège date-de-tamponnage,
+  cf. leçon 5). Pré-checks (identité 2-arg `adjust_item_quantity(uuid,
+  numeric)` présente avant le drop) et post-checks (colonne, CHECK
+  `items_buy_quantity_check`, identité 3-arg unique, grants
+  `authenticated: UPDATE` sans INSERT pour anon) verts.
+- **Historique : 31 records ↔ 31 fichiers repo** (en nombre ; 9 versions de
+  stamps orphelines assumées, précédent du 17 oct).
+
 ## Câblage Preview → staging (PAR BRANCHE, pas global)
 
 Les variables Preview **globales** pointent sur la prod (c'est voulu : une PR
@@ -105,6 +127,14 @@ qu'aux nouveaux déploiements) et test manuel sur l'URL Preview de la branche
    (`duplicate key … schema_migrations_pkey`) : relancer la migration
    seule une seconde plus tard — la transaction SQL est annulée
    proprement (aucun artefact partiel).
+7. **`28P01` management-API sur tous les chemins SQL** (épisode 21–26 oct
+   2026) : `execute_sql`, `list_migrations` et `apply_migration` échouent
+   en `password authentication failed for user "postgres"` pendant que
+   `get_project` reste `ACTIVE_HEALTHY` → le statut projet n'est pas un
+   oracle d'accès SQL ; le mot de passe DB du store plateforme est
+   désynchronisé. Seul le **reset dashboard** du mot de passe répare
+   l'accès MCP — jamais de transmission du mot de passe dans la
+   conversation ni dans une variable d'environnement shell.
 
 ## Limite connue
 
